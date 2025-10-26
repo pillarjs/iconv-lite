@@ -15,8 +15,7 @@
     "karma-webpack": "^4.0.2",
     "mocha": "^7.2.0",
     "puppeteer": "^4.0.0",
-    "webpack": "^4.43.0",
-    "unorm": "^1.6.0"
+    "webpack": "^4.43.0"
   },
   "dependencies": {
     "iconv-lite": "file:iconv-lite.tgz"
