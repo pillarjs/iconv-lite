@@ -1,10 +1,8 @@
 "use strict"
 
-var mergeModules = require("../lib/helpers/merge-exports")
-
 // Update this array if you add/rename/remove files in this directory.
 // We support Browserify by skipping automatic module discovery and requiring modules directly.
-var modules = [
+const modules = [
   require("./internal"),
   require("./utf32"),
   require("./utf16"),
@@ -17,7 +15,6 @@ var modules = [
 ]
 
 // Put all encoding/alias/codec definitions to single object and export it.
-for (var i = 0; i < modules.length; i++) {
-  var module = modules[i]
-  mergeModules(exports, module)
+for (const module of modules) {
+  Object.assign(exports, module)
 }
