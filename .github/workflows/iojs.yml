@@ -48,7 +48,7 @@ jobs:
         npm config set shrinkwrap false
 
     - name: Remove npm module(s) ${{ matrix.npm-rm }}
-      run: npm rm --silent --save-dev ${{ matrix.npm-rm }} neostandard @stylistic/eslint-plugin-js @stylistic/eslint-plugin eslint
+      run: npm rm --silent --save-dev ${{ matrix.npm-rm }} neostandard @stylistic/eslint-plugin-js @stylistic/eslint-plugin eslint typescript @arethetypeswrong/cli expect-type @types/node
       if: matrix.npm-rm != ''
 
     - name: Install npm module(s) ${{ matrix.npm-i }}
