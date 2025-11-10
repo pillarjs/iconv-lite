@@ -5,24 +5,22 @@
  *  Install with `npm install @types/node --save-dev`
  *--------------------------------------------------------------------------------------------*/
 
-declare module 'iconv-lite' {
-	// Basic API
-	export function decode(buffer: Buffer | Uint8Array, encoding: string, options?: Options): string;
+// Basic API
+export function decode(buffer: Buffer | Uint8Array, encoding: string, options?: Options): string;
 
-	export function encode(content: string, encoding: string, options?: Options): Buffer;
+export function encode(content: string, encoding: string, options?: Options): Buffer;
 
-	export function encodingExists(encoding: string): boolean;
+export function encodingExists(encoding: string): boolean;
 
-	// Stream API
-	export function decodeStream(encoding: string, options?: Options): NodeJS.ReadWriteStream;
+// Stream API
+export function decodeStream(encoding: string, options?: Options): NodeJS.ReadWriteStream;
 
-	export function encodeStream(encoding: string, options?: Options): NodeJS.ReadWriteStream;
+export function encodeStream(encoding: string, options?: Options): NodeJS.ReadWriteStream;
 
-	// Low-level stream APIs
-	export function getEncoder(encoding: string, options?: Options): EncoderStream;
+// Low-level stream APIs
+export function getEncoder(encoding: string, options?: Options): EncoderStream;
 
-	export function getDecoder(encoding: string, options?: Options): DecoderStream;
-}
+export function getDecoder(encoding: string, options?: Options): DecoderStream;
 
 export interface Options {
     stripBOM?: boolean;
