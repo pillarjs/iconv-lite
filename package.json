@@ -1,7 +1,7 @@
 {
     "name": "iconv-lite",
     "description": "Convert character encodings in pure javascript.",
-    "version": "0.6.3",
+    "version": "0.7.0",
     "license": "MIT",
     "keywords": [
         "iconv",
@@ -12,11 +12,15 @@
     "author": "Alexander Shtuchkin <ashtuchkin@gmail.com>",
     "main": "./lib/index.js",
     "typings": "./lib/index.d.ts",
-    "homepage": "https://github.com/ashtuchkin/iconv-lite",
-    "bugs": "https://github.com/ashtuchkin/iconv-lite/issues",
+    "homepage": "https://github.com/pillarjs/iconv-lite",
+    "bugs": "https://github.com/pillarjs/iconv-lite/issues",
+    "funding": {
+      "type": "opencollective",
+      "url": "https://opencollective.com/express"
+    },
     "repository": {
         "type": "git",
-        "url": "git://github.com/ashtuchkin/iconv-lite.git"
+        "url": "https://github.com/pillarjs/iconv-lite.git"
     },
     "engines": {
         "node": ">=0.10.0"
@@ -56,7 +60,6 @@
         "unorm": "^1.6.0"
     },
     "dependencies": {
-        "object-assign": ">= 4.1.1 < 5.0.0",
         "safer-buffer": ">= 2.1.2 < 3.0.0"
     }
 }

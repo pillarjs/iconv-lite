@@ -1,3 +1,27 @@
+## 0.7.0
+
+
+### 🐞 Bug fixes
+
+* Handle split surrogate pairs when encoding utf8 - by [@yosion-p](https://github.com/yosion-p) and [@ashtuchkin](https://github.com/ashtuchkin) in [#282](https://github.com/ashtuchkin/iconv-lite/pull/282):
+
+    Handle a case where streaming utf8 encoder (converting js strings -> buffers) encounters 
+    surrogate pairs split between chunks (last character of one chunk is high surrogate and first
+    character of the next chunk is a low surrogate).
+
+* Avoid false positives in encodingExists by using objects without a prototype - by [@bjohansebas](https://github.com/bjohansebas) in [#328](https://github.com/ashtuchkin/iconv-lite/pull/328)
+
+    The encodingExists method could return incorrect results if the lookup matched properties inherited
+    from the prototype of the object that stores the encodings, such as constructor and others. This change
+    replaces that object with one that has no prototype, ensuring that only explicitly defined valid encodings
+    in the library are considered. In addition, the fix is applied to the internal cache system to avoid the same
+    kind of false positives
+
+### 🚀 Improvements
+
+* Make explicit that decode() method supports Uint8Array input - by [@jardicc](https://github.com/jardicc) in [#271](https://github.com/ashtuchkin/iconv-lite/pull/271)
+* Remove compatibility check for StringDecoder.end method - by [@bjohansebas](https://github.com/bjohansebas) in [#331](https://github.com/ashtuchkin/iconv-lite/pull/331)
+
 ## 0.6.3 / 2021-05-23
   * Fix HKSCS encoding to prefer Big5 codes if both Big5 and HKSCS codes are possible (#264)
 

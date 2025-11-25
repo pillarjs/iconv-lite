@@ -17,6 +17,10 @@ describe("Encoding Existence - Prototype Properties", function () {
   it("should detect encodings", function () {
     assert.equal(iconv.encodingExists("utf8"), true)
   })
+
+  it("should detect all available encodings", function () {
+    assert.strictEqual(Object.keys(iconv.encodings).length, 416)
+  })
 })
 
 describe("Encoding Existence - Codec Data Cache", function () {
@@ -86,7 +90,7 @@ describe("Generic UTF8-UCS2 tests", function () {
     // eslint-disable-next-line  no-extend-native
     Array.prototype.sample2 = function () {}
 
-    iconv._codecDataCache = Object.create(null) // Clean up cache so that all encodings are loaded.
+    iconv._codecDataCache = { __proto__: null } // Clean up cache so that all encodings are loaded.
 
     assert.strictEqual(iconv.decode(Buffer.from("abc"), "gbk"), "abc")
     assert.strictEqual(iconv.decode(Buffer.from("abc"), "win1251"), "abc")
