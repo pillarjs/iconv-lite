@@ -34,22 +34,28 @@
         "test:node-web": "mocha --grep '#node-web'",
         "test:performance": "node --allow-natives-syntax performance/index.js",
         "test:tap": "mocha --reporter tap --check-leaks --grep .",
-        "test:webpack": "npm pack && mv iconv-lite-*.tgz test/webpack/iconv-lite.tgz && cd test/webpack && npm install && npm run test && rm iconv-lite.tgz"
+        "test:typescript": "tsc && attw --pack",
+        "test:webpack": "npm pack && mv iconv-lite-*.tgz test/webpack/iconv-lite.tgz && cd test/webpack && npm install && npm run test && rm iconv-lite.tgz",
+        "typegen": "node generation/gen-typings.js"
     },
     "browser": {
         "./lib/index-node.js": "./lib/index-web.js",
         "stream": false
     },
     "devDependencies": {
+        "@arethetypeswrong/cli": "^0.18.2",
         "@stylistic/eslint-plugin": "^5.1.0",
         "@stylistic/eslint-plugin-js": "^4.1.0",
+        "@types/node": "^24.10.3",
         "bench-node": "^0.10.0",
         "eslint": "^9.0.0",
+        "expect-type": "^1.3.0",
         "iconv": "^2.3.5",
         "mocha": "^10.8.2",
         "neostandard": "^0.12.0",    
         "nyc": "^17.1.0",
-        "unorm": "^1.6.0"
+        "unorm": "^1.6.0",
+        "typescript": "~5.9.3"
     },
     "dependencies": {}
 }

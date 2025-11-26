@@ -169,3 +169,25 @@ jobs:
         shell: bash
         run: |
           npm run test:webpack
+
+  test_typescript:
+    needs:
+      - lint
+      - coverage
+    runs-on: 'ubuntu-latest'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Install
+        run: |
+          npm install --ignore-scripts
+
+      - name: Run typescript tests
+        run: npm run test:typescript

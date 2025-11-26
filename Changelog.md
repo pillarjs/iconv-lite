@@ -1,3 +1,9 @@
+## Unreleased
+
+### 🚀 Improvements
+
+* types: improve type definitions and add missing APIs - by [@plbstl](https://github.com/plbstl) and [@bjohansebas](https://github.com/bjohansebas) and [@Phillip9587](https://github.com/Phillip9587)
+
 ## 0.7.0
 
 
