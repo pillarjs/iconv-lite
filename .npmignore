@@ -11,3 +11,4 @@ performance
 eslint.config.js
 *.tgz
 .git-blame-ignore-revs
+tsconfig.json

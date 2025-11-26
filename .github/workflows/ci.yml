@@ -155,6 +155,11 @@ jobs:
           - node-version: "15"
             npm-rm: 'iconv'
 
+        exclude:
+          # Skip: node-gyp build failure of "iconv" devDependency on Windows with Node 17.x.x
+          - os: windows-latest
+            node-version: "17"
+
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -176,7 +181,7 @@ jobs:
         shell: bash
 
       - name: Remove npm module(s) ${{ matrix.npm-rm }}
-        run: npm rm --silent --save-dev ${{ matrix.npm-rm }} neostandard @stylistic/eslint-plugin-js @stylistic/eslint-plugin eslint
+        run: npm rm --silent --save-dev ${{ matrix.npm-rm }} neostandard @stylistic/eslint-plugin-js @stylistic/eslint-plugin eslint typescript @arethetypeswrong/cli expect-type @types/node
         if: matrix.npm-rm != ''
 
       - name: Install Node version specific dev deps
@@ -249,9 +254,31 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Remove npm module(s) iconv, eslint, neostandard, @stylistic/eslint-plugin-js, @stylistic/eslint-plugin
-        run: npm rm --silent --save-dev iconv neostandard @stylistic/eslint-plugin-js @stylistic/eslint-plugin eslint
+        run: npm rm --silent --save-dev iconv neostandard @stylistic/eslint-plugin-js @stylistic/eslint-plugin eslint typescript @arethetypeswrong/cli expect-type @types/node
 
       - name: Webpack test
         shell: bash
         run: |
           npm run test:webpack
+
+  test_typescript:
+    needs:
+      - lint
+      - coverage
+    runs-on: 'ubuntu-latest'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install
+        run: |
+          npm install --ignore-scripts
+
+      - name: Run typescript tests
+        run: npm run test:typescript
