@@ -155,6 +155,11 @@ jobs:
           - node-version: "15"
             npm-rm: 'iconv'
 
+        exclude:
+          # Skip: node-gyp build failure of "iconv" devDependency on Windows with Node 17.x.x
+          - os: windows-latest
+            node-version: "17"
+
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
