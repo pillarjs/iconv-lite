@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": [ "es2015" ],
+    "module": "commonjs",
+    "noEmit": true,
+    "strict": true
+  },
+  "include": [
+    "./test/types/**/*.ts",
+    "./**/*.d.ts"
+  ]
+}

@@ -8,7 +8,8 @@ module.exports = [
       "encodings/sbcs-data-generated.js", // This a generate file
       // We need work on this
       "generation"
-    ]
+    ],
+    ts: true
   }),
   {
     rules: {
