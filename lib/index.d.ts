@@ -11,24 +11,26 @@
 
 import type { Encoding } from "../types/encodings"
 
-// --- Options ---
-
 declare namespace iconv {
   export interface DecodeOptions {
-    /** Strip the byte order mark (BOM) from the input, when decoding. @default true */
+    /**
+     * Strip the Byte Order Mark (BOM) from the input,
+     * when decoding, if the codec is BOM-aware. @default true
+     */
     stripBOM?: boolean;
     /** Override the default endianness for `UTF-16` and `UTF-32` decodings. */
     defaultEncoding?: "utf16be" | "utf32be";
   }
 
   export interface EncodeOptions {
-    /** Add a byte order mark (BOM) to the output, when encoding. @default false */
+    /**
+     * Add a Byte Order Mark (BOM) to the output, when encoding,
+     * if the codec is BOM-aware. @default false
+     */
     addBOM?: boolean;
     /** Override the default endianness for `UTF-32` encoding. */
     defaultEncoding?: "utf32be";
   }
-
-  // --- Return values ---
 
   export interface EncoderStream {
     write(str: string): Buffer;
@@ -47,8 +49,6 @@ declare namespace iconv {
   }
 
   const iconv: {
-    // --- Basic API ---
-
     /** Encodes a `string` into a `Buffer`, using the provided `encoding`. */
     encode(content: string, encoding: Encoding, options?: EncodeOptions): Buffer;
 
@@ -58,15 +58,11 @@ declare namespace iconv {
     /** Checks if a given encoding is supported by `iconv-lite`. */
     encodingExists(encoding: string): encoding is Encoding;
 
-    // --- Legacy aliases ---
-
     /** Legacy alias for {@link iconv.encode}. */
     toEncoding: typeof iconv.encode;
 
     /** Legacy alias for {@link iconv.decode}. */
     fromEncoding: typeof iconv.decode;
-
-    // --- Stream API ---
 
     /** Creates a stream that decodes binary data from a given `encoding` into strings. */
     decodeStream(encoding: Encoding, options?: DecodeOptions): NodeJS.ReadWriteStream;
@@ -83,8 +79,6 @@ declare namespace iconv {
      */
     enableStreamingAPI(stream_module: any): void;
 
-    // --- Low-level stream APIs ---
-
     /** Creates and returns a low-level encoder stream. */
     getEncoder(encoding: Encoding, options?: EncodeOptions): EncoderStream;
 
@@ -99,8 +93,6 @@ declare namespace iconv {
 
     /** Strips all non-alphanumeric characters and appended year from `encoding`. */
     _canonicalizeEncoding(encoding: Encoding): string;
-
-    // --- Properties ---
 
     /** A cache of all loaded encoding definitions. */
     encodings: Record<
