@@ -46,6 +46,7 @@ declare namespace iconv {
   export interface Codec {
     encoder: new (options?: EncodeOptions, codec?: Codec) => EncoderStream;
     decoder: new (options?: DecodeOptions, codec?: Codec) => DecoderStream;
+    bomAware?: boolean;
     [key: string]: any;
   }
 
@@ -113,6 +114,12 @@ declare namespace iconv {
 
     /** The character used for untranslatable `single-byte` characters. @default "?" */
     defaultCharSingleByte: string;
+
+    /**
+     * Skip deprecation warning when strings are used instead of Buffers during decoding.
+     * Note: {@link iconv.decode} converts the string to Buffer regardless.
+     */
+    skipDecodeWarning: boolean;
 
     /** @readonly Whether or not, Streaming API is enabled. */
     readonly supportsStreams: boolean;
