@@ -9,6 +9,7 @@
  * This file provides detailed typings for the public API of iconv-lite
  *-------------------------------------------------------------------------------------------- */
 
+import type Stream = require("stream");
 import type { Encoding } from "../types/encodings"
 
 declare namespace iconv {
@@ -43,8 +44,8 @@ declare namespace iconv {
   }
 
   export interface Codec {
-    encoder: new (options?: EncodeOptions, codec?: any) => EncoderStream;
-    decoder: new (options?: DecodeOptions, codec?: any) => DecoderStream;
+    encoder: new (options?: EncodeOptions, codec?: Codec) => EncoderStream;
+    decoder: new (options?: DecodeOptions, codec?: Codec) => DecoderStream;
     [key: string]: any;
   }
 
@@ -77,7 +78,7 @@ declare namespace iconv {
      * ```
      * @example iconv.enableStreamingAPI(require('stream'));
      */
-    enableStreamingAPI(stream_module: any): void;
+    enableStreamingAPI(stream_module: { Transform: typeof Stream.Transform }): void;
 
     /** Creates and returns a low-level encoder stream. */
     getEncoder(encoding: Encoding, options?: EncodeOptions): EncoderStream;
