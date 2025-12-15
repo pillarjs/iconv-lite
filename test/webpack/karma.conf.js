@@ -39,18 +39,17 @@ module.exports = function (config) {
       resolve: {
         fallback: {
           stream: require.resolve("stream-browserify"),
-          assert: require.resolve("assert"),
-          util: require.resolve("util"),
-          string_decoder: require.resolve("string_decoder")
+          assert: require.resolve("assert/"),
+          util: require.resolve("util/"),
+          string_decoder: require.resolve("string_decoder/")
         }
       },
       node: {
         global: true
       },
       plugins: [
-        new webpack.DefinePlugin({
-          "process.env": JSON.stringify({}),
-          "process.version": JSON.stringify(process.version)
+        new webpack.ProvidePlugin({
+          process: require.resolve("process/browser.js")
         })
       ]
       // karma watches the test entry points
