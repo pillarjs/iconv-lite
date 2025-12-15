@@ -40,8 +40,7 @@ module.exports = function (config) {
         fallback: {
           stream: require.resolve("stream-browserify"),
           assert: require.resolve("assert/"),
-          util: require.resolve("util/"),
-          string_decoder: require.resolve("string_decoder/")
+          util: require.resolve("util/")
         }
       },
       node: {
