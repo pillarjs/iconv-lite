@@ -25,7 +25,11 @@ function InternalCodec (codecOptions, iconv) {
   this.enc = codecOptions.encodingName
   this.bomAware = codecOptions.bomAware
 
-  if (this.enc === "base64") { this.encoder = InternalEncoderBase64 } else if (this.enc === "utf8") { this.encoder = InternalEncoderUtf8 } else if (this.enc === "cesu8") {
+  if (this.enc === "base64") {
+    this.encoder = InternalEncoderBase64
+  } else if (this.enc === "utf8") {
+    this.encoder = InternalEncoderUtf8
+  } else if (this.enc === "cesu8") {
     this.enc = "utf8" // Use utf8 for decoding.
     this.encoder = InternalEncoderCesu8
 

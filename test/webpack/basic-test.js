@@ -52,7 +52,6 @@ describe("iconv-lite", function () {
 
         var encoded = iconv.encode(expected, encoding)
         var uint8Array = Uint8Array.from(encoded)
-
         var actual = iconv.decode(uint8Array, encoding)
         assert.equal(actual, expected, encoding)
       })
