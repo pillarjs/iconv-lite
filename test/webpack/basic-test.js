@@ -8,6 +8,8 @@ describe("iconv-lite", function () {
   it("can be require-d successfully", function () {
     // Emulate more complex environments that are both web- and node.js-compatible (e.g. Electron renderer process).
     // See https://github.com/ashtuchkin/iconv-lite/issues/204 for details.
+    process.versions.node = "12.0.0"
+
     iconv = require("iconv-lite")
   })
 
