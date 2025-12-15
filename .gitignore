@@ -13,3 +13,5 @@ package-lock.json
 /generation/source-data
 
 .nyc_output
+
+iconv-lite.tgz

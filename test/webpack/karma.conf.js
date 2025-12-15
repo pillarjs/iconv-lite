@@ -11,7 +11,14 @@ module.exports = function (config) {
 
     // frameworks to use
     // available frameworks: https://npmjs.org/browse/keyword/karma-adapter
-    frameworks: ["mocha"],
+    frameworks: ["mocha", "webpack"],
+
+    plugins: [
+      "karma-webpack",
+      "karma-mocha",
+      "karma-chrome-launcher",
+      "karma-mocha-reporter"
+    ],
 
     // list of files / patterns to load in the browser
     files: [
@@ -25,7 +32,14 @@ module.exports = function (config) {
     },
 
     webpack: {
-      mode: "development"
+      mode: "development",
+      target: ["web"],
+      resolve: {
+        fallback: {
+          stream: require.resolve("stream-browserify"),
+          assert: require.resolve("assert/")
+        }
+      }
       // karma watches the test entry points
       // (you don't need to specify the entry option)
       // webpack watches dependencies

@@ -8,14 +8,16 @@
     "test": "karma start --browsers ChromeHeadlessCI"
   },
   "devDependencies": {
-    "karma": "^5.0.9",
-    "karma-chrome-launcher": "^3.1.0",
+    "assert": "^2.1.0",
+    "karma": "^6.4.4",
+    "karma-chrome-launcher": "^3.2.0",
     "karma-mocha": "^2.0.1",
     "karma-mocha-reporter": "^2.2.5",
-    "karma-webpack": "^4.0.2",
+    "karma-webpack": "^5.0.1",
     "mocha": "^7.2.0",
+    "stream-browserify": "^3.0.0",
     "puppeteer": "^4.0.0",
-    "webpack": "^4.43.0"
+    "webpack": "^5.103.0"
   },
   "dependencies": {
     "iconv-lite": "file:iconv-lite.tgz"
