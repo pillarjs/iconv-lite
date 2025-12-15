@@ -1,5 +1,7 @@
 "use strict"
 
+const webpack = require("webpack")
+
 // Karma configuration
 // Generated on Sat May 23 2020 18:02:48 GMT-0400 (Eastern Daylight Time)
 process.env.CHROME_BIN = require("puppeteer").executablePath()
@@ -37,9 +39,19 @@ module.exports = function (config) {
       resolve: {
         fallback: {
           stream: require.resolve("stream-browserify"),
-          assert: require.resolve("assert/")
+          assert: require.resolve("assert/"),
+          util: require.resolve("util/")
         }
-      }
+      },
+      node: {
+        global: true
+      },
+      plugins: [
+        new webpack.DefinePlugin({
+          "process.env": JSON.stringify({}),
+          "process.version": JSON.stringify(process.version)
+        })
+      ]
       // karma watches the test entry points
       // (you don't need to specify the entry option)
       // webpack watches dependencies
