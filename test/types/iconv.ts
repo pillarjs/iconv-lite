@@ -1,4 +1,4 @@
-import iconv from "../../lib"
+import * as iconv from "../../lib"
 import type { Encoding } from "../../lib"
 import { expectTypeOf } from "expect-type"
 

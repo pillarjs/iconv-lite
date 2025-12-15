@@ -9,19 +9,25 @@
  * This file provides detailed typings for the public API of iconv-lite
  *-------------------------------------------------------------------------------------------- */
 
-import type { Encoding } from "../types/encodings"
+import type { Encoding as Encodings } from "../types/encodings"
+
+export = iconv
+
+declare const iconv: iconv.Iconv
 
 // --- Options ---
-
+// eslint-disable-next-line @typescript-eslint/no-redeclare
 declare namespace iconv {
-  export interface DecodeOptions {
+  type Encoding = Encodings
+
+  interface DecodeOptions {
     /** Strip the byte order mark (BOM) from the input, when decoding. @default true */
     stripBOM?: boolean;
     /** Override the default endianness for `UTF-16` and `UTF-32` decodings. */
     defaultEncoding?: "utf16be" | "utf32be";
   }
 
-  export interface EncodeOptions {
+  interface EncodeOptions {
     /** Add a byte order mark (BOM) to the output, when encoding. @default false */
     addBOM?: boolean;
     /** Override the default endianness for `UTF-32` encoding. */
@@ -30,25 +36,24 @@ declare namespace iconv {
 
   // --- Return values ---
 
-  export interface EncoderStream {
+  interface EncoderStream {
     write(str: string): Buffer;
     end(): Buffer | undefined;
   }
 
-  export interface DecoderStream {
+  interface DecoderStream {
     write(buf: Buffer): string;
     end(): string | undefined;
   }
 
-  export interface Codec {
+  interface Codec {
     encoder: new (options?: EncodeOptions, codec?: any) => EncoderStream;
     decoder: new (options?: DecodeOptions, codec?: any) => DecoderStream;
     [key: string]: any;
   }
 
-  const iconv: {
+  interface Iconv {
     // --- Basic API ---
-
     /** Encodes a `string` into a `Buffer`, using the provided `encoding`. */
     encode(content: string, encoding: Encoding, options?: EncodeOptions): Buffer;
 
@@ -59,14 +64,11 @@ declare namespace iconv {
     encodingExists(encoding: string): encoding is Encoding;
 
     // --- Legacy aliases ---
-
     /** Legacy alias for {@link iconv.encode}. */
-    toEncoding: typeof iconv.encode;
+    toEncoding: this["encode"];
 
     /** Legacy alias for {@link iconv.decode}. */
-    fromEncoding: typeof iconv.decode;
-
-    // --- Stream API ---
+    fromEncoding: this["decode"];
 
     /** Creates a stream that decodes binary data from a given `encoding` into strings. */
     decodeStream(encoding: Encoding, options?: DecodeOptions): NodeJS.ReadWriteStream;
@@ -124,8 +126,4 @@ declare namespace iconv {
     /** @readonly Whether or not, Streaming API is enabled. */
     readonly supportsStreams: boolean;
   }
-
-  export type { iconv as Iconv, Encoding }
-  export { iconv as default }
 }
-export = iconv
