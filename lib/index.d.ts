@@ -46,7 +46,7 @@ declare namespace iconv {
     [key: string]: any;
   }
 
-  const iconv: {
+  export interface Iconv {
     // --- Basic API ---
 
     /** Encodes a `string` into a `Buffer`, using the provided `encoding`. */
@@ -60,11 +60,11 @@ declare namespace iconv {
 
     // --- Legacy aliases ---
 
-    /** Legacy alias for {@link iconv.encode}. */
-    toEncoding: typeof iconv.encode;
+    /** Legacy alias for {@link Iconv.encode}. */
+    toEncoding: Iconv["encode"];
 
-    /** Legacy alias for {@link iconv.decode}. */
-    fromEncoding: typeof iconv.decode;
+    /** Legacy alias for {@link Iconv.decode}. */
+    fromEncoding: Iconv["decode"];
 
     // --- Stream API ---
 
@@ -125,7 +125,11 @@ declare namespace iconv {
     readonly supportsStreams: boolean;
   }
 
+  const iconv: Iconv
+
   export type { iconv as Iconv, Encoding }
   export { iconv as default }
 }
+
 export = iconv
+export as namespace iconv
