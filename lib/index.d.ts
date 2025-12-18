@@ -9,8 +9,8 @@
  * This file provides detailed typings for the public API of iconv-lite
  *-------------------------------------------------------------------------------------------- */
 
-import type Stream = require("stream");
-import type { Encoding } from "../types/encodings";
+import type Stream = require("stream")
+import type { Encoding } from "../types/encodings"
 
 declare namespace iconv {
   export interface DecodeOptions {
@@ -51,25 +51,25 @@ declare namespace iconv {
   }
 
   /** Encodes a `string` into a `Buffer`, using the provided `encoding`. */
-  export function encode(content: string, encoding: Encoding, options?: EncodeOptions): Buffer;
+  export function encode (content: string, encoding: Encoding, options?: EncodeOptions): Buffer
 
   /** Decodes a `Buffer` into a `string`, using the provided `encoding`. */
-  export function decode(buffer: Buffer | Uint8Array, encoding: Encoding, options?: DecodeOptions): string;
+  export function decode (buffer: Buffer | Uint8Array, encoding: Encoding, options?: DecodeOptions): string
 
   /** Checks if a given encoding is supported by `iconv-lite`. */
-  export function encodingExists(encoding: string): encoding is Encoding;
+  export function encodingExists (encoding: string): encoding is Encoding
 
   /** Legacy alias for {@link iconv.encode}. */
-  export const toEncoding: typeof iconv.encode;
+  export const toEncoding: typeof iconv.encode
 
   /** Legacy alias for {@link iconv.decode}. */
-  export const fromEncoding: typeof iconv.decode;
+  export const fromEncoding: typeof iconv.decode
 
   /** Creates a stream that decodes binary data from a given `encoding` into strings. */
-  export function decodeStream(encoding: Encoding, options?: DecodeOptions): NodeJS.ReadWriteStream;
+  export function decodeStream (encoding: Encoding, options?: DecodeOptions): NodeJS.ReadWriteStream
 
   /** Creates a stream that encodes strings into binary data in a given `encoding`. */
-  export function encodeStream(encoding: Encoding, options?: EncodeOptions): NodeJS.ReadWriteStream;
+  export function encodeStream (encoding: Encoding, options?: EncodeOptions): NodeJS.ReadWriteStream
 
   /**
    * Explicitly enable Streaming API in browser environments by passing in:
@@ -78,53 +78,53 @@ declare namespace iconv {
    * ```
    * @example iconv.enableStreamingAPI(require('stream'));
    */
-  export function enableStreamingAPI(stream_module: { Transform: typeof Stream.Transform }): void;
+  export function enableStreamingAPI (stream_module: { Transform: typeof Stream.Transform }): void
 
   /** Creates and returns a low-level encoder stream. */
-  export function getEncoder(encoding: Encoding, options?: EncodeOptions): EncoderStream;
+  export function getEncoder (encoding: Encoding, options?: EncodeOptions): EncoderStream
 
   /** Creates and returns a low-level decoder stream. */
-  export function getDecoder(encoding: Encoding, options?: DecodeOptions): DecoderStream;
+  export function getDecoder (encoding: Encoding, options?: DecodeOptions): DecoderStream
 
   /**
    * Returns a codec object for the given `encoding`.
    * @throws If the `encoding` is not recognized.
    */
-  export function getCodec(encoding: Encoding): Codec;
+  export function getCodec (encoding: Encoding): Codec
 
   /** Strips all non-alphanumeric characters and appended year from `encoding`. */
-  export function _canonicalizeEncoding(encoding: Encoding): string;
+  export function _canonicalizeEncoding (encoding: Encoding): string
 
   /** A cache of all loaded encoding definitions. */
   export let encodings: Record<
     Encoding,
     | string
     | {
-        type: string;
-        [key: string]: any;
-      }
-  > | null;
+      type: string;
+      [key: string]: any;
+    }
+  > | null
 
   /** A cache of initialized codec objects. */
-  export let _codecDataCache: Record<string, Codec>;
+  export let _codecDataCache: Record<string, Codec>
 
   /** The character used for untranslatable `Unicode` characters. @default "�" */
-  export let defaultCharUnicode: string;
+  export let defaultCharUnicode: string
 
   /** The character used for untranslatable `single-byte` characters. @default "?" */
-  export let defaultCharSingleByte: string;
+  export let defaultCharSingleByte: string
 
   /**
    * Skip deprecation warning when strings are used instead of Buffers during decoding.
    * Note: {@link iconv.decode} converts the string to Buffer regardless.
    */
-  export let skipDecodeWarning: boolean;
+  export let skipDecodeWarning: boolean
 
   /** @readonly Whether or not, Streaming API is enabled. */
-  export const supportsStreams: boolean;
+  export const supportsStreams: boolean
 
-  export type { iconv as Iconv, Encoding };
-  export { iconv as default };
+  export type { iconv as Iconv, Encoding }
+  export { iconv as default }
 }
 
-export = iconv;
+export = iconv
