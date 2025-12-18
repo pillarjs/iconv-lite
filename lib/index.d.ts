@@ -124,7 +124,6 @@ declare namespace iconv {
   export const supportsStreams: boolean
 
   export type { iconv as Iconv, Encoding }
-  export { iconv as default }
 }
 
 export = iconv
