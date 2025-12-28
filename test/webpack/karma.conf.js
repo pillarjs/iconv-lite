@@ -40,7 +40,8 @@ module.exports = function (config) {
         fallback: {
           stream: require.resolve("stream-browserify"),
           assert: require.resolve("assert/"),
-          util: require.resolve("util/")
+          util: require.resolve("util/"),
+          buffer: require.resolve("buffer") // This should't be needed, need work in remove this.
         }
       },
       node: {

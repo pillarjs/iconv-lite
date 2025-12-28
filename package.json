@@ -35,7 +35,7 @@
         "test:performance": "node --allow-natives-syntax performance/index.js",
         "test:tap": "mocha --reporter tap --check-leaks --grep .",
         "test:typescript": "tsc && attw --pack",
-        "test:webpack": "npm pack && mv iconv-lite-*.tgz test/webpack/iconv-lite.tgz && cd test/webpack && npm install && npm run test && rm iconv-lite.tgz",
+        "test:webpack": "npm pack && mv iconv-lite-*.tgz test/webpack/iconv-lite.tgz && cd test/webpack && npm install && npm run test && rm iconv-lite.tgz && rm -r node_modules",
         "typegen": "node generation/gen-typings.js"
     },
     "browser": {

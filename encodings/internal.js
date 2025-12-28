@@ -46,23 +46,42 @@ InternalCodec.prototype.decoder = InternalDecoder
 
 // ------------------------------------------------------------------------------
 
-// We use node.js internal decoder. Its signature is the same as ours.
-var StringDecoder = require("string_decoder").StringDecoder
-
 function InternalDecoder (options, codec) {
-  this.decoder = new StringDecoder(codec.enc)
+  if (codec.enc === "hex" || codec.enc === "base64" || codec.enc === "binary") {
+    this.decoder = {
+      enc: codec.enc,
+      buffer: Buffer.from(""),
+      decode: function (buf) {
+        if (buf === undefined) {
+          var res = this.buffer
+          this.buffer = Buffer.from("")
+          return res.toString(this.enc)
+        } else {
+          if (!Buffer.isBuffer(buf)) {
+            buf = Buffer.from(buf)
+          }
+          this.buffer = Buffer.concat([this.buffer, buf])
+          return ""
+        }
+      }
+    }
+  } else if (codec.enc === "ucs2") {
+    this.decoder = new TextDecoder("utf-16", { ignoreBOM: options?.stripBOM === false || typeof options?.stripBOM === "function" })
+  }
+  else {
+    this.decoder = new TextDecoder(codec.enc, { ignoreBOM: options?.stripBOM === false || typeof options?.stripBOM === "function" })
+  }
 }
 
 InternalDecoder.prototype.write = function (buf) {
   if (!Buffer.isBuffer(buf)) {
     buf = Buffer.from(buf)
   }
-
-  return this.decoder.write(buf)
+  return this.decoder.decode(buf, { stream: true })
 }
 
 InternalDecoder.prototype.end = function () {
-  return this.decoder.end()
+  return this.decoder.decode(undefined, { stream: true })
 }
 
 // ------------------------------------------------------------------------------
