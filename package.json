@@ -14,6 +14,11 @@
     "typings": "./lib/index.d.ts",
     "homepage": "https://github.com/pillarjs/iconv-lite",
     "bugs": "https://github.com/pillarjs/iconv-lite/issues",
+    "files": [
+        "lib/",
+        "encodings/",
+        "types/"
+    ],
     "funding": {
       "type": "opencollective",
       "url": "https://opencollective.com/express"
