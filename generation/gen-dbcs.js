@@ -99,7 +99,7 @@ async.parallel({
     }
 
     // GB18030:2005 addition
-    gbk2005add = [['8135f437', '']];
+    var gbk2005add = [['8135f437', '']];
 
     utils.writeTable("gbk-added", utils.generateTable(gbkadd).concat(gbk2005add));
 

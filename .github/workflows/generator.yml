@@ -1,0 +1,35 @@
+name: Update Encodings
+
+on:
+    workflow_dispatch:
+    # schedule:
+    #     - cron:  '0 8 * * *'  # Uncomment this when it is in the master branch.
+
+permissions:
+    pull-requests: write
+    contents: write
+
+jobs:
+    update-encodings:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+
+            - name: Run scripts
+              run: npm run generate
+
+            - name: Create Pull Request
+              uses: gr2m/create-or-update-pull-request-action@v1
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with: 
+                commit-message: 'chore: update encodings'
+                title: 'chore: update encodings'
+                body: >
+                  This auto-generated PR updates encodings to the latest version. 
+                  
+                  cc: @pillarjs/iconv-lite-collaborators 
+                branch: bot/update-encodings
