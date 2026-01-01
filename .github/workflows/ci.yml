@@ -201,7 +201,7 @@ jobs:
         run: npm run test:ci
 
       - name: Upload code coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-node-${{ matrix.node-version }}-${{ matrix.os }}
           path: ./coverage/lcov.info
