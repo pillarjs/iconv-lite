@@ -28,6 +28,7 @@
     "scripts": {
         "lint": "eslint",
         "lint:fix": "eslint --fix",
+        "generate": "npm run generate --workspaces --if-present",
         "test": "mocha --reporter spec --check-leaks --grep .",
         "test:ci": "nyc --exclude test --reporter=lcovonly --reporter=text npm test",
         "test:cov": "nyc --exclude test --reporter=html --reporter=text npm test",
@@ -57,5 +58,8 @@
         "unorm": "^1.6.0",
         "typescript": "~5.9.3"
     },
-    "dependencies": {}
+    "dependencies": {},
+    "workspaces": [
+        "generation"
+    ]
 }

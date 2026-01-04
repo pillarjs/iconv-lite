@@ -2,6 +2,11 @@
     "name": "iconv-lite-generators",
     "private": true,
     "version": "1.0.0",
+    "scripts": {
+        "generate": "npm run generate:dbcs && npm run generate:sbcs",
+        "generate:dbcs": "node gen-dbcs.js",
+        "generate:sbcs": "node gen-sbcs.js"
+    },
     "devDependencies": {
         "async": "^3.2.0",
         "errto": "^0.2.1",
