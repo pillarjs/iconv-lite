@@ -1,2 +1,4 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import iconv, { Iconv, Codec, DecodeOptions, DecoderStream, EncodeOptions, EncoderStream, Encoding } from "../../lib"
+import { Iconv, Codec, DecodeOptions, DecoderStream, EncodeOptions, EncoderStream, Encoding } from "../../lib"
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import * as iconv from "../../lib"
