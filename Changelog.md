@@ -1,3 +1,13 @@
+## 0.7.2
+
+### 🐞 Bug fixes
+
+* Correction of CommonJS exports in TypeScript definitions - by [@plbstl](https://github.com/plbstl) in [#366](https://github.com/pillarjs/iconv-lite/pull/366)
+
+    Fixed the TypeScript definitions to correctly represent the CommonJS exports of the library. 
+    This resolves issues where consumers using TypeScript would encounter errors due to incorrect 
+    type definitions that did not align with the actual module exports.
+
 ## 0.7.1
 
 ### 🚀 Improvements
