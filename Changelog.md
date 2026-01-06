@@ -17,6 +17,16 @@
     This paves the way for supporting environments without Node.js Buffer, such as browsers using Uint8Array.
     This is a work in progress, so many parts still rely on Buffer internally, but the goal is to eventually have full support for a Uint8Array based implementation.
 
+- Update of the GBK encoding table according to changes in the specification - by [@bjohansebas](https://github.com/bjohansebas) in [#371](https://github.com/pillarjs/iconv-lite/pull/371)
+
+    The GBK encoding table was updated to reflect the latest changes in the Encoding Standard:
+
+    * A6D9–A6DF: Assigned 7 vertical presentation punctuation characters (︐︒︑︓︔︕︖) that were previously unmapped
+    * A6EC–A6ED: Assigned 2 presentation characters (︗︘) that were previously unmapped
+    * A6F3: Assigned a punctuation character (︙) that was previously unmapped
+    * FE50: Inserted characters 龴, 龵, 龶, 龷, 龸, 龹 at specific positions in the sequence
+    * FE80: Inserted characters 龺, 龻 at specific positions in the sequence
+
 ## 0.7.1
 
 ### 🚀 Improvements
