@@ -1,3 +1,22 @@
+## 1.0.0-alpha.1
+
+### ⚠️ Breaking changes
+
+- Remove support for Node <18 and safe-buffer dependency - by [@bjohansebas](https://github.com/bjohansebas), [@Phillip9587](https://github.com/Phillip9587) and [@TheThing](https://github.com/TheThing) in [#265](https://github.com/pillarjs/iconv-lite/pull/265) [#349](https://github.com/pillarjs/iconv-lite/pull/349)
+
+    Node.js versions prior to 18 are no longer supported. This allows us to remove the safe-buffer dependency and use native Buffer methods available in Node 18 and later. 
+
+- Use native TextDecoder for decoding - by [@JohnGu9](https://github.com/JohnGu9) and [@bjohansebas](https://github.com/bjohansebas) in [#316](https://github.com/pillarjs/iconv-lite/pull/316)
+
+    While this improves compatibility with web standards, some edge cases may behave differently because the implementation of TextDecoder in Node.js or other JavaScript runtimes has issues with the specification.
+    
+### 🚀 Improvements
+
+- Introduce backend abstraction layer to support to Uint8Array buffer implementation - by [@ashtuchkin](https://github.com/ashtuchkin)
+
+    This paves the way for supporting environments without Node.js Buffer, such as browsers using Uint8Array.
+    This is a work in progress, so many parts still rely on Buffer internally, but the goal is to eventually have full support for a Uint8Array based implementation.
+
 ## 0.7.1
 
 ### 🚀 Improvements
