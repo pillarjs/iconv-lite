@@ -34,7 +34,7 @@ jobs:
             npm-rm: 'iconv'
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v6.0.2
 
     - name: Install iojs ${{ matrix.node-version }}
       shell: bash -eo pipefail -l {0}
