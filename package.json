@@ -43,7 +43,9 @@
         "typegen": "node generation/gen-typings.js"
     },
     "browser": {
-        "stream": false
+        "stream": false,
+        "safer-buffer": "./lib/browser-buffer.js",
+        "string_decoder": "./lib/browser-string-decoder.js"
     },
     "devDependencies": {
         "@arethetypeswrong/cli": "^0.17.4",
