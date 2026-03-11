@@ -26,13 +26,16 @@ function SBCSCodec (codecOptions, iconv) {
   this.decodeBuf = Buffer.from(codecOptions.chars, "ucs2")
 
   // Encoding buffer.
-  var encodeBuf = Buffer.alloc(65536, iconv.defaultCharSingleByte.charCodeAt(0))
+  var defaultCharByte = iconv.defaultCharSingleByte.charCodeAt(0)
+  var encodeBuf = Buffer.alloc(65536, defaultCharByte)
 
   for (var i = 0; i < codecOptions.chars.length; i++) {
     encodeBuf[codecOptions.chars.charCodeAt(i)] = i
   }
 
   this.encodeBuf = encodeBuf
+  this.defaultCharByte = defaultCharByte
+  this.defaultCharCode = codecOptions.chars.charCodeAt(defaultCharByte)
 }
 
 SBCSCodec.prototype.encoder = SBCSEncoder
@@ -40,12 +43,47 @@ SBCSCodec.prototype.decoder = SBCSDecoder
 
 function SBCSEncoder (options, codec) {
   this.encodeBuf = codec.encodeBuf
+  this.invalidCharHandler = options && options.invalidCharHandler
+  this.defaultCharByte = codec.defaultCharByte
+  this.defaultCharCode = codec.defaultCharCode
 }
 
 SBCSEncoder.prototype.write = function (str) {
   var buf = Buffer.alloc(str.length)
+
+  var encodeBuf = this.encodeBuf
+  var invalidCharHandler = this.invalidCharHandler
+
+  if (typeof invalidCharHandler === "function") {
+    return encodeWithInvalidCharHandler(this, str, buf, encodeBuf, invalidCharHandler)
+  }
+
   for (var i = 0; i < str.length; i++) {
-    buf[i] = this.encodeBuf[str.charCodeAt(i)]
+    buf[i] = encodeBuf[str.charCodeAt(i)]
+  }
+
+  return buf
+}
+
+function encodeWithInvalidCharHandler (encoder, str, buf, encodeBuf, invalidCharHandler) {
+  var defaultCharByte = encoder.defaultCharByte
+  var defaultCharCode = encoder.defaultCharCode
+
+  for (var i = 0; i < str.length; i++) {
+    var charCode = str.charCodeAt(i)
+    var encodedByte = encodeBuf[charCode]
+
+    // `encodeBuf` uses default byte for unmappable chars. Disambiguate by
+    // allowing the codec character that genuinely maps to that default byte.
+    if (encodedByte !== defaultCharByte || charCode === defaultCharCode) {
+      buf[i] = encodedByte
+      continue
+    }
+
+    if (invalidCharHandler(str.charAt(i), i) === true) {
+      return null
+    }
+    buf[i] = encodedByte
   }
 
   return buf
