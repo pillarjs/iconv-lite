@@ -54,6 +54,21 @@ describe("invalidCharHandler (SBCS)", function () {
     })
   })
 
+  it("supports error message with full character details (even for surrogate pairs)", function () {
+    var encoding = "latin1"
+
+    assert.throws(function () {
+      iconv.encode("Hello 🙂", encoding, {
+        invalidCharHandler: function (char, index) {
+          throw new Error("Cannot encode character " + char + " at index " + index + " to " + encoding)
+        }
+      })
+    }, function (err) {
+      assert.strictEqual(err.message, "Cannot encode character 🙂 at index 6 to latin1")
+      return true
+    })
+  })
+
   it("supports stopping SBCS encoding via handler return value", function () {
     var calls = []
     var res = iconv.encode("A世界B", "latin1", {

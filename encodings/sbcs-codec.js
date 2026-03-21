@@ -80,6 +80,21 @@ function encodeWithInvalidCharHandler (encoder, str, buf, encodeBuf, invalidChar
       continue
     }
 
+    // If an unencodable char is a surrogate pair, pass the full pair to the handler once.
+    // Index remains UTF-16 code-unit based and points to the high surrogate.
+    if (charCode >= 0xD800 && charCode <= 0xDBFF && i + 1 < str.length) {
+      var nextCharCode = str.charCodeAt(i + 1)
+      if (nextCharCode >= 0xDC00 && nextCharCode <= 0xDFFF) {
+        if (invalidCharHandler(str.slice(i, i + 2), i) === true) {
+          return null
+        }
+        buf[i] = encodedByte
+        buf[i + 1] = encodeBuf[nextCharCode]
+        i++
+        continue
+      }
+    }
+
     if (invalidCharHandler(str.charAt(i), i) === true) {
       return null
     }
