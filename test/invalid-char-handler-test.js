@@ -69,6 +69,22 @@ describe("invalidCharHandler (SBCS)", function () {
     })
   })
 
+  it("reports index as UTF-16 character position", function () {
+    var calls = []
+    var res = iconv.encode("A🙂世B", "latin1", {
+      invalidCharHandler: function (char, index) {
+        calls.push({ char: char, index: index })
+      }
+    })
+
+    assert.strictEqual(res.toString("binary"), "A???B")
+    assert.strictEqual(calls.length, 2)
+    assert.strictEqual(calls[0].char, "🙂")
+    assert.strictEqual(calls[0].index, 1)
+    assert.strictEqual(calls[1].char, "世")
+    assert.strictEqual(calls[1].index, 2)
+  })
+
   it("supports stopping SBCS encoding via handler return value", function () {
     var calls = []
     var res = iconv.encode("A世界B", "latin1", {
@@ -82,6 +98,7 @@ describe("invalidCharHandler (SBCS)", function () {
     assert.strictEqual(calls.length, 1)
     assert.strictEqual(calls[0].char, "世")
     assert.strictEqual(calls[0].index, 1)
+    // We don't call the handler for "界" because we stopped encoding after "世".
   })
 
   it("keeps default replacement when handler returns a value", function () {

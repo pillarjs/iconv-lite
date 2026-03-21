@@ -68,6 +68,7 @@ SBCSEncoder.prototype.write = function (str) {
 function encodeWithInvalidCharHandler (encoder, str, buf, encodeBuf, invalidCharHandler) {
   var defaultCharByte = encoder.defaultCharByte
   var defaultCharCode = encoder.defaultCharCode
+  var codePointIndex = 0
 
   for (var i = 0; i < str.length; i++) {
     var charCode = str.charCodeAt(i)
@@ -77,28 +78,31 @@ function encodeWithInvalidCharHandler (encoder, str, buf, encodeBuf, invalidChar
     // allowing the codec character that genuinely maps to that default byte.
     if (encodedByte !== defaultCharByte || charCode === defaultCharCode) {
       buf[i] = encodedByte
+      codePointIndex++
       continue
     }
 
     // If an unencodable char is a surrogate pair, pass the full pair to the handler once.
-    // Index remains UTF-16 code-unit based and points to the high surrogate.
+    // Index is Unicode code-point based.
     if (charCode >= 0xD800 && charCode <= 0xDBFF && i + 1 < str.length) {
       var nextCharCode = str.charCodeAt(i + 1)
       if (nextCharCode >= 0xDC00 && nextCharCode <= 0xDFFF) {
-        if (invalidCharHandler(str.slice(i, i + 2), i) === true) {
+        if (invalidCharHandler(str.slice(i, i + 2), codePointIndex) === true) {
           return null
         }
         buf[i] = encodedByte
         buf[i + 1] = encodeBuf[nextCharCode]
         i++
+        codePointIndex++
         continue
       }
     }
 
-    if (invalidCharHandler(str.charAt(i), i) === true) {
+    if (invalidCharHandler(str.charAt(i), codePointIndex) === true) {
       return null
     }
     buf[i] = encodedByte
+    codePointIndex++
   }
 
   return buf
