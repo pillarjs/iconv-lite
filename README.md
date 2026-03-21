@@ -27,6 +27,22 @@ str = iconv.decode(Buffer.from([0x68, 0x65, 0x6c, 0x6c, 0x6f]), 'win1251');
 // Convert from a js string to an encoded buffer.
 buf = iconv.encode("Sample input string", 'win1251');
 
+// Customize handling in case some characters are not representable in the target encoding
+buf = iconv.encode("Hello 世界", 'latin1', {
+    invalidCharHandler: function(char, index) {
+        throw new Error("Cannot encode character " + char + " at index " + index);
+    }
+});
+
+// Stop after first unsupported character (useful to avoid repeated warnings)
+buf = iconv.encode("Hello 世界", 'latin1', {
+    invalidCharHandler: function(char, index) {
+        console.warn("Unsupported character " + char + " at index " + index);
+        return true;
+    }
+});
+// => null
+
 // Check if encoding is supported
 iconv.encodingExists("us-ascii")
 ```
@@ -109,7 +125,7 @@ This library supports UTF-32LE, UTF-32BE and UTF-32 encodings. Like the UTF-16 e
 ## Other notes
 
 When decoding, be sure to supply a Buffer to decode() method, otherwise [bad things usually happen](https://github.com/ashtuchkin/iconv-lite/wiki/Use-Buffers-when-decoding).  
-Untranslatable characters are set to � or ?. No transliteration is currently supported.  
+Untranslatable characters are set to � or ?. For single-byte encoding, `invalidCharHandler` can be used to observe unsupported characters and warn or throw. You can also stop early by returning `true` from the handler, in which case `encode()` returns `null`. No transliteration is currently supported.  
 Node versions 0.10.31 and 0.11.13 are buggy, don't use them (see [#65](https://github.com/ashtuchkin/iconv-lite/issues/65), [#77](https://github.com/ashtuchkin/iconv-lite/issues/77)).  
 
 ## Testing
