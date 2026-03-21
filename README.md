@@ -30,14 +30,14 @@ buf = iconv.encode("Sample input string", 'win1251');
 // Customize handling in case some characters are not representable in the target encoding
 buf = iconv.encode("Hello 世界", 'latin1', {
     invalidCharHandler: function(char, index) {
-        throw new Error("Cannot encode character " + JSON.stringify(char) + " at index " + index);
+        throw new Error("Cannot encode character " + char + " at index " + index);
     }
 });
 
 // Stop after first unsupported character (useful to avoid repeated warnings)
 buf = iconv.encode("Hello 世界", 'latin1', {
     invalidCharHandler: function(char, index) {
-        console.warn("Unsupported character " + JSON.stringify(char) + " at index " + index);
+        console.warn("Unsupported character " + char + " at index " + index);
         return true;
     }
 });
