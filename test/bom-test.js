@@ -2,6 +2,7 @@ var assert = require("assert")
 var Buffer = require("safer-buffer").Buffer
 var join = require("path").join
 var iconv = require(join(__dirname, "/../"))
+var StripBOM = require(join(__dirname, "/../lib/bom-handling")).StripBOM
 
 var sampleStr = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<俄语>данные</俄语>"
 var strBOM = "\ufeff"
@@ -64,6 +65,24 @@ describe("BOM Handling", function () {
 
     var body = Buffer.concat([iconv.encode(sampleStr, "utf16le")]).toString("hex")
     assert.equal(iconv.encode(sampleStr, "utf16", { addBOM: false }).toString("hex"), body)
+  })
+
+  it("strips BOM emitted only by the wrapped decoder's end()", function () {
+    function BufferingDecoder () { this.buf = "" }
+    BufferingDecoder.prototype.write = function (chunk) {
+      this.buf += chunk.toString("utf8")
+      return ""
+    }
+    BufferingDecoder.prototype.end = function () {
+      var res = this.buf; this.buf = ""; return res
+    }
+
+    var bomStripped = false
+    var wrapper = new StripBOM(new BufferingDecoder(), { stripBOM: function () { bomStripped = true } })
+    var out = wrapper.write(Buffer.from("﻿hello", "utf8"))
+    out += wrapper.end()
+    assert.equal(out, "hello")
+    assert(bomStripped)
   })
 
   it("when stripping BOM, calls callback 'stripBOM' if provided", function () {
