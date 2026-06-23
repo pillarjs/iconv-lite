@@ -113,9 +113,9 @@ Utf32Decoder.prototype.write = function (src) {
       // NOTE: codepoint is a signed int32 and can be negative.
       // NOTE: We copied this block from below to help V8 optimize it (it works with array, not buffer).
       if (isLE) {
-        codepoint = overflow[i] | (overflow[i + 1] << 8) | (overflow[i + 2] << 16) | (overflow[i + 3] << 24)
+        codepoint = overflow[0] | (overflow[1] << 8) | (overflow[2] << 16) | (overflow[3] << 24)
       } else {
-        codepoint = overflow[i + 3] | (overflow[i + 2] << 8) | (overflow[i + 1] << 16) | (overflow[i] << 24)
+        codepoint = overflow[3] | (overflow[2] << 8) | (overflow[1] << 16) | (overflow[0] << 24)
       }
       overflow.length = 0
 
