@@ -160,3 +160,20 @@ describe("Full SBCS encoding tests", function () {
     }
   }
 })
+
+describe("ISO-8859-8-I / ISO-8859-8-E aliases", function () {
+  var hebrewBytes = Buffer.from([0xE0, 0xE1, 0xE2])
+  var hebrewExpected = "\u05D0\u05D1\u05D2" // אבג
+
+  it("encodingExists recognizes the directional labels", function () {
+    assert(iconv.encodingExists("iso-8859-8-i"))
+    assert(iconv.encodingExists("iso-8859-8-e"))
+  })
+
+  it("decodes -i/-e labels identically to iso-8859-8", function () {
+    assert.strictEqual(iconv.decode(hebrewBytes, "iso-8859-8"), hebrewExpected)
+    assert.strictEqual(iconv.decode(hebrewBytes, "iso-8859-8-i"), hebrewExpected)
+    assert.strictEqual(iconv.decode(hebrewBytes, "ISO-8859-8-I"), hebrewExpected)
+    assert.strictEqual(iconv.decode(hebrewBytes, "iso-8859-8-e"), hebrewExpected)
+  })
+})
