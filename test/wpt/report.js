@@ -9,6 +9,7 @@
 const path = require("path")
 const wptRunner = require("wpt-runner")
 const setup = require("./shim")
+const { WINDOW_TESTS, runWindowTest } = require("./run-window")
 const { version } = require("../../package.json")
 
 // iconv-lite commit the report was generated against (for traceability).
@@ -40,13 +41,22 @@ const reporter = {
   reportStack () {}
 }
 
+// jsdom runs the `.any.js` API tests; `.window.js` mapping tests run via the vm
+// runner below. The `.window.js` server-backed variants (?XMLHttpRequest,
+// ?document) and the legacy-mb iframe tests remain TODO (need the WPT server).
 wptRunner(wptRoot, {
   rootURL: "/",
   setup,
   reporter,
-  filter: (testPath) => /\.(any|window)\.html$/.test(testPath)
+  filter: (testPath) => /\.any\.html$/.test(testPath)
 })
   .then(() => {
+    // Append the vm-based window tests (Node.js-style runner).
+    for (const t of WINDOW_TESTS) {
+      const r = runWindowTest(t)
+      files.push({ file: r.file.replace(/\.js$/, ".html"), pass: r.pass, fail: r.fail, failures: r.failures })
+    }
+
     const totalFail = files.reduce((n, f) => n + f.fail, 0)
     const out = []
     out.push(`### Node ${process.version}\n`)

@@ -31,13 +31,27 @@ the WHATWG Encoding Standard, e.g.:
 ## Layout
 
 - [`shim.js`](./shim.js) — iconv-lite-backed `TextDecoder` / `TextEncoder`.
-- [`run.js`](./run.js) — wpt-runner entry point (served from the WPT root so
-  `/common/...` and `resources/...` includes resolve).
+- [`run.js`](./run.js) — entry point. Runs `.any.js` API tests via wpt-runner
+  (jsdom) and `.window.js` mapping tests via the vm runner.
+- [`run-window.js`](./run-window.js) — a small `vm`-based runner (following the
+  approach Node.js's `WPTRunner` uses) for `.window.js` tests that ship multiple
+  `// META: variant=` blocks. It pins `location.search` to the TextDecoder
+  variant so the mapping assertions run against iconv-lite without a browser.
+- [`report.js`](./report.js) — combines both runners into a Markdown report.
 - [`update.js`](./update.js) — refreshes `upstream/` from a sparse checkout of
   web-platform-tests. Edit its `FILES` list to add/remove coverage.
 - [`upstream/`](./upstream) — **unmodified** vendored WPT files (BSD-3-Clause / W3C
   licensed), curated to the TextDecoder/TextEncoder behaviour relevant to
   iconv-lite. Source commit recorded in [`UPSTREAM`](./UPSTREAM).
+
+## Not yet covered (future work)
+
+- The `.window.js` **non-TextDecoder variants** (`?XMLHttpRequest`, `?document`)
+  and the **legacy multi-byte** decode tests (`legacy-mb-*/*.html`,
+  shift_jis/euc-jp/euc-kr/big5) are iframe/XHR-based and need the official WPT
+  python server (e.g. `wpt serve`). Running those would extend coverage.
+- Streaming (`stream: true`) and `{ fatal: true }` — iconv-lite implements
+  neither, so those assertions fail by design.
 
 ```sh
 node test/wpt/update.js   # refresh the vendored tests
