@@ -7,10 +7,18 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "daily"
-    allow:
-      - dependency-type: production
+      interval: monthly
+    open-pull-requests-limit: 10
+    groups:
+      production:
+        dependency-type: production
+      development:
+        dependency-type: development
