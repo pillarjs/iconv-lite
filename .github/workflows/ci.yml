@@ -73,6 +73,11 @@ jobs:
           # ("Cannot find module 'C:\npm\prefix\node_modules\npm\bin\npm-cli.js'")
           - os: windows-2022
             node-version: "22.0.0"
+          # Skip: node-gyp build of the "iconv" devDependency fails on Windows with Node 26,
+          # which is built with thin-LTO and leaks clang/lld flags (-flto=thin, opt:lldltojobs)
+          # into the MSVC link step (LNK1117). Upstream node-gyp/Node toolchain issue.
+          - os: windows-2022
+            node-version: 26
 
     runs-on: ${{ matrix.os }}
     steps:

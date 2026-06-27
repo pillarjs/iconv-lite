@@ -4,7 +4,8 @@ const webpack = require("webpack")
 
 // Karma configuration
 // Generated on Sat May 23 2020 18:02:48 GMT-0400 (Eastern Daylight Time)
-process.env.CHROME_BIN = require("puppeteer").executablePath()
+// CHROME_BIN is provided by the `test` script (via `puppeteer browsers install chrome`),
+// since puppeteer's executablePath() is now async and can't be awaited in a sync config file.
 
 module.exports = function (config) {
   config.set({
