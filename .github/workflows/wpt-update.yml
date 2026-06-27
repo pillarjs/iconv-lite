@@ -1,0 +1,50 @@
+name: Update WPT tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * 1' # Weekly, Monday 05:00 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-wpt:
+    name: Refresh vendored Web Platform Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 'lts/*'
+
+      - name: Refresh vendored WPT encoding/ tests
+        run: node test/wpt/update.js
+
+      - name: Check for changes in the vendored tests
+        id: check
+        run: |
+          if [ -n "$(git status --porcelain -- test/wpt/upstream)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            # No test content changed — discard a lone upstream-commit bump.
+            git checkout -- test/wpt/UPSTREAM
+          fi
+
+      - name: Create Pull Request
+        if: steps.check.outputs.changed == 'true'
+        uses: gr2m/create-or-update-pull-request-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          commit-message: 'test: update vendored Web Platform Tests'
+          title: 'test: update vendored Web Platform Tests'
+          body: >
+            This auto-generated PR refreshes the vendored Web Platform Tests under
+            `test/wpt/upstream/` from upstream. Review the diff and run
+            `npm run test:wpt` to see how iconv-lite conforms to the updated tests.
+          branch: bot/update-wpt-tests

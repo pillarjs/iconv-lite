@@ -6,6 +6,7 @@ module.exports = [
     env: ["mocha"],
     ignores: [
       "encodings/sbcs-data-generated.js", // This a generate file
+      "test/wpt/upstream", // Vendored upstream Web Platform Tests
       // We need work on this
       "generation"
     ],
