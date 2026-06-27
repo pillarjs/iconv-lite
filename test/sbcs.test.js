@@ -1,5 +1,6 @@
 "use strict"
 
+const { describe, it } = require("node:test")
 const assert = require("assert")
 const unorm = require("unorm")
 const utils = require("./utils")
@@ -38,8 +39,6 @@ const iconvEquivChars = {
 iconv.encode("", "utf8") // Load all encodings.
 
 describe("Full SBCS encoding tests #node-web", function () {
-  this.timeout(10000)
-
   for (const enc in iconv.encodings) {
     if (iconv.encodings[enc].type === "_sbcs") {
       (function (enc) {
@@ -52,9 +51,9 @@ describe("Full SBCS encoding tests #node-web", function () {
                     `Encoding ${iconvName} doesn't have test data in sbcs-data.json file`
         )
 
-        it("Decode SBCS encoding " + testEncName, function () {
+        it("Decode SBCS encoding " + testEncName, function (t) {
           if (charData === false) {
-            this.skip()
+            return t.skip()
           }
 
           const errors = []
@@ -90,9 +89,9 @@ describe("Full SBCS encoding tests #node-web", function () {
           }
         })
 
-        it("Encode SBCS encoding " + testEncName, function () {
+        it("Encode SBCS encoding " + testEncName, function (t) {
           if (charData === false) {
-            this.skip()
+            return t.skip()
           }
 
           const errors = []

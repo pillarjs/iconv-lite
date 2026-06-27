@@ -111,9 +111,8 @@ jobs:
         shell: bash
         run: npm run test:ci
 
-      - name: Run Web test
-        shell: bash
-        run: npm run test:node-web
+      - name: Run typescript tests
+        run: npm run test:typescript
 
       - name: Upload code coverage
         uses: actions/upload-artifact@v7
@@ -175,25 +174,3 @@ jobs:
         shell: bash
         run: |
           npm run test:webpack
-
-  test_typescript:
-    needs:
-      - lint
-      - coverage
-    runs-on: 'ubuntu-latest'
-
-    steps:
-      - uses: actions/checkout@v7.0.0
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-
-      - name: Install
-        run: |
-          npm install --ignore-scripts
-
-      - name: Run typescript tests
-        run: npm run test:typescript

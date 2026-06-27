@@ -1,12 +1,12 @@
 "use strict"
 
-var mocha = require("mocha")
-var describeMocha = mocha.describe
+var nodeTest = require("node:test")
 var assert = require("assert")
 var Buffer = require("buffer").Buffer
 var iconv = require("../")
 
-var describe = describeMocha
+var it = nodeTest.it
+var describe = nodeTest.describe
 
 if (!iconv.supportsStreams) {
   describe = describe.skip
@@ -48,7 +48,7 @@ function feeder (chunks) {
 }
 
 function checkStreamOutput (options) {
-  return function (done) {
+  return function (t, done) {
     try {
       var stream = options.createStream()
     }
@@ -308,7 +308,7 @@ describe("Streaming mode", function () {
 })
 
 describe("Streaming sugar", function () {
-  it("decodeStream.collect()", function (done) {
+  it("decodeStream.collect()", function (t, done) {
     feeder([[0x61, 0x81], [0x40, 0x61]])
       .pipe(iconv.decodeStream("gbk"))
       .collect(function (err, outp) {
@@ -318,7 +318,7 @@ describe("Streaming sugar", function () {
       })
   })
 
-  it("encodeStream.collect()", function (done) {
+  it("encodeStream.collect()", function (t, done) {
     feeder(["абв", "где"])
       .pipe(iconv.encodeStream("windows-1251"))
       .collect(function (err, outp) {

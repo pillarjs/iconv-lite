@@ -1,5 +1,6 @@
 "use strict"
 
+var { describe, it } = require("node:test")
 var assert = require("assert")
 var Buffer = require("buffer").Buffer
 var iconv = require("../")
@@ -73,9 +74,9 @@ describe("UTF-32LE codec", function () {
     assert.equal(iconv.decode(utf32leBufWithInvalidChar, "utf-32le"), testStr + "�")
   })
 
-  it("handles encoding all valid codepoints", function () {
+  it("handles encoding all valid codepoints", function (t) {
     if (!Iconv) {
-      this.skip()
+      return t.skip()
     }
 
     assert.deepEqual(iconv.encode(allCharsStr, "utf-32le"), allCharsLEBuf)
@@ -84,9 +85,9 @@ describe("UTF-32LE codec", function () {
     assert.deepEqual(nodeBuf, allCharsLEBuf)
   })
 
-  it("handles decoding all valid codepoints", function () {
+  it("handles decoding all valid codepoints", function (t) {
     if (!Iconv) {
-      this.skip()
+      return t.skip()
     }
 
     assert.equal(iconv.decode(allCharsLEBuf, "utf-32le"), allCharsStr)
@@ -124,9 +125,9 @@ describe("UTF-32BE codec", function () {
     assert.equal(iconv.decode(utf32beBufWithInvalidChar, "utf-32be"), testStr + "�")
   })
 
-  it("handles encoding all valid codepoints", function () {
+  it("handles encoding all valid codepoints", function (t) {
     if (!Iconv) {
-      this.skip()
+      return t.skip()
     }
 
     assert.deepEqual(iconv.encode(allCharsStr, "utf-32be"), allCharsBEBuf)
@@ -135,9 +136,9 @@ describe("UTF-32BE codec", function () {
     assert.deepEqual(nodeBuf, allCharsBEBuf)
   })
 
-  it("handles decoding all valid codepoints", function () {
+  it("handles decoding all valid codepoints", function (t) {
     if (!Iconv) {
-      this.skip()
+      return t.skip()
     }
 
     assert.equal(iconv.decode(allCharsBEBuf, "utf-32be"), allCharsStr)

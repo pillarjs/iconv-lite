@@ -1,5 +1,6 @@
 "use strict"
 
+const { describe, it } = require("node:test")
 const assert = require("assert")
 const utils = require("./utils")
 const iconv = utils.requireIconv()

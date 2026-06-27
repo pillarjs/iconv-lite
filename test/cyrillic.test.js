@@ -1,5 +1,6 @@
 "use strict"
 
+var { describe, it } = require("node:test")
 var assert = require("assert")
 var utils = require("./utils")
 var iconv = utils.requireIconv()

@@ -1,5 +1,6 @@
 "use strict"
 
+var { describe, it } = require("node:test")
 var fs = require("fs")
 var assert = require("assert")
 var Buffer = require("buffer").Buffer
@@ -20,11 +21,11 @@ describe("GBK tests", function () {
     assert.strictEqual(iconv.decode(testStringGBKBuffer, "GB2312"), testString)
   })
 
-  it("GBK file read decoded,compare with iconv result", function () {
+  it("GBK file read decoded,compare with iconv result", function (t) {
     try {
       require("iconv")
     } catch (_e) {
-      this.skip()
+      return t.skip()
     }
     var contentBuffer = fs.readFileSync(join(__dirname, "/gbkFile.txt"))
     var str = iconv.decode(contentBuffer, "GBK")

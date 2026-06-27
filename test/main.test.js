@@ -1,5 +1,6 @@
 "use strict"
 
+var { describe, it } = require("node:test")
 var assert = require("assert")
 var Buffer = require("buffer").Buffer
 var iconv = require("../")
