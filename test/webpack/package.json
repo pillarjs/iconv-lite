@@ -5,7 +5,7 @@
   "scripts": {
     "!note1": "NOTE: We do `npm pack` of the main iconv-lite package followed by installing it to create a copy of the package (not symlink).",
     "!note2": "This is needed because webpack4/watchpack1.7 crashes when trying to enumerate circular symlink.",
-    "test": "karma start --browsers ChromeHeadlessCI"
+    "test": "CHROME_BIN=\"$(puppeteer browsers install chrome --format '{{path}}')\" karma start --browsers ChromeHeadlessCI"
   },
   "devDependencies": {
     "assert": "^2.1.0",
@@ -18,7 +18,7 @@
     "mocha": "^7.2.0",
     "stream-browserify": "^3.0.0",
     "process": "0.11.10",
-    "puppeteer": "^24.34.0",
+    "puppeteer": "^25.2.1",
     "util": "^0.12.5",
     "webpack": "^5.103.0"
   },

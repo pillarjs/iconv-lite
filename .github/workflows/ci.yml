@@ -50,10 +50,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 'lts/*'
 
       - name: Install dependencies
         run: npm install
@@ -67,11 +67,17 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-2022]
-        node-version: ["18.0.0", 18, 19, 20, 21, 22, 23, 24, 25]
+        node-version: ["22.0.0", 22, 23, 24, 25, 26]
         exclude:
-          # Skip: node-gyp build failure of "iconv" devDependency on Windows with Node 18.0.0
+          # Skip: setup-node ships a broken bundled npm for the exact 22.0.0 build on Windows
+          # ("Cannot find module 'C:\npm\prefix\node_modules\npm\bin\npm-cli.js'")
           - os: windows-2022
-            node-version: "18.0.0"
+            node-version: "22.0.0"
+          # Skip: node-gyp build of the "iconv" devDependency fails on Windows with Node 26,
+          # which is built with thin-LTO and leaks clang/lld flags (-flto=thin, opt:lldltojobs)
+          # into the MSVC link step (LNK1117). Upstream node-gyp/Node toolchain issue.
+          - os: windows-2022
+            node-version: 26
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -149,7 +155,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ["18", "*"]
+        node-version: ["22", "*"]
 
     runs-on: ubuntu-latest
     steps:
