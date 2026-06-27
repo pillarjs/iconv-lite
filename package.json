@@ -57,7 +57,7 @@
         "bench-node": "^0.10.0",
         "eslint": "^9.0.0",
         "expect-type": "^1.3.0",
-        "iconv": "^2.3.5",
+        "iconv": "^3.0.1",
         "mocha": "^10.8.2",
         "neostandard": "^0.12.0",    
         "nyc": "^17.1.0",
