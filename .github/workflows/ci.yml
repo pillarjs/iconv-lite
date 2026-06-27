@@ -68,6 +68,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-2022]
         node-version: ["22.0.0", 22, 23, 24, 25, 26]
+        exclude:
+          # Skip: setup-node ships a broken bundled npm for the exact 22.0.0 build on Windows
+          # ("Cannot find module 'C:\npm\prefix\node_modules\npm\bin\npm-cli.js'")
+          - os: windows-2022
+            node-version: "22.0.0"
 
     runs-on: ${{ matrix.os }}
     steps:
