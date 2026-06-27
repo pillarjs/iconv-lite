@@ -1,0 +1,6 @@
+# Iconv-lite development
+* @pillarjs/iconv-lite-collaborators
+
+# Codeowners
+.github/CODEOWNERS @pillarjs/iconv-lite-captains
+LICENSE @pillarjs/iconv-lite-captains
