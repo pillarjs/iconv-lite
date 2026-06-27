@@ -29,7 +29,7 @@
         "url": "https://github.com/pillarjs/iconv-lite.git"
     },
     "engines": {
-        "node": ">=18"
+        "node": ">=22"
     },
     "scripts": {
         "lint": "eslint",

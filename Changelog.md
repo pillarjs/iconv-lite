@@ -1,3 +1,11 @@
+## Unreleased
+
+### ⚠️ Breaking changes
+
+- Remove support for Node <22 - by [@bjohansebas](https://github.com/bjohansebas) in [#396](https://github.com/pillarjs/iconv-lite/pull/396)
+
+    Node.js versions prior to 22 are no longer supported. This allows us to migrate to ESM and rely on `require(esm)`, which does not work correctly on earlier versions.
+
 ## 1.0.0-alpha.1
 
 ### ⚠️ Breaking changes
