@@ -24,7 +24,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.0
         with:
           persist-credentials: false
       - name: Setup Node.js
@@ -46,7 +46,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.0
         with:
           persist-credentials: false
 
@@ -81,7 +81,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.0
         with:
           persist-credentials: false
 
@@ -116,7 +116,7 @@ jobs:
         run: npm run test:node-web
 
       - name: Upload code coverage
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-node-${{ matrix.node-version }}-${{ matrix.os }}
           path: ./coverage/lcov.info
@@ -129,14 +129,14 @@ jobs:
       contents: read
       checks: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.0
 
       - name: Install lcov
         shell: bash
         run: sudo apt-get -y install lcov
 
       - name: Collect coverage reports
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: ./coverage
           pattern: coverage-node-*
@@ -159,7 +159,7 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.0
         with:
           persist-credentials: false
 
@@ -183,7 +183,7 @@ jobs:
     runs-on: 'ubuntu-latest'
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.0
         with:
           persist-credentials: false
 
