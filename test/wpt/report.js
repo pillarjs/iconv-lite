@@ -9,6 +9,17 @@
 const path = require("path")
 const wptRunner = require("wpt-runner")
 const setup = require("./shim")
+const { version } = require("../../package.json")
+
+// iconv-lite commit the report was generated against (for traceability).
+function iconvCommit () {
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA
+  try {
+    return require("child_process").execFileSync("git", ["rev-parse", "HEAD"], { cwd: __dirname }).toString().trim()
+  } catch {
+    return "unknown"
+  }
+}
 
 const wptRoot = path.join(__dirname, "upstream")
 const MAX_LISTED = 15 // cap failing-test names listed per file
@@ -39,6 +50,7 @@ wptRunner(wptRoot, {
     const totalFail = files.reduce((n, f) => n + f.fail, 0)
     const out = []
     out.push(`### Node ${process.version}\n`)
+    out.push(`iconv-lite \`${version}\` @ \`${iconvCommit().slice(0, 12)}\`\n`)
     out.push("| Test file | ✓ pass | ✗ fail |")
     out.push("| --- | --- | --- |")
     for (const f of files.sort((a, b) => b.fail - a.fail)) {
