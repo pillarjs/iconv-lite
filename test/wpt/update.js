@@ -30,6 +30,11 @@ const FILES = [
   "encoding/textdecoder-utf16-surrogates.any.js",
   "encoding/textencoder-constructor-non-utf.any.js",
   "encoding/textencoder-utf16-surrogates.any.js",
+  // Multi-byte legacy decoders that use TextDecoder (shimmable). Only gbk and
+  // gb18030 ship a `.any.js`; shift_jis/euc-jp/euc-kr/big5 are iframe-only.
+  "encoding/legacy-mb-schinese/gbk/gbk-decoder.any.js",
+  "encoding/legacy-mb-schinese/gb18030/gb18030-decoder.any.js",
+  "encoding/legacy-mb-schinese/gb18030/resources/ranges.js",
   "encoding/resources/encodings.js",
   "common/subset-tests.js"
 ]
