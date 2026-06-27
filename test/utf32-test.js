@@ -64,6 +64,14 @@ describe("UTF-32LE codec", function () {
     assert.equal(iconv.decode(Buffer.from([0x61, 0, 0, 0, 0]), "UTF32-LE"), "a")
   })
 
+  it("decodes correctly when codepoints are split across stream chunks", function () {
+    for (var at = 1; at < utf32leBuf.length; at++) {
+      var decoder = iconv.getDecoder("utf-32le")
+      var res = decoder.write(utf32leBuf.slice(0, at)) + decoder.write(utf32leBuf.slice(at)) + (decoder.end() || "")
+      assert.equal(res, testStr, "split at byte " + at)
+    }
+  })
+
   it("handles invalid surrogates gracefully", function () {
     var encoded = iconv.encode(testStr2, "UTF32-LE")
     assert.equal(escape(iconv.decode(encoded, "UTF32-LE")), escape(testStr2))
@@ -113,6 +121,14 @@ describe("UTF-32BE codec", function () {
 
   it("decodes uneven length buffers with no error", function () {
     assert.equal(iconv.decode(Buffer.from([0, 0, 0, 0x61, 0]), "UTF32-BE"), "a")
+  })
+
+  it("decodes correctly when codepoints are split across stream chunks", function () {
+    for (var at = 1; at < utf32beBuf.length; at++) {
+      var decoder = iconv.getDecoder("utf-32be")
+      var res = decoder.write(utf32beBuf.slice(0, at)) + decoder.write(utf32beBuf.slice(at)) + (decoder.end() || "")
+      assert.equal(res, testStr, "split at byte " + at)
+    }
   })
 
   it("handles invalid surrogates gracefully", function () {
