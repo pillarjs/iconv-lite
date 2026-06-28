@@ -6,6 +6,18 @@
 
     Node.js versions prior to 22 are no longer supported. This allows us to migrate to ESM and rely on `require(esm)`, which does not work correctly on earlier versions.
 
+- Make the UTF-16 decoder WHATWG-conformant by [@bjohansebas](https://github.com/bjohansebas) in [#402](https://github.com/pillarjs/iconv-lite/pull/402)
+
+    UTF-16LE/BE (and the `ucs2`/`ucs-2` aliases) now decode through the standard `TextDecoder`, matching the Encoding Standard's shared UTF-16 decoder. As a result, unpaired/invalid surrogates and a trailing odd byte are replaced with U+FFFD instead of being passed through, and the Node and Web backends now behave identically. The decoder also no longer depends on the backend.
+
+    The `utf-16` label still auto-detects endianness (UTF-16LE vs UTF-16BE) from the BOM and a space-based heuristic, defaulting to UTF-16LE. This is kept as an iconv-lite extension even though it is not spec-compliant — the Encoding Standard maps the `utf-16` label directly to UTF-16LE.
+
+### 🚀 Improvements
+
+- Add an opt-in `fatal` decoding option - by [@bjohansebas](https://github.com/bjohansebas) in [#402](https://github.com/pillarjs/iconv-lite/pull/402)
+
+    Passing `{ fatal: true }` to `iconv.decode(...)` makes the TextDecoder-backed encodings (UTF-8, UTF-16LE/BE) throw on invalid input, per the WHATWG Encoding Standard, instead of replacing it with U+FFFD. The default stays lenient (replacement).
+
 ## 1.0.0-alpha.1
 
 ### ⚠️ Breaking changes
