@@ -14,7 +14,9 @@
 
     The WHATWG UTF-16 label aliases are now recognized: `unicode`, `csunicode`, `iso-10646-ucs-2` and `unicodefeff` map to UTF-16LE, and `unicodefffe` maps to UTF-16BE.
 
-    Note: iconv-lite still matches encoding labels leniently (it normalizes away surrounding/embedded punctuation and control characters), so it accepts some labels the Encoding Standard would reject. Making label resolution fully spec-strict is tracked as a follow-up.
+- Reject encoding labels with forbidden characters, per WHATWG - by [@bjohansebas](https://github.com/bjohansebas) in [#403](https://github.com/pillarjs/iconv-lite/pull/403)
+
+    Following the Encoding Standard's label-trimming rules, only ASCII whitespace (tab, LF, FF, CR, space) may surround an encoding label. Labels wrapped in other control or separator characters — NUL, vertical tab, NBSP, or the line/paragraph separators — are now rejected instead of being silently stripped and accepted. Punctuation such as dashes and underscores within an otherwise-valid label is still normalized.
 
 ### 🚀 Improvements
 

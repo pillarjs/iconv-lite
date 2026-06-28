@@ -132,4 +132,31 @@ describe("Canonicalize encoding function", function () {
   it("correctly strips year and non-alpha chars", function () {
     assert.equal(iconv._canonicalizeEncoding("ISO_8859-5:1988"), "iso88595")
   })
+
+  it("trims surrounding ASCII whitespace (per WHATWG)", function () {
+    assert.equal(iconv._canonicalizeEncoding(" \t\n\f\rUTF-8 \t\n\f\r"), "utf8")
+    assert.ok(iconv.encodingExists("  utf-8  "))
+  })
+
+  it("rejects labels wrapped in non-ASCII-whitespace / control chars (per WHATWG)", function () {
+    // NUL, vertical tab, NBSP, line separator, paragraph separator are NOT ASCII whitespace.
+    [0x00, 0x0b, 0xa0, 0x2028, 0x2029].forEach(function (code) {
+      var ch = String.fromCharCode(code)
+      assert.strictEqual(iconv.encodingExists(ch + "utf-8"), false)
+      assert.strictEqual(iconv.encodingExists("utf-8" + ch), false)
+      assert.strictEqual(iconv.encodingExists(ch + "utf-8" + ch), false)
+      assert.throws(function () { iconv.decode(Buffer.from([0x61]), ch + "utf-8") })
+    })
+  })
+
+  it("rejects empty and whitespace-only labels", function () {
+    assert.strictEqual(iconv.encodingExists(""), false)
+    assert.strictEqual(iconv.encodingExists("   "), false)
+    assert.strictEqual(iconv.encodingExists("\t\n\f\r"), false)
+  })
+
+  it("matches labels case-insensitively (per WHATWG)", function () {
+    assert.ok(iconv.encodingExists("UTF-8"))
+    assert.ok(iconv.encodingExists("uTf-16Be"))
+  })
 })
