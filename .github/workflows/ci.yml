@@ -165,9 +165,9 @@ jobs:
             npm-rm: 'iconv' 
 
         exclude:
-          # Skip becauses a npm error
+          # Skip because of a npm error
           - os: windows-2022
-            node-version: "77"
+            node-version: "7"
 
     runs-on: ${{ matrix.os }}
     steps:
