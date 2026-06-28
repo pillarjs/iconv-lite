@@ -12,6 +12,10 @@
 
     The `utf-16` label still auto-detects endianness (UTF-16LE vs UTF-16BE) from the BOM and a space-based heuristic, defaulting to UTF-16LE. This is kept as an iconv-lite extension even though it is not spec-compliant — the Encoding Standard maps the `utf-16` label directly to UTF-16LE.
 
+    The WHATWG UTF-16 label aliases are now recognized: `unicode`, `csunicode`, `iso-10646-ucs-2` and `unicodefeff` map to UTF-16LE, and `unicodefffe` maps to UTF-16BE.
+
+    Note: iconv-lite still matches encoding labels leniently (it normalizes away surrounding/embedded punctuation and control characters), so it accepts some labels the Encoding Standard would reject. Making label resolution fully spec-strict is tracked as a follow-up.
+
 ### 🚀 Improvements
 
 - Add an opt-in `fatal` decoding option - by [@bjohansebas](https://github.com/bjohansebas) in [#402](https://github.com/pillarjs/iconv-lite/pull/402)
