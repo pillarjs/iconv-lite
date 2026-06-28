@@ -65,11 +65,11 @@ function InternalDecoder (options, codec) {
         }
       }
     }
-  } else if (codec.enc === "ucs2") {
-    this.decoder = new TextDecoder("utf-16", { ignoreBOM: options?.stripBOM === false || typeof options?.stripBOM === "function" })
-  }
-  else {
-    this.decoder = new TextDecoder(codec.enc, { ignoreBOM: options?.stripBOM === false || typeof options?.stripBOM === "function" })
+  } else {
+    this.decoder = new TextDecoder(codec.enc, {
+      ignoreBOM: options?.stripBOM === false || typeof options?.stripBOM === "function",
+      fatal: !!options?.fatal
+    })
   }
 }
 
@@ -81,7 +81,9 @@ InternalDecoder.prototype.write = function (buf) {
 }
 
 InternalDecoder.prototype.end = function () {
-  return this.decoder.decode(undefined, { stream: true })
+  // Final flush (stream: false) so a trailing incomplete sequence is finalized: replaced with
+  // U+FFFD, or (in fatal mode) raised as an error, per the WHATWG Encoding Standard.
+  return this.decoder.decode()
 }
 
 // ------------------------------------------------------------------------------

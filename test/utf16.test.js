@@ -14,6 +14,20 @@ const utf16beBOM = utils.bytes("fe ff")
 const sampleStr = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<数据>נְתוּנִים</数据>"
 const weirdBuf = utils.bytes("15 16 17 18") // Can't automatically detect whether it's LE or BE.
 
+describe("ucs2 alias #node-web", function () {
+  it("decodes identically to utf-16le", function () {
+    assert.equal(iconv.decode(utf16leBuf, "ucs2"), iconv.decode(utf16leBuf, "utf-16le"))
+  })
+
+  it("encodes identically to utf-16le", function () {
+    assert.equal(hex(iconv.encode(testStr, "ucs2")), hex(iconv.encode(testStr, "utf-16le")))
+  })
+
+  it("resolves the 'ucs-2' label too", function () {
+    assert.equal(iconv.decode(utf16leBuf, "ucs-2"), iconv.decode(utf16leBuf, "utf-16le"))
+  })
+})
+
 describe("UTF-16LE encoder #node-web", function () {
   const enc = "utf16-le"
   it("encodes basic strings correctly", function () {
@@ -71,26 +85,21 @@ describe("UTF-16LE decoder #node-web", function () {
     assert.equal(iconv.decode(utils.bytes([0x61]), enc), "�")
   })
 
-  // NOTE: Node and Web backends differ in handling invalid surrogates: node passes them through, web
-  // replaces them with '�'. Don't know what to do with this, as I haven't found a performant way
-  // to unify them while keeping compatibility with Node 4.5 where there's no TextDecoder.
-  // Not too worried as it seems like an edge case, but something to be aware of.
-  // When this is resolved, please add the same tests to utf16-be codec too.
-  it.skip("passes through invalid surrogates as-is", function () {
+  // Per the WHATWG Encoding Standard, the UTF-16 decoder replaces unpaired/invalid surrogates with
+  // U+FFFD. (This behaves identically across the Node and Web backends.)
+  it("replaces unpaired surrogates with U+FFFD (per WHATWG)", function () {
     // prettier-ignore
     const buf = utils.bytes("2000 00d8 2000 00de 2000 00de 00d8 2000 00d8")
-    assert.equal(iconv.decode(buf, enc), " \uD800 \uDE00 \uDE00\uD800 \uD800")
+    assert.equal(iconv.decode(buf, enc), " � � �� �")
   })
 
-  // See comment in the test above.
-  it.skip("has full 16-bit transparency", function () {
+  it("round-trips all non-surrogate BMP code points", function () {
     let s = ""
-    const arr = []
-    for (let i = 0; i < 65536; i++) {
+    for (let i = 0; i < 0x10000; i++) {
+      if (i >= 0xD800 && i <= 0xDFFF) continue // Surrogates aren't round-trippable per WHATWG.
       s += String.fromCharCode(i)
-      arr.push(i & 0xff, i >> 8)
     }
-    assert.equal(iconv.decode(utils.bytes(arr), enc), s)
+    assert.equal(iconv.decode(iconv.encode(s, enc), enc), s)
   })
 
   it(
@@ -128,23 +137,23 @@ describe("UTF-16LE decoder #node-web", function () {
     utils.checkDecoderChunks(enc, [
       {
         inputs: [[0x3e], [0xd9], [0x3d], [0xd8], [0x3b], [0xde]],
-        outputs: ["", "", "", "\uD93E", "", "\uD83D\uDE3B"]
+        outputs: ["", "", "", "\uFFFD", "", "\uD83D\uDE3B"]
       },
       {
         inputs: [[0x3e, 0xd9, 0x3d], [0xd8], [0x3b, 0xde]],
-        outputs: ["", "\uD93E", "\uD83D\uDE3B"]
+        outputs: ["", "\uFFFD", "\uD83D\uDE3B"]
       },
       {
         inputs: [[0x3e, 0xd9, 0x3d]],
-        outputs: ["", "\uD93E�"]
+        outputs: ["", "�"]
       },
       {
         inputs: [[0x3e, 0xd9], [0x3d]],
-        outputs: ["", "", "\uD93E�"]
+        outputs: ["", "", "�"]
       },
       {
         inputs: [[0x3e, 0xd9]],
-        outputs: ["", "\uD93E"]
+        outputs: ["", "�"]
       }
     ])
   )
@@ -195,6 +204,22 @@ describe("UTF-16BE decoder #node-web", function () {
     assert.equal(iconv.decode(utils.bytes([0x61]), enc), "�")
   })
 
+  // See note in the UTF-16LE decoder above.
+  it("replaces unpaired surrogates with U+FFFD (per WHATWG)", function () {
+    // prettier-ignore
+    const buf = utils.bytes("0020 d800 0020 de00 0020 de00 d800 0020 d800")
+    assert.equal(iconv.decode(buf, enc), " � � �� �")
+  })
+
+  it("round-trips all non-surrogate BMP code points", function () {
+    let s = ""
+    for (let i = 0; i < 0x10000; i++) {
+      if (i >= 0xD800 && i <= 0xDFFF) continue // Surrogates aren't round-trippable per WHATWG.
+      s += String.fromCharCode(i)
+    }
+    assert.equal(iconv.decode(iconv.encode(s, enc), enc), s)
+  })
+
   it(
     "handles chunks with uneven lengths correctly",
     utils.checkDecoderChunks(enc, {
@@ -230,23 +255,23 @@ describe("UTF-16BE decoder #node-web", function () {
     utils.checkDecoderChunks(enc, [
       {
         inputs: [[0xd9], [0x3e], [0xd8], [0x3d], [0xde], [0x3b]],
-        outputs: ["", "", "", "\uD93E", "", "\uD83D\uDE3B"]
+        outputs: ["", "", "", "\uFFFD", "", "\uD83D\uDE3B"]
       },
       {
         inputs: [[0xd9, 0x3e, 0xd8], [0x3d], [0xde, 0x3b]],
-        outputs: ["", "\uD93E", "\uD83D\uDE3B"]
+        outputs: ["", "\uFFFD", "\uD83D\uDE3B"]
       },
       {
         inputs: [[0xd9, 0x3e, 0xd8]],
-        outputs: ["", "\uD93E�"]
+        outputs: ["", "�"]
       },
       {
         inputs: [[0xd9, 0x3e], [0xd8]],
-        outputs: ["", "", "\uD93E�"]
+        outputs: ["", "", "�"]
       },
       {
         inputs: [[0xd9, 0x3e]],
-        outputs: ["", "\uD93E"]
+        outputs: ["", "�"]
       }
     ])
   )
@@ -293,4 +318,62 @@ describe("UTF-16 decoder #node-web", function () {
       iconv.decode(weirdBuf, encBE)
     )
   })
+})
+
+// Adapted from @exodus/bytes' utf16 tests: unpaired/invalid surrogates must be replaced with
+// U+FFFD regardless of where they sit in the input. We re-check each case at a range of offsets,
+// which shifts the bad code unit around and guards against position/alignment-specific bugs.
+describe("UTF-16 decoder robustness #node-web", function () {
+  const orphans = [
+    { invalid: [0x61, 0x62, 0xD800, 0x77, 0x78], replaced: [0x61, 0x62, 0xFFFD, 0x77, 0x78] },
+    { invalid: [0xD800], replaced: [0xFFFD] },
+    { invalid: [0xD800, 0xD800], replaced: [0xFFFD, 0xFFFD] },
+    { invalid: [0x61, 0x62, 0xDFFF, 0x77, 0x78], replaced: [0x61, 0x62, 0xFFFD, 0x77, 0x78] },
+    { invalid: [0xDFFF, 0xD800], replaced: [0xFFFD, 0xFFFD] }
+  ]
+
+  function unitsToBytes (units, littleEndian) {
+    const bytes = []
+    for (const u of units) {
+      if (littleEndian) { bytes.push(u & 0xff, u >> 8) } else { bytes.push(u >> 8, u & 0xff) }
+    }
+    return utils.bytes(bytes)
+  }
+
+  for (const enc of ["utf-16le", "utf-16be"]) {
+    const le = enc === "utf-16le"
+    for (const { invalid, replaced } of orphans) {
+      const label = invalid.map((u) => u.toString(16)).join(",")
+      it(`replaces unpaired surrogates [${label}] at any offset (${enc})`, function () {
+        const expectedTail = String.fromCharCode.apply(null, replaced)
+        for (let p = 0; p <= 40; p++) {
+          const prefix = new Array(p).fill(0x20) // p spaces, shifting the bad unit's position.
+          const buf = unitsToBytes(prefix.concat(invalid), le)
+          assert.strictEqual(iconv.decode(buf, enc), " ".repeat(p) + expectedTail)
+        }
+      })
+    }
+  }
+})
+
+// Opt-in WHATWG "fatal" mode: { fatal: true } throws on invalid input instead of replacing with
+// U+FFFD. The default stays lenient (replacement), matching TextDecoder's own default.
+describe("UTF-16 decoder fatal mode (opt-in) #node-web", function () {
+  for (const enc of ["utf-16le", "utf-16be"]) {
+    const lone = enc === "utf-16le" ? utils.bytes("00d8") : utils.bytes("d800") // Lone high surrogate.
+    const odd = enc === "utf-16le" ? utils.bytes("610000") : utils.bytes("006100") // Truncated code unit.
+
+    it(`throws on invalid input when { fatal: true } (${enc})`, function () {
+      assert.throws(function () { iconv.decode(lone, enc, { fatal: true }) })
+      assert.throws(function () { iconv.decode(odd, enc, { fatal: true }) })
+    })
+
+    it(`still decodes valid input when { fatal: true } (${enc})`, function () {
+      assert.equal(iconv.decode(iconv.encode(testStr, enc), enc, { fatal: true }), testStr)
+    })
+
+    it(`replaces instead of throwing by default (${enc})`, function () {
+      assert.equal(iconv.decode(lone, enc), "�")
+    })
+  }
 })

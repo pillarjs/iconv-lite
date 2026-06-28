@@ -35,10 +35,11 @@ function normalizeLabel (label) {
   return String(label).replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, "").toLowerCase()
 }
 
-// The thrown error must be an instance of the *test realm's* RangeError for
-// assert_throws_js to accept it, so we use the jsdom window's constructor
+// The thrown error must be an instance of the *test realm's* RangeError/TypeError for
+// assert_throws_js to accept it, so we use the jsdom window's constructors
 // (captured in setup) rather than this module's.
 let RealmRangeError = RangeError
+let RealmTypeError = TypeError
 
 function toUint8Array (input) {
   if (input == null) return new Uint8Array()
@@ -58,15 +59,20 @@ class IconvTextDecoder {
     this._name = normalized
     // Report the WHATWG canonical name when known, else iconv's own label.
     this.encoding = whatwgLabels.get(normalized) || normalized
-    // iconv-lite has no streaming/fatal modes — expose the flags WPT reads, but
-    // { fatal: true } cannot throw (iconv always replaces), which is the real gap.
     this.fatal = Boolean(options.fatal)
     this.ignoreBOM = Boolean(options.ignoreBOM)
   }
 
   decode (input, options = {}) {
     const buf = Buffer.from(toUint8Array(input))
-    return iconv.decode(buf, this._name, { stripBOM: !this.ignoreBOM })
+    try {
+      return iconv.decode(buf, this._name, { stripBOM: !this.ignoreBOM, fatal: this.fatal })
+    } catch (e) {
+      // In fatal mode iconv throws a TypeError; rethrow it as the test realm's TypeError so
+      // assert_throws_js (which checks cross-realm instanceof) accepts it.
+      if (e instanceof TypeError) throw new RealmTypeError(e.message)
+      throw e
+    }
   }
 }
 
@@ -78,6 +84,7 @@ class IconvTextEncoder {
 
 module.exports = function setup (window) {
   RealmRangeError = window.RangeError || RangeError
+  RealmTypeError = window.TypeError || TypeError
   window.TextDecoder = IconvTextDecoder
   window.TextEncoder = IconvTextEncoder
 }

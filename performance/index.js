@@ -16,7 +16,9 @@ const suite = new Suite({
 const encodingStrings = {
   "windows-1251": "This is a test string 32 chars..",
   gbk: "这是中文字符测试。。！@￥%12",
-  utf8: "这是中文字符测试。。！@￥%12This is a test string 48 chars.."
+  utf8: "这是中文字符测试。。！@￥%12This is a test string 48 chars..",
+  "utf-16le": "这是中文字符测试。。！@￥%12This is a test string 48 chars..",
+  "utf-16be": "这是中文字符测试。。！@￥%12This is a test string 48 chars.."
 }
 
 for (const [encoding, string] of Object.entries(encodingStrings)) {
