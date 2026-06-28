@@ -12,11 +12,15 @@
 
     The `utf-16` label still auto-detects endianness (UTF-16LE vs UTF-16BE) from the BOM and a space-based heuristic, defaulting to UTF-16LE. This is kept as an iconv-lite extension even though it is not spec-compliant — the Encoding Standard maps the `utf-16` label directly to UTF-16LE.
 
-    The WHATWG UTF-16 label aliases are now recognized: `unicode`, `csunicode`, `iso-10646-ucs-2` and `unicodefeff` map to UTF-16LE, and `unicodefffe` maps to UTF-16BE.
+- Reject encoding labels with forbidden characters, per WHATWG - by [@bjohansebas](https://github.com/bjohansebas) in [#403](https://github.com/pillarjs/iconv-lite/pull/403)
 
-    Note: iconv-lite still matches encoding labels leniently (it normalizes away surrounding/embedded punctuation and control characters), so it accepts some labels the Encoding Standard would reject. Making label resolution fully spec-strict is tracked as a follow-up.
+    Following the Encoding Standard's label-trimming rules, only ASCII whitespace (tab, LF, FF, CR, space) may surround an encoding label. Labels wrapped in other control or separator characters — NUL, vertical tab, NBSP, or the line/paragraph separators — are now rejected instead of being silently stripped and accepted. Punctuation such as dashes and underscores within an otherwise-valid label is still normalized.
 
 ### 🚀 Improvements
+
+- Recognize more WHATWG encoding labels - by [@bjohansebas](https://github.com/bjohansebas) in [#403](https://github.com/pillarjs/iconv-lite/pull/403)
+
+    Added the WHATWG label aliases for encodings iconv-lite already implements: `unicode`/`csunicode`/`iso-10646-ucs-2`/`unicodefeff` (UTF-16LE) and `unicodefffe` (UTF-16BE); `x-cp1250`–`x-cp1258` (windows-1250–1258); `dos-874`; `koi`/`koi8` (KOI8-R); `x-mac-cyrillic`/`x-mac-ukrainian`/`x-mac-roman`; `x-euc-jp`/`cseucpkdfmtjapanese` (EUC-JP); the `iso-8859-6`/`iso-8859-8` `-e`/`-i` and `visual`/`logical` variants; `csisolatin9`; `sun_eu_greek`; `unicode-2.0-utf-8`; and more. (Labels whose encoding iconv-lite does not implement, such as `iso-2022-jp` and `x-user-defined`, remain unsupported.)
 
 - Add an opt-in `fatal` decoding option - by [@bjohansebas](https://github.com/bjohansebas) in [#402](https://github.com/pillarjs/iconv-lite/pull/402)
 

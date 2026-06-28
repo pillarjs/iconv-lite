@@ -20,7 +20,7 @@ describe("Encoding Existence - Prototype Properties", function () {
   })
 
   it("should detect all available encodings", function () {
-    assert.strictEqual(Object.keys(iconv.encodings).length, 421)
+    assert.strictEqual(Object.keys(iconv.encodings).length, 452)
   })
 })
 
@@ -131,5 +131,64 @@ describe("Canonicalize encoding function", function () {
 
   it("correctly strips year and non-alpha chars", function () {
     assert.equal(iconv._canonicalizeEncoding("ISO_8859-5:1988"), "iso88595")
+  })
+
+  it("trims surrounding ASCII whitespace (per WHATWG)", function () {
+    assert.equal(iconv._canonicalizeEncoding(" \t\n\f\rUTF-8 \t\n\f\r"), "utf8")
+    assert.ok(iconv.encodingExists("  utf-8  "))
+  })
+
+  it("rejects labels wrapped in non-ASCII-whitespace / control chars (per WHATWG)", function () {
+    // NUL, vertical tab, NBSP, line separator, paragraph separator are NOT ASCII whitespace.
+    [0x00, 0x0b, 0xa0, 0x2028, 0x2029].forEach(function (code) {
+      var ch = String.fromCharCode(code)
+      assert.strictEqual(iconv.encodingExists(ch + "utf-8"), false)
+      assert.strictEqual(iconv.encodingExists("utf-8" + ch), false)
+      assert.strictEqual(iconv.encodingExists(ch + "utf-8" + ch), false)
+      assert.throws(function () { iconv.decode(Buffer.from([0x61]), ch + "utf-8") })
+    })
+  })
+
+  it("rejects empty and whitespace-only labels", function () {
+    assert.strictEqual(iconv.encodingExists(""), false)
+    assert.strictEqual(iconv.encodingExists("   "), false)
+    assert.strictEqual(iconv.encodingExists("\t\n\f\r"), false)
+  })
+
+  it("matches labels case-insensitively (per WHATWG)", function () {
+    assert.ok(iconv.encodingExists("UTF-8"))
+    assert.ok(iconv.encodingExists("uTf-16Be"))
+  })
+})
+
+describe("WHATWG label aliases", function () {
+  var whatwgAliases = require("../encodings/whatwg-aliases")
+
+  it("recognizes every WHATWG alias", function () {
+    Object.keys(whatwgAliases).forEach(function (alias) {
+      assert.ok(iconv.encodingExists(alias), alias + " should be a known encoding")
+    })
+  })
+
+  it("decodes each alias identically to its target encoding", function () {
+    var bytes = Buffer.from([0x80, 0xa0, 0xc0, 0xe0, 0x41, 0x7f])
+    Object.keys(whatwgAliases).forEach(function (alias) {
+      var target = whatwgAliases[alias]
+      assert.strictEqual(
+        iconv.decode(bytes, alias),
+        iconv.decode(bytes, target),
+        alias + " should decode like " + target
+      )
+    })
+  })
+
+  it("maps the human-readable labels (e.g. x-cp1252, koi8, x-mac-roman)", function () {
+    assert.strictEqual(iconv.decode(Buffer.from([0x80]), "x-cp1252"), iconv.decode(Buffer.from([0x80]), "windows-1252"))
+    assert.ok(iconv.encodingExists("x-mac-cyrillic"))
+    assert.ok(iconv.encodingExists("x-mac-ukrainian"))
+    assert.ok(iconv.encodingExists("x-mac-roman"))
+    assert.ok(iconv.encodingExists("iso-8859-8-i"))
+    assert.ok(iconv.encodingExists("sun_eu_greek"))
+    assert.ok(iconv.encodingExists("x-euc-jp"))
   })
 })
