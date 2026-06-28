@@ -1,7 +1,7 @@
 "use strict"
 
 var assert = require("assert")
-var utils = require("./utils")
+var utils = require("./helpers/utils")
 var iconv = utils.requireIconv()
 
 var ascii =

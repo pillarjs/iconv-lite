@@ -1,4 +1,0 @@
---check-leaks
---forbid-only
---no-exit
---grep ^(?!Full).

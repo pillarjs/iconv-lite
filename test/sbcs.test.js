@@ -2,7 +2,7 @@
 
 const assert = require("assert")
 const unorm = require("unorm")
-const utils = require("./utils")
+const utils = require("./helpers/utils")
 const sbcsData = require("./tables/sbcs-data.json")
 const iconv = utils.requireIconv()
 

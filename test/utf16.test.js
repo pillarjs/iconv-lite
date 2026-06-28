@@ -1,7 +1,7 @@
 "use strict"
 
 const assert = require("assert")
-const utils = require("./utils")
+const utils = require("./helpers/utils")
 const iconv = utils.requireIconv()
 const hex = utils.hex
 

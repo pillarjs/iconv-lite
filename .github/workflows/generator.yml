@@ -2,8 +2,8 @@ name: Update Encodings
 
 on:
     workflow_dispatch:
-    # schedule:
-    #     - cron:  '0 8 * * *'  # Uncomment this when it is in the master branch.
+    schedule:
+        - cron:  '0 8 * * *'
 
 permissions:
     pull-requests: write

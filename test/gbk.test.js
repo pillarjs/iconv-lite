@@ -26,7 +26,7 @@ describe("GBK tests", function () {
     } catch (_e) {
       this.skip()
     }
-    var contentBuffer = fs.readFileSync(join(__dirname, "/gbkFile.txt"))
+    var contentBuffer = fs.readFileSync(join(__dirname, "fixtures", "gbkFile.txt"))
     var str = iconv.decode(contentBuffer, "GBK")
     var iconvc = new (require("iconv").Iconv)("GBK", "utf8")
     assert.strictEqual(iconvc.convert(contentBuffer).toString(), str)

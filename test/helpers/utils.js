@@ -11,10 +11,10 @@ const utils = (module.exports = {
 
   requireIconv () {
     if (!utils.iconv) {
-      const iconvPath = "../" // Don't ship this module in the browser environment.
+      const iconvPath = "../../" // Don't ship this module in the browser environment.
       const iconv = require(iconvPath)
       if (process.env.ICONV_BACKEND) {
-        const backendPath = `../backends/${process.env.ICONV_BACKEND}`
+        const backendPath = `../../backends/${process.env.ICONV_BACKEND}`
         iconv.setBackend(require(backendPath))
       }
       utils.setIconvLite(iconv)
