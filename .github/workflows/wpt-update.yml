@@ -24,10 +24,13 @@ jobs:
       - name: Refresh vendored WPT encoding/ tests
         run: node test/wpt/update.js
 
-      - name: Check for changes in the vendored tests
+      - name: Refresh WHATWG multi-byte index tables
+        run: node test/wpt/gen-indexes.js
+
+      - name: Check for changes in the vendored tests/data
         id: check
         run: |
-          if [ -n "$(git status --porcelain -- test/wpt/upstream)" ]; then
+          if [ -n "$(git status --porcelain -- test/wpt/upstream test/wpt/data)" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"

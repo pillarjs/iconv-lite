@@ -12,6 +12,7 @@ const path = require("path")
 const wptRunner = require("wpt-runner")
 const setup = require("./shim")
 const { WINDOW_TESTS, runWindowTest } = require("./run-window")
+const { runDecodeCompare } = require("./decode-compare")
 
 const args = process.argv.slice(2)
 const strict = args.includes("--strict")
@@ -20,11 +21,20 @@ const target = args.find((a) => !a.startsWith("--")) || ""
 const wptRoot = path.join(__dirname, "upstream")
 
 // vm-based window tests (Node.js-style runner) that jsdom can't run.
-let windowFailures = 0
+let extraFailures = 0
 for (const t of WINDOW_TESTS.filter((t) => t.file.includes(target))) {
   const r = runWindowTest(t)
-  windowFailures += r.fail
+  extraFailures += r.fail
   console.log(`${r.file} (${t.variant}) — ${r.pass} pass, ${r.fail} fail`)
+}
+
+// Index-driven decode-compare for the legacy multi-byte encodings without an
+// upstream TextDecoder test (shift_jis/euc-jp/euc-kr/big5).
+if ("decode-compare".includes(target) || target === "") {
+  for (const r of runDecodeCompare()) {
+    extraFailures += r.fail
+    console.log(`decode-compare: ${r.enc} — ${r.pass} pass, ${r.fail} fail`)
+  }
 }
 
 // Serve from the WPT root so both relative (resources/...) and absolute
@@ -40,7 +50,7 @@ wptRunner(wptRoot, {
   filter: (testPath) => /\.any\.html$/.test(testPath) && testPath.includes(target)
 })
   .then((failures) => {
-    console.log(`\n=== ${failures + windowFailures} failing WPT test(s) against iconv-lite ===`)
-    process.exit(strict && failures + windowFailures > 0 ? 1 : 0)
+    console.log(`\n=== ${failures + extraFailures} failing WPT test(s) against iconv-lite ===`)
+    process.exit(strict && failures + extraFailures > 0 ? 1 : 0)
   })
   .catch((err) => { console.error(err); process.exit(1) })

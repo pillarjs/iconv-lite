@@ -37,9 +37,16 @@ the WHATWG Encoding Standard, e.g.:
   approach Node.js's `WPTRunner` uses) for `.window.js` tests that ship multiple
   `// META: variant=` blocks. It pins `location.search` to the TextDecoder
   variant so the mapping assertions run against iconv-lite without a browser.
-- [`report.js`](./report.js) — combines both runners into a Markdown report.
+- [`decode-compare.js`](./decode-compare.js) — for the legacy multi-byte encodings
+  with no upstream TextDecoder test (shift_jis / euc-jp / euc-kr / big5), generates
+  the canonical bytes for every assigned pointer from the WHATWG index tables and
+  asserts `new TextDecoder(enc).decode(bytes)` against the shim. This is how
+  TextDecoder polyfills are compared in practice. (gbk/gb18030 use upstream tests.)
+- [`report.js`](./report.js) — combines all runners into a Markdown report.
 - [`update.js`](./update.js) — refreshes `upstream/` from a sparse checkout of
   web-platform-tests. Edit its `FILES` list to add/remove coverage.
+- [`gen-indexes.js`](./gen-indexes.js) — refreshes `data/whatwg-multibyte-indexes.json`
+  (jis0208/jis0212/big5/euc-kr) from `encoding.spec.whatwg.org/indexes.json`.
 - [`upstream/`](./upstream) — **unmodified** vendored WPT files (BSD-3-Clause / W3C
   licensed), curated to the TextDecoder/TextEncoder behaviour relevant to
   iconv-lite. Source commit recorded in [`UPSTREAM`](./UPSTREAM).
@@ -47,9 +54,11 @@ the WHATWG Encoding Standard, e.g.:
 ## Not yet covered (future work)
 
 - The `.window.js` **non-TextDecoder variants** (`?XMLHttpRequest`, `?document`)
-  and the **legacy multi-byte** decode tests (`legacy-mb-*/*.html`,
-  shift_jis/euc-jp/euc-kr/big5) are iframe/XHR-based and need the official WPT
-  python server (e.g. `wpt serve`). Running those would extend coverage.
+  and the upstream **legacy multi-byte iframe tests** (`legacy-mb-*/*.html`) decode
+  in the browser/XHR client, not via `TextDecoder`, so they can't exercise iconv-lite
+  through the shim (a `wpt serve` browser run would measure the browser instead).
+  Single-byte and all six multi-byte mappings are covered via `single-byte-decoder`
+  and `decode-compare.js`.
 - Streaming (`stream: true`) and `{ fatal: true }` — iconv-lite implements
   neither, so those assertions fail by design.
 

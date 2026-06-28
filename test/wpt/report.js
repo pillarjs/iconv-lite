@@ -10,6 +10,7 @@ const path = require("path")
 const wptRunner = require("wpt-runner")
 const setup = require("./shim")
 const { WINDOW_TESTS, runWindowTest } = require("./run-window")
+const { runDecodeCompare } = require("./decode-compare")
 const { version } = require("../../package.json")
 
 // iconv-lite commit the report was generated against (for traceability).
@@ -55,6 +56,11 @@ wptRunner(wptRoot, {
     for (const t of WINDOW_TESTS) {
       const r = runWindowTest(t)
       files.push({ file: r.file.replace(/\.js$/, ".html"), pass: r.pass, fail: r.fail, failures: r.failures })
+    }
+
+    // Append the index-driven multi-byte decode-compare (shift_jis/euc-jp/euc-kr/big5).
+    for (const r of runDecodeCompare()) {
+      files.push({ file: `decode-compare: ${r.enc}`, pass: r.pass, fail: r.fail, failures: r.failures })
     }
 
     const totalFail = files.reduce((n, f) => n + f.fail, 0)
