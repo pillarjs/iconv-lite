@@ -43,6 +43,7 @@
         "test:tap": "mocha --reporter tap --check-leaks --grep .",
         "test:typescript": "tsc && attw --pack",
         "test:webpack": "npm pack && mv iconv-lite-*.tgz test/webpack/iconv-lite.tgz && cd test/webpack && npm install && npm run test && rm iconv-lite.tgz && rm -r node_modules",
+        "test:wpt": "node test/wpt/run.js",
         "typegen": "node generation/gen-typings.js"
     },
     "browser": {
@@ -62,7 +63,8 @@
         "neostandard": "^0.12.0",    
         "nyc": "^17.1.0",
         "unorm": "^1.6.0",
-        "typescript": "~5.9.3"
+        "typescript": "~5.9.3",
+        "wpt-runner": "^7.0.0"
     },
     "dependencies": {},
     "workspaces": [

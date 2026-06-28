@@ -1,0 +1,4 @@
+# Vendored Web Platform Tests and WHATWG index data — keep byte-identical to
+# upstream (always LF) so they don't drift on Windows checkouts.
+test/wpt/upstream/** text eol=lf
+test/wpt/data/** text eol=lf

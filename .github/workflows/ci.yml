@@ -59,7 +59,22 @@ jobs:
         run: npm install
 
       - name: Run performance test
-        run: npm run test:performance
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:performance 2>&1 | tee perf.txt
+
+      - name: Performance summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Performance (${{ matrix.os }} · $(node -v))"
+            echo ''
+            echo '```'
+            node -e "process.stdout.write(require('fs').readFileSync('perf.txt','utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g,''))"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   test:
     name: Run tests
@@ -114,6 +129,11 @@ jobs:
       - name: Run Web test
         shell: bash
         run: npm run test:node-web
+
+      - name: WPT encoding conformance report
+        shell: bash
+        continue-on-error: true
+        run: node test/wpt/report.js >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload code coverage
         uses: actions/upload-artifact@v7
