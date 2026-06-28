@@ -154,6 +154,15 @@ jobs:
 
           - node-version: "15"
             npm-rm: 'iconv'
+          
+          - node-version: "16"
+            npm-rm: 'iconv' 
+
+          - node-version: "17"
+            npm-rm: 'iconv' 
+
+          - node-version: "19"
+            npm-rm: 'iconv' 
 
         exclude:
           # Skip: node-gyp build failure of "iconv" devDependency on Windows with Node 17.x.x
