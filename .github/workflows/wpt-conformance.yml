@@ -45,6 +45,9 @@ jobs:
       - name: Generate conformance report
         run: node test/wpt/report.js > "section-${{ matrix.node }}.md"
 
+      - name: Show in job summary
+        run: cat "section-${{ matrix.node }}.md" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload section
         uses: actions/upload-artifact@v4
         with:
