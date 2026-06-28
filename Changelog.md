@@ -1,3 +1,9 @@
+## Unreleased
+
+### 🚀 Improvements
+
+* Add `iso-8859-8-i` and `iso-8859-8-e` charset aliases - by [@baptistejamin](https://github.com/baptistejamin) in [#394](https://github.com/pillarjs/iconv-lite/pull/394)
+
 ## 0.7.2
 
 ### 🐞 Bug fixes
