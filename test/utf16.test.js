@@ -28,6 +28,18 @@ describe("ucs2 alias #node-web", function () {
   })
 })
 
+describe("WHATWG utf-16 label aliases #node-web", function () {
+  for (const label of ["unicode", "csunicode", "iso-10646-ucs-2", "unicodefeff"]) {
+    it(`'${label}' decodes as UTF-16LE`, function () {
+      assert.equal(iconv.decode(utf16leBuf, label), iconv.decode(utf16leBuf, "utf-16le"))
+    })
+  }
+
+  it("'unicodefffe' decodes as UTF-16BE", function () {
+    assert.equal(iconv.decode(utf16beBuf, "unicodefffe"), iconv.decode(utf16beBuf, "utf-16be"))
+  })
+})
+
 describe("UTF-16LE encoder #node-web", function () {
   const enc = "utf16-le"
   it("encodes basic strings correctly", function () {

@@ -212,6 +212,15 @@ function detectEncoding (bufs, defaultEncoding) {
 // == Exports ==================================================================
 
 exports.utf16le = Utf16LECodec
-exports.ucs2 = "utf16le" // Alias
+// Aliases that the WHATWG Encoding Standard maps to UTF-16LE (keys are canonicalized labels).
+exports.ucs2 = "utf16le"
+exports.unicode = "utf16le"
+exports.csunicode = "utf16le"
+exports.iso10646ucs2 = "utf16le"
+exports.unicodefeff = "utf16le"
+
 exports.utf16be = Utf16BECodec
+// Alias that the WHATWG Encoding Standard maps to UTF-16BE.
+exports.unicodefffe = "utf16be"
+
 exports.utf16 = Utf16Codec

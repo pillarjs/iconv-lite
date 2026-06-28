@@ -20,7 +20,7 @@ describe("Encoding Existence - Prototype Properties", function () {
   })
 
   it("should detect all available encodings", function () {
-    assert.strictEqual(Object.keys(iconv.encodings).length, 416)
+    assert.strictEqual(Object.keys(iconv.encodings).length, 421)
   })
 })
 
