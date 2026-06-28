@@ -11,7 +11,8 @@ const modules = [
   require("./sbcs-data"),
   require("./sbcs-data-generated"),
   require("./dbcs-codec"),
-  require("./dbcs-data")
+  require("./dbcs-data"),
+  require("./whatwg-aliases")
 ]
 
 // Put all encoding/alias/codec definitions to single object and export it.

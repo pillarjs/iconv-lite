@@ -20,7 +20,7 @@ describe("Encoding Existence - Prototype Properties", function () {
   })
 
   it("should detect all available encodings", function () {
-    assert.strictEqual(Object.keys(iconv.encodings).length, 421)
+    assert.strictEqual(Object.keys(iconv.encodings).length, 452)
   })
 })
 
@@ -158,5 +158,37 @@ describe("Canonicalize encoding function", function () {
   it("matches labels case-insensitively (per WHATWG)", function () {
     assert.ok(iconv.encodingExists("UTF-8"))
     assert.ok(iconv.encodingExists("uTf-16Be"))
+  })
+})
+
+describe("WHATWG label aliases", function () {
+  var whatwgAliases = require("../encodings/whatwg-aliases")
+
+  it("recognizes every WHATWG alias", function () {
+    Object.keys(whatwgAliases).forEach(function (alias) {
+      assert.ok(iconv.encodingExists(alias), alias + " should be a known encoding")
+    })
+  })
+
+  it("decodes each alias identically to its target encoding", function () {
+    var bytes = Buffer.from([0x80, 0xa0, 0xc0, 0xe0, 0x41, 0x7f])
+    Object.keys(whatwgAliases).forEach(function (alias) {
+      var target = whatwgAliases[alias]
+      assert.strictEqual(
+        iconv.decode(bytes, alias),
+        iconv.decode(bytes, target),
+        alias + " should decode like " + target
+      )
+    })
+  })
+
+  it("maps the human-readable labels (e.g. x-cp1252, koi8, x-mac-roman)", function () {
+    assert.strictEqual(iconv.decode(Buffer.from([0x80]), "x-cp1252"), iconv.decode(Buffer.from([0x80]), "windows-1252"))
+    assert.ok(iconv.encodingExists("x-mac-cyrillic"))
+    assert.ok(iconv.encodingExists("x-mac-ukrainian"))
+    assert.ok(iconv.encodingExists("x-mac-roman"))
+    assert.ok(iconv.encodingExists("iso-8859-8-i"))
+    assert.ok(iconv.encodingExists("sun_eu_greek"))
+    assert.ok(iconv.encodingExists("x-euc-jp"))
   })
 })
