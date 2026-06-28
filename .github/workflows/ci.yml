@@ -3,10 +3,10 @@ name: ci
 on:
   push:
     branches:
-      - master
+      - v0.x
   pull_request:
     branches:
-      - master
+      - v0.x
 
 permissions:
   contents: read
@@ -48,10 +48,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js 24
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Install dependencies
         run: npm install
@@ -64,7 +64,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-2022]
         node-version:
           - "0.10"
           - "0.12"
@@ -154,11 +154,20 @@ jobs:
 
           - node-version: "15"
             npm-rm: 'iconv'
+          
+          - node-version: "16"
+            npm-rm: 'iconv' 
+
+          - node-version: "17"
+            npm-rm: 'iconv' 
+
+          - node-version: "19"
+            npm-rm: 'iconv' 
 
         exclude:
-          # Skip: node-gyp build failure of "iconv" devDependency on Windows with Node 17.x.x
-          - os: windows-latest
-            node-version: "17"
+          # Skip because of a npm error
+          - os: windows-2022
+            node-version: "7"
 
     runs-on: ${{ matrix.os }}
     steps:
