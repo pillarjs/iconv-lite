@@ -72,6 +72,13 @@ describe("Generic UTF8-UCS2 tests", function () {
     assert.throws(function () { iconv.decode(Buffer.from("a"), "xxx") })
   })
 
+  it("Opt-in fatal mode throws on invalid utf8, replaces by default", function () {
+    var invalid = Buffer.from([0xff, 0xfe, 0xfd])
+    assert.throws(function () { iconv.decode(invalid, "utf8", { fatal: true }) })
+    assert.strictEqual(iconv.decode(Buffer.from("abc"), "utf8", { fatal: true }), "abc")
+    assert.strictEqual(iconv.decode(invalid, "utf8"), "���") // default: replacement, no throw.
+  })
+
   it("Convert non-strings and non-buffers", function () {
     assert.throws(function () {
       iconv.encode({}, "utf8")

@@ -6,7 +6,9 @@
     "backends/**"
   ],
   "exclude": [
-    "test/**"
+    "test/**",
+    "**/*.d.ts",
+    "lib/index-web.js"
   ],
   "reporter": [
     "text"

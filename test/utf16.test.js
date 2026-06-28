@@ -318,6 +318,19 @@ describe("UTF-16 decoder #node-web", function () {
       iconv.decode(weirdBuf, encBE)
     )
   })
+
+  it("keeps decoding chunks fed after the endianness was detected", function () {
+    const d = iconv.getDecoder(enc)
+    let res = d.write(utf16leBuf) // 16 bytes -> triggers detection, sets the inner decoder.
+    res += d.write(utf16leBuf) // Subsequent chunk: inner decoder already chosen.
+    res += d.end() || ""
+    assert.equal(res, testStr + testStr)
+  })
+
+  it("uses only the first 100 code units for the space heuristic", function () {
+    const longStr = "a".repeat(120) // >100 code units, no BOM -> heuristic loop hits its cap.
+    assert.equal(iconv.decode(iconv.encode(longStr, encLE), enc), longStr)
+  })
 })
 
 // Adapted from @exodus/bytes' utf16 tests: unpaired/invalid surrogates must be replaced with
