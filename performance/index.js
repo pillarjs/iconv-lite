@@ -42,6 +42,12 @@ for (const [encoding, string] of Object.entries(encodingStrings)) {
     converter.convert(buffer).toString()
     timer.end()
   })
+  suite.add(`${encoding}/decode/native-TextDecoder`, function (timer) {
+    const buffer = iconvLite.encode(string, encoding)
+    timer.start()
+    new TextDecoder(encoding).decode(buffer)
+    timer.end()
+  })
 }
 
 suite.run()
