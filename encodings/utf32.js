@@ -1,307 +1,300 @@
 "use strict"
 
-var Buffer = require("buffer").Buffer
+const Buffer = require("buffer").Buffer
 
-// == UTF32-LE/BE codec. ==========================================================
+/**
+ * UTF-32LE / UTF-32BE / UTF-32 (auto) codecs.
+ *
+ * NOTE: this step only restructures the previous implementation into the class-based codec interface
+ * (createEncoder/createDecoder/bomAware) used by the other codecs; the conversion still goes through
+ * the Node Buffer and the behavior is unchanged (lenient: surrogate code points pass through, trailing
+ * incomplete bytes are dropped). Browser-native byte I/O, performance and strict conformance come in
+ * later steps.
+ *
+ * @see https://en.wikipedia.org/wiki/UTF-32
+ */
 
-exports._utf32 = Utf32Codec
-
-function Utf32Codec (codecOptions, iconv) {
-  this.iconv = iconv
-  this.bomAware = true
-  this.isLE = codecOptions.isLE
+/** UTF-32LE codec. */
+class Utf32LECodec {
+  createEncoder (options, iconv) { return new Utf32Encoder(true) }
+  createDecoder (options, iconv) { return new Utf32Decoder(true, iconv.defaultCharUnicode.charCodeAt(0)) }
+  get bomAware () { return true }
 }
 
-exports.utf32le = { type: "_utf32", isLE: true }
-exports.utf32be = { type: "_utf32", isLE: false }
-
-// Aliases
-exports.ucs4le = "utf32le"
-exports.ucs4be = "utf32be"
-
-Utf32Codec.prototype.encoder = Utf32Encoder
-Utf32Codec.prototype.decoder = Utf32Decoder
-
-// -- Encoding
-
-function Utf32Encoder (options, codec) {
-  this.isLE = codec.isLE
-  this.highSurrogate = 0
+/** UTF-32BE codec. */
+class Utf32BECodec {
+  createEncoder (options, iconv) { return new Utf32Encoder(false) }
+  createDecoder (options, iconv) { return new Utf32Decoder(false, iconv.defaultCharUnicode.charCodeAt(0)) }
+  get bomAware () { return true }
 }
 
-Utf32Encoder.prototype.write = function (str) {
-  var src = Buffer.from(str, "ucs2")
-  var dst = Buffer.alloc(src.length * 2)
-  var write32 = this.isLE ? dst.writeUInt32LE : dst.writeUInt32BE
-  var offset = 0
+/**
+ * UTF-32 encoder. Combines surrogate pairs into code points and writes each as 4 bytes. A lone
+ * surrogate is written through as its own (semi-invalid) code point, which some applications expect
+ * (e.g. Windows file names). Stateful across writes: a high surrogate at the end of one write() is
+ * held for the next.
+ */
+class Utf32Encoder {
+  /** @param {boolean} isLE Little-endian when true. */
+  constructor (isLE) {
+    this.isLE = isLE
+    this.highSurrogate = 0
+  }
 
-  for (var i = 0; i < src.length; i += 2) {
-    var code = src.readUInt16LE(i)
-    var isHighSurrogate = (code >= 0xD800 && code < 0xDC00)
-    var isLowSurrogate = (code >= 0xDC00 && code < 0xE000)
+  /**
+   * @param {string} str
+   * @returns {Buffer}
+   */
+  write (str) {
+    const src = Buffer.from(str, "ucs2")
+    let dst = Buffer.alloc(src.length * 2)
+    const isLE = this.isLE
+    let offset = 0
 
-    if (this.highSurrogate) {
-      if (isHighSurrogate || !isLowSurrogate) {
-        // There shouldn't be two high surrogates in a row, nor a high surrogate which isn't followed by a low
-        // surrogate. If this happens, keep the pending high surrogate as a stand-alone semi-invalid character
-        // (technically wrong, but expected by some applications, like Windows file names).
-        write32.call(dst, this.highSurrogate, offset)
-        offset += 4
+    for (let i = 0; i < src.length; i += 2) {
+      const code = src.readUInt16LE(i)
+      const isHighSurrogate = code >= 0xD800 && code < 0xDC00
+      const isLowSurrogate = code >= 0xDC00 && code < 0xE000
+
+      if (this.highSurrogate) {
+        if (isHighSurrogate || !isLowSurrogate) {
+          // Two high surrogates in a row, or a high surrogate not followed by a low one: keep the
+          // pending high surrogate as a stand-alone (semi-invalid) character.
+          if (isLE) { dst.writeUInt32LE(this.highSurrogate, offset) } else { dst.writeUInt32BE(this.highSurrogate, offset) }
+          offset += 4
+        } else {
+          // Combine the high and low surrogate into a single 32-bit code point.
+          const codepoint = (((this.highSurrogate - 0xD800) << 10) | (code - 0xDC00)) + 0x10000
+          if (isLE) { dst.writeUInt32LE(codepoint, offset) } else { dst.writeUInt32BE(codepoint, offset) }
+          offset += 4
+          this.highSurrogate = 0
+          continue
+        }
+      }
+
+      if (isHighSurrogate) {
+        this.highSurrogate = code
       } else {
-        // Create 32-bit value from high and low surrogates;
-        var codepoint = (((this.highSurrogate - 0xD800) << 10) | (code - 0xDC00)) + 0x10000
-
-        write32.call(dst, codepoint, offset)
+        // A low surrogate with no preceding high surrogate is also kept as a stand-alone character.
+        if (isLE) { dst.writeUInt32LE(code, offset) } else { dst.writeUInt32BE(code, offset) }
         offset += 4
         this.highSurrogate = 0
-
-        continue
       }
     }
 
-    if (isHighSurrogate) { this.highSurrogate = code } else {
-      // Even if the current character is a low surrogate, with no previous high surrogate, we'll
-      // encode it as a semi-invalid stand-alone character for the same reasons expressed above for
-      // unpaired high surrogates.
-      write32.call(dst, code, offset)
-      offset += 4
-      this.highSurrogate = 0
-    }
+    if (offset < dst.length) { dst = dst.slice(0, offset) }
+    return dst
   }
 
-  if (offset < dst.length) { dst = dst.slice(0, offset) }
-
-  return dst
+  /** @returns {Buffer|undefined} A leftover unpaired high surrogate, as a stand-alone character. */
+  end () {
+    if (!this.highSurrogate) { return }
+    const buf = Buffer.alloc(4)
+    if (this.isLE) { buf.writeUInt32LE(this.highSurrogate, 0) } else { buf.writeUInt32BE(this.highSurrogate, 0) }
+    this.highSurrogate = 0
+    return buf
+  }
 }
 
-Utf32Encoder.prototype.end = function () {
-  // Treat any leftover high surrogate as a semi-valid independent character.
-  if (!this.highSurrogate) { return }
+/**
+ * UTF-32 decoder. Reads 4-byte code points and emits the corresponding UTF-16. A code point outside
+ * 0..0x10FFFF is replaced with the bad-char. Streaming: a code point split across a chunk boundary is
+ * buffered (`overflow`) and finished on the next write; trailing bytes that never complete a code
+ * point are dropped at end().
+ */
+class Utf32Decoder {
+  /**
+   * @param {boolean} isLE Little-endian when true.
+   * @param {number} badChar Code unit emitted for an out-of-range code point.
+   */
+  constructor (isLE, badChar) {
+    this.isLE = isLE
+    this.badChar = badChar
+    this.overflow = []
+  }
 
-  var buf = Buffer.alloc(4)
+  /**
+   * @param {Buffer|Uint8Array} src
+   * @returns {string}
+   */
+  write (src) {
+    if (src.length === 0) { return "" }
 
-  if (this.isLE) { buf.writeUInt32LE(this.highSurrogate, 0) } else { buf.writeUInt32BE(this.highSurrogate, 0) }
+    const isLE = this.isLE
+    const overflow = this.overflow
+    const badChar = this.badChar
+    const dst = Buffer.alloc(src.length + 4)
+    let offset = 0
+    let codepoint = 0
+    let i = 0
 
-  this.highSurrogate = 0
+    // Finish a code point that was split across the previous chunk boundary.
+    if (overflow.length > 0) {
+      for (; i < src.length && overflow.length < 4; i++) { overflow.push(src[i]) }
+      if (overflow.length === 4) {
+        if (isLE) {
+          codepoint = overflow[0] | (overflow[1] << 8) | (overflow[2] << 16) | (overflow[3] << 24)
+        } else {
+          codepoint = overflow[3] | (overflow[2] << 8) | (overflow[1] << 16) | (overflow[0] << 24)
+        }
+        overflow.length = 0
+        offset = writeCodepoint(dst, offset, codepoint, badChar)
+      }
+    }
 
-  return buf
-}
-
-// -- Decoding
-
-function Utf32Decoder (options, codec) {
-  this.isLE = codec.isLE
-  this.badChar = codec.iconv.defaultCharUnicode.charCodeAt(0)
-  this.overflow = []
-}
-
-Utf32Decoder.prototype.write = function (src) {
-  if (src.length === 0) { return "" }
-
-  var i = 0
-  var codepoint = 0
-  var dst = Buffer.alloc(src.length + 4)
-  var offset = 0
-  var isLE = this.isLE
-  var overflow = this.overflow
-  var badChar = this.badChar
-
-  if (overflow.length > 0) {
-    for (; i < src.length && overflow.length < 4; i++) { overflow.push(src[i]) }
-
-    if (overflow.length === 4) {
-      // NOTE: codepoint is a signed int32 and can be negative.
-      // NOTE: We copied this block from below to help V8 optimize it (it works with array, not buffer).
+    // Main loop.
+    for (; i < src.length - 3; i += 4) {
       if (isLE) {
-        codepoint = overflow[i] | (overflow[i + 1] << 8) | (overflow[i + 2] << 16) | (overflow[i + 3] << 24)
+        codepoint = src[i] | (src[i + 1] << 8) | (src[i + 2] << 16) | (src[i + 3] << 24)
       } else {
-        codepoint = overflow[i + 3] | (overflow[i + 2] << 8) | (overflow[i + 1] << 16) | (overflow[i] << 24)
+        codepoint = src[i + 3] | (src[i + 2] << 8) | (src[i + 1] << 16) | (src[i] << 24)
       }
-      overflow.length = 0
-
-      offset = _writeCodepoint(dst, offset, codepoint, badChar)
+      offset = writeCodepoint(dst, offset, codepoint, badChar)
     }
+
+    // Keep the trailing bytes that don't complete a code point for the next chunk.
+    for (; i < src.length; i++) { overflow.push(src[i]) }
+
+    return dst.slice(0, offset).toString("ucs2")
   }
 
-  // Main loop. Should be as optimized as possible.
-  for (; i < src.length - 3; i += 4) {
-    // NOTE: codepoint is a signed int32 and can be negative.
-    if (isLE) {
-      codepoint = src[i] | (src[i + 1] << 8) | (src[i + 2] << 16) | (src[i + 3] << 24)
-    } else {
-      codepoint = src[i + 3] | (src[i + 2] << 8) | (src[i + 1] << 16) | (src[i] << 24)
-    }
-    offset = _writeCodepoint(dst, offset, codepoint, badChar)
+  /** @returns {void} Trailing incomplete bytes are dropped. */
+  end () {
+    this.overflow.length = 0
   }
-
-  // Keep overflowing bytes.
-  for (; i < src.length; i++) {
-    overflow.push(src[i])
-  }
-
-  return dst.slice(0, offset).toString("ucs2")
 }
 
-function _writeCodepoint (dst, offset, codepoint, badChar) {
-  // NOTE: codepoint is signed int32 and can be negative. We keep it that way to help V8 with optimizations.
-  if (codepoint < 0 || codepoint > 0x10FFFF) {
-    // Not a valid Unicode codepoint
-    codepoint = badChar
-  }
+/**
+ * Writes a code point as UTF-16LE bytes into `dst`, replacing out-of-range values with `badChar`.
+ * NOTE: codepoint is read as a signed int32 (from `<< 24`) so it can be negative; that's intentional
+ * and handled by the range check.
+ * @param {Buffer} dst
+ * @param {number} offset
+ * @param {number} codepoint
+ * @param {number} badChar
+ * @returns {number} The new write offset.
+ */
+function writeCodepoint (dst, offset, codepoint, badChar) {
+  if (codepoint < 0 || codepoint > 0x10FFFF) { codepoint = badChar }
 
-  // Ephemeral Planes: Write high surrogate.
   if (codepoint >= 0x10000) {
+    // Astral plane: write the high surrogate, then fall through to write the low surrogate.
     codepoint -= 0x10000
-
-    var high = 0xD800 | (codepoint >> 10)
+    const high = 0xD800 | (codepoint >> 10)
     dst[offset++] = high & 0xff
     dst[offset++] = high >> 8
-
-    // Low surrogate is written below.
-    var codepoint = 0xDC00 | (codepoint & 0x3FF)
+    codepoint = 0xDC00 | (codepoint & 0x3FF)
   }
 
-  // Write BMP char or low surrogate.
   dst[offset++] = codepoint & 0xff
   dst[offset++] = codepoint >> 8
-
   return offset
-};
-
-Utf32Decoder.prototype.end = function () {
-  this.overflow.length = 0
 }
 
-// == UTF-32 Auto codec =============================================================
-// Decoder chooses automatically from UTF-32LE and UTF-32BE using BOM and space-based heuristic.
-// Defaults to UTF-32LE. http://en.wikipedia.org/wiki/UTF-32
-// Encoder/decoder default can be changed: iconv.decode(buf, 'utf32', {defaultEncoding: 'utf-32be'});
-
-// Encoder prepends BOM (which can be overridden with (addBOM: false}).
-
-exports.utf32 = Utf32AutoCodec
-exports.ucs4 = "utf32"
-
-function Utf32AutoCodec (options, iconv) {
-  this.iconv = iconv
-}
-
-Utf32AutoCodec.prototype.encoder = Utf32AutoEncoder
-Utf32AutoCodec.prototype.decoder = Utf32AutoDecoder
-
-// -- Encoding
-
-function Utf32AutoEncoder (options, codec) {
-  options = options || {}
-
-  if (options.addBOM === undefined) {
-    options.addBOM = true
+/**
+ * UTF-32 auto codec. The encoder defaults to UTF-32LE and prepends a BOM (override with addBOM: false
+ * or defaultEncoding). The decoder picks UTF-32LE vs UTF-32BE from the BOM, falling back to a
+ * space/zero heuristic, defaulting to UTF-32LE.
+ * Decoder default can be changed: iconv.decode(buf, 'utf32', { defaultEncoding: 'utf-32be' }).
+ */
+class Utf32Codec {
+  createEncoder (options, iconv) {
+    options = options || {}
+    if (options.addBOM === undefined) { options.addBOM = true }
+    return iconv.getEncoder(options.defaultEncoding || "utf-32le", options)
   }
 
-  this.encoder = codec.iconv.getEncoder(options.defaultEncoding || "utf-32le", options)
+  createDecoder (options, iconv) {
+    return new Utf32AutoDecoder(options, iconv)
+  }
 }
 
-Utf32AutoEncoder.prototype.write = function (str) {
-  return this.encoder.write(str)
-}
+class Utf32AutoDecoder {
+  constructor (options, iconv) {
+    this.decoder = null
+    this.initialBufs = []
+    this.initialBufsLen = 0
+    this.options = options || {}
+    this.iconv = iconv
+  }
 
-Utf32AutoEncoder.prototype.end = function () {
-  return this.encoder.end()
-}
+  write (buf) {
+    if (!this.decoder) {
+      // Codec not chosen yet: accumulate initial bytes until the heuristic has enough to work with.
+      this.initialBufs.push(buf)
+      this.initialBufsLen += buf.length
+      if (this.initialBufsLen < 32) { return "" }
+      return this._chooseDecoder()
+    }
+    return this.decoder.write(buf)
+  }
 
-// -- Decoding
+  end () {
+    if (this.decoder) { return this.decoder.end() }
+    // Endianness wasn't decided during write() (fewer than 32 bytes): decide and decode the buffered
+    // bytes now. A trailing incomplete code point is dropped, like in the LE/BE decoders.
+    return this._chooseDecoder()
+  }
 
-function Utf32AutoDecoder (options, codec) {
-  this.decoder = null
-  this.initialBufs = []
-  this.initialBufsLen = 0
-  this.options = options || {}
-  this.iconv = codec.iconv
-}
-
-Utf32AutoDecoder.prototype.write = function (buf) {
-  if (!this.decoder) {
-    // Codec is not chosen yet. Accumulate initial bytes.
-    this.initialBufs.push(buf)
-    this.initialBufsLen += buf.length
-
-    if (this.initialBufsLen < 32) // We need more bytes to use space heuristic (see below)
-    { return "" }
-
-    // We have enough bytes -> detect endianness.
-    var encoding = detectEncoding(this.initialBufs, this.options.defaultEncoding)
+  _chooseDecoder () {
+    const encoding = detectEncoding(this.initialBufs, this.options.defaultEncoding)
     this.decoder = this.iconv.getDecoder(encoding, this.options)
-
-    var resStr = ""
-    for (var i = 0; i < this.initialBufs.length; i++) { resStr += this.decoder.write(this.initialBufs[i]) }
-
+    const res = this.initialBufs.reduce((acc, buf) => acc + this.decoder.write(buf), "")
     this.initialBufs.length = this.initialBufsLen = 0
-    return resStr
+    return res
   }
-
-  return this.decoder.write(buf)
 }
 
-Utf32AutoDecoder.prototype.end = function () {
-  if (!this.decoder) {
-    var encoding = detectEncoding(this.initialBufs, this.options.defaultEncoding)
-    this.decoder = this.iconv.getDecoder(encoding, this.options)
-
-    var resStr = ""
-    for (var i = 0; i < this.initialBufs.length; i++) { resStr += this.decoder.write(this.initialBufs[i]) }
-
-    var trail = this.decoder.end()
-    if (trail) { resStr += trail }
-
-    this.initialBufs.length = this.initialBufsLen = 0
-    return resStr
-  }
-
-  return this.decoder.end()
-}
-
+/**
+ * Detects UTF-32 endianness from the leading bytes: a BOM if present, otherwise a heuristic counting
+ * how many code units look like valid BMP characters when read as LE vs BE.
+ * @param {Array<Buffer|Uint8Array>} bufs
+ * @param {string} [defaultEncoding]
+ * @returns {string} "utf-32le" or "utf-32be".
+ */
 function detectEncoding (bufs, defaultEncoding) {
-  var b = []
-  var charsProcessed = 0
-  var invalidLE = 0; var invalidBE = 0   // Number of invalid chars when decoded as LE or BE.
-  var bmpCharsLE = 0; var bmpCharsBE = 0 // Number of BMP chars when decoded as LE or BE.
+  const b = []
+  let charsProcessed = 0
+  let invalidLE = 0; let invalidBE = 0 // Code units out of the 0..0x10FFFF range when read LE / BE.
+  let bmpCharsLE = 0; let bmpCharsBE = 0 // Code units that look like BMP characters when read LE / BE.
 
   outerLoop:
-  for (var i = 0; i < bufs.length; i++) {
-    var buf = bufs[i]
-    for (var j = 0; j < buf.length; j++) {
+  for (let i = 0; i < bufs.length; i++) {
+    const buf = bufs[i]
+    for (let j = 0; j < buf.length; j++) {
       b.push(buf[j])
       if (b.length === 4) {
         if (charsProcessed === 0) {
-          // Check BOM first.
-          if (b[0] === 0xFF && b[1] === 0xFE && b[2] === 0 && b[3] === 0) {
-            return "utf-32le"
-          }
-          if (b[0] === 0 && b[1] === 0 && b[2] === 0xFE && b[3] === 0xFF) {
-            return "utf-32be"
-          }
+          // Check the BOM first.
+          if (b[0] === 0xFF && b[1] === 0xFE && b[2] === 0 && b[3] === 0) { return "utf-32le" }
+          if (b[0] === 0 && b[1] === 0 && b[2] === 0xFE && b[3] === 0xFF) { return "utf-32be" }
         }
 
-        if (b[0] !== 0 || b[1] > 0x10) invalidBE++
-        if (b[3] !== 0 || b[2] > 0x10) invalidLE++
-
-        if (b[0] === 0 && b[1] === 0 && (b[2] !== 0 || b[3] !== 0)) bmpCharsBE++
-        if ((b[0] !== 0 || b[1] !== 0) && b[2] === 0 && b[3] === 0) bmpCharsLE++
+        if (b[0] !== 0 || b[1] > 0x10) { invalidBE++ }
+        if (b[3] !== 0 || b[2] > 0x10) { invalidLE++ }
+        if (b[0] === 0 && b[1] === 0 && (b[2] !== 0 || b[3] !== 0)) { bmpCharsBE++ }
+        if ((b[0] !== 0 || b[1] !== 0) && b[2] === 0 && b[3] === 0) { bmpCharsLE++ }
 
         b.length = 0
         charsProcessed++
-
-        if (charsProcessed >= 100) {
-          break outerLoop
-        }
+        if (charsProcessed >= 100) { break outerLoop }
       }
     }
   }
 
-  // Make decisions.
-  if (bmpCharsBE - invalidBE > bmpCharsLE - invalidLE) return "utf-32be"
-  if (bmpCharsBE - invalidBE < bmpCharsLE - invalidLE) return "utf-32le"
+  // Decide from the heuristic.
+  if (bmpCharsBE - invalidBE > bmpCharsLE - invalidLE) { return "utf-32be" }
+  if (bmpCharsBE - invalidBE < bmpCharsLE - invalidLE) { return "utf-32le" }
 
   // Couldn't decide (likely all zeros or not enough data).
   return defaultEncoding || "utf-32le"
 }
+
+exports.utf32le = Utf32LECodec
+exports.utf32be = Utf32BECodec
+// Aliases.
+exports.ucs4le = "utf32le"
+exports.ucs4be = "utf32be"
+
+exports.utf32 = Utf32Codec
+exports.ucs4 = "utf32"

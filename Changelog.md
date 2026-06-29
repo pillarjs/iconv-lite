@@ -20,6 +20,10 @@
 
     When decoding, ill-formed input — an incomplete code unit, non-zero Base64 padding bits, a shift-in ("+"/"&") not followed by Base64 or "-", or a non-ASCII byte outside a shifted run — is now replaced with U+FFFD instead of being passed through (lone surrogates still pass through as raw 16-bit code units). When encoding UTF-7, the optional "Set O" punctuation is now left as direct ASCII, so the output differs byte-for-byte for those characters, though it still decodes to the same text.
 
+- Rewrite the UTF-32 codecs - by [@bjohansebas](https://github.com/bjohansebas) in [#407](https://github.com/pillarjs/iconv-lite/pull/407)
+
+    The UTF-32LE/BE and auto-detecting `utf-32` codecs were restructured to the class-based codec interface used by the other codecs. The internal `_utf32` codec alias — a private detail of the old `{ type: "_utf32" }` indirection — was removed.
+
 ### 🚀 Improvements
 
 - Recognize more WHATWG encoding labels - by [@bjohansebas](https://github.com/bjohansebas) in [#403](https://github.com/pillarjs/iconv-lite/pull/403)

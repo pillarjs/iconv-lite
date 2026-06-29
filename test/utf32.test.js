@@ -60,8 +60,26 @@ describe("UTF-32LE codec", function () {
     assert.equal(iconv.decode(utf32leBuf, "ucs4le"), testStr)
   })
 
+  it("decodes an empty buffer to an empty string", function () {
+    assert.equal(iconv.decode(Buffer.alloc(0), "utf-32le"), "")
+  })
+
   it("decodes uneven length buffers with no error", function () {
     assert.equal(iconv.decode(Buffer.from([0x61, 0, 0, 0, 0]), "UTF32-LE"), "a")
+  })
+
+  it("flushes a trailing unpaired high surrogate on end()", function () {
+    // 'a' is written, the lone high surrogate is held, then end() flushes it as a stand-alone char.
+    assert.equal(iconv.encode("a\uD800", "UTF32-LE").toString("hex"), "6100000000d80000")
+  })
+
+  it("decodes a code point split across chunk boundaries", function () {
+    var decoder = iconv.getDecoder("utf-32le")
+    var res = decoder.write(Buffer.from([0x61])) // 1 byte buffered
+    res += decoder.write(Buffer.from([0x00, 0x00])) // still incomplete (3 bytes buffered)
+    res += decoder.write(Buffer.from([0x00, 0x62, 0x00, 0x00, 0x00])) // completes 'a', then 'b'
+    res += decoder.end() || ""
+    assert.equal(res, "ab")
   })
 
   it("handles invalid surrogates gracefully", function () {
@@ -115,6 +133,18 @@ describe("UTF-32BE codec", function () {
     assert.equal(iconv.decode(Buffer.from([0, 0, 0, 0x61, 0]), "UTF32-BE"), "a")
   })
 
+  it("decodes a code point split across chunk boundaries", function () {
+    var decoder = iconv.getDecoder("utf-32be")
+    var res = decoder.write(Buffer.from([0x00, 0x00])) // buffered
+    res += decoder.write(Buffer.from([0x00, 0x61, 0x00, 0x00, 0x00, 0x62])) // completes 'a', then 'b'
+    res += decoder.end() || ""
+    assert.equal(res, "ab")
+  })
+
+  it("flushes a trailing unpaired high surrogate on end()", function () {
+    assert.equal(iconv.encode("a\uD800", "UTF32-BE").toString("hex"), "000000610000d800")
+  })
+
   it("handles invalid surrogates gracefully", function () {
     var encoded = iconv.encode(testStr2, "UTF32-BE")
     assert.equal(escape(iconv.decode(encoded, "UTF32-BE")), escape(testStr2))
@@ -122,6 +152,8 @@ describe("UTF-32BE codec", function () {
 
   it("handles invalid Unicode codepoints gracefully", function () {
     assert.equal(iconv.decode(utf32beBufWithInvalidChar, "utf-32be"), testStr + "�")
+    // A code point with the high bit set reads as a negative int32; it's still out of range -> U+FFFD.
+    assert.equal(iconv.decode(Buffer.from([0, 0, 0, 0x80]), "utf-32le"), "�")
   })
 
   it("handles encoding all valid codepoints", function () {
@@ -170,6 +202,29 @@ describe("UTF-32 general codec", function () {
 
   it("correctly decodes UTF-32BE without BOM", function () {
     assert.equal(iconv.decode(iconv.encode(sampleStr, "utf-32-be"), "utf-32"), sampleStr)
+  })
+
+  it("decodes short input, deciding endianness only at end()", function () {
+    // 8 bytes is below the 32-byte detection threshold, so the codec is chosen only at end().
+    assert.equal(iconv.decode(iconv.encode("1a", "utf-32le"), "utf-32"), "1a")
+  })
+
+  it("decodes across multiple chunks once endianness is decided", function () {
+    var encoded = iconv.encode(sampleStr, "utf-32le")
+    var decoder = iconv.getDecoder("utf-32")
+    var res = decoder.write(encoded.slice(0, 40)) // >= 32 bytes: chooses + decodes
+    res += decoder.write(encoded.slice(40)) // already chosen: decodes directly
+    res += decoder.end() || ""
+    assert.equal(res, sampleStr)
+  })
+
+  it("falls back to UTF-32LE for ambiguous (all-zero) input", function () {
+    assert.equal(iconv.decode(Buffer.alloc(32), "utf-32"), "\0\0\0\0\0\0\0\0")
+  })
+
+  it("detects endianness from a long heuristic sample (> 100 code units)", function () {
+    var longStr = "a".repeat(150)
+    assert.equal(iconv.decode(iconv.encode(longStr, "utf-32le"), "utf-32"), longStr)
   })
 })
 
