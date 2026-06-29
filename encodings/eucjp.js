@@ -32,9 +32,9 @@ const C1_REPLACE = new RegExp(C1_RANGE, "g")
 
 class EucJpCodec {
   createEncoder (options, iconv) {
-    // The codec instance is cached per encoding, so build the reverse map only once.
-    if (!this.encodeMap) { this.encodeMap = buildEncodeMap() }
-    return new EucJpEncoder(this.encodeMap, iconv.backend)
+    // The codec instance is cached per encoding, so build the reverse table only once.
+    if (!this.encodeTable) { this.encodeTable = buildEncodeTable() }
+    return new EucJpEncoder(this.encodeTable, iconv.backend)
   }
 
   createDecoder (options) {
@@ -42,19 +42,25 @@ class EucJpCodec {
   }
 }
 
-// code unit (0x0000..0xFFFF) -> byte sequence (array). The comments map each part to the steps of
-// the WHATWG EUC-JP encoder (https://encoding.spec.whatwg.org/#euc-jp-encoder). Step 1 (end-of-queue
-// -> finished) is handled by the encoder's write loop, not here.
-function buildEncodeMap () {
+// Pack a 1-3 byte sequence into one 32-bit value for fast encoding: byte count in bits 24-31, then
+// the bytes in bits 16-23, 8-15, 0-7. 0 means "no mapping" (a mapped value always has count >= 1).
+function pack (seq) {
+  return (seq.length << 24) | (seq[0] << 16) | ((seq[1] || 0) << 8) | (seq[2] || 0)
+}
+
+// code unit (0x0000..0xFFFF) -> packed byte sequence, as a Uint32Array (see pack()). The comments
+// map each part to the steps of the WHATWG EUC-JP encoder (https://encoding.spec.whatwg.org/#euc-jp-encoder).
+// Step 1 (end-of-queue -> finished) is handled by the encoder's write loop, not here.
+function buildEncodeTable () {
   const dec = new TextDecoder(LABEL)
-  const map = new Array(0x10000).fill(null)
+  const table = new Uint32Array(0x10000)
 
   // Record the byte sequence for the character it decodes to (first/earliest sequence wins). This
   // covers the steps whose output is simply "the bytes that decode back to the character".
   const put = (seq) => {
     const s = dec.decode(Uint8Array.from(seq))
-    if (s.length === 1 && s !== REPLACEMENT && map[s.charCodeAt(0)] === null) {
-      map[s.charCodeAt(0)] = seq
+    if (s.length === 1 && s !== REPLACEMENT && table[s.charCodeAt(0)] === 0) {
+      table[s.charCodeAt(0)] = pack(seq)
     }
   }
 
@@ -69,27 +75,30 @@ function buildEncodeMap () {
 
   // Steps 3, 4 and 6 map characters that NO byte decodes to, so the loops above can't capture them;
   // add them explicitly (they take precedence over the index lookup, as in the spec's step order).
-  map[0x00a5] = [0x5c] // Step 3: U+00A5 (YEN SIGN) -> 0x5C. Encode-only; the decoder gives '\' for 0x5C.
-  map[0x203e] = [0x7e] // Step 4: U+203E (OVERLINE) -> 0x7E. Encode-only; the decoder gives '~' for 0x7E.
-  map[0x2212] = map[0xff0d] // Step 6: U+2212 (MINUS SIGN) -> encode as U+FF0D (FULLWIDTH HYPHEN-MINUS).
-  return map
+  table[0x00a5] = pack([0x5c]) // Step 3: U+00A5 (YEN SIGN) -> 0x5C. Encode-only; decoder gives '\' for 0x5C.
+  table[0x203e] = pack([0x7e]) // Step 4: U+203E (OVERLINE) -> 0x7E. Encode-only; decoder gives '~' for 0x7E.
+  table[0x2212] = table[0xff0d] // Step 6: U+2212 (MINUS SIGN) -> encode as U+FF0D (FULLWIDTH HYPHEN-MINUS).
+  return table
 }
 
 class EucJpEncoder {
-  constructor (encodeMap, backend) {
-    this.encodeMap = encodeMap
+  constructor (encodeTable, backend) {
+    this.encodeTable = encodeTable
     this.backend = backend
   }
 
   write (str) {
+    const table = this.encodeTable
     const bytes = this.backend.allocBytes(str.length * 3) // worst case: 3 bytes per character.
     let pos = 0
     for (let i = 0; i < str.length; i++) {
-      const seq = this.encodeMap[str.charCodeAt(i)]
-      if (seq) {
-        for (let j = 0; j < seq.length; j++) { bytes[pos++] = seq[j] }
-      } else {
-        bytes[pos++] = DEFAULT_BYTE
+      const v = table[str.charCodeAt(i)]
+      if (v === 0) { bytes[pos++] = DEFAULT_BYTE; continue } // unmapped -> '?'
+      const len = v >>> 24
+      bytes[pos++] = (v >>> 16) & 0xff
+      if (len > 1) {
+        bytes[pos++] = (v >>> 8) & 0xff
+        if (len > 2) { bytes[pos++] = v & 0xff }
       }
     }
     return this.backend.bytesToResult(bytes, pos)
