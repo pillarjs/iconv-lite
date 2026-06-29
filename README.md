@@ -105,6 +105,8 @@ smart about endianness in the following ways:
 This library supports UTF-32LE, UTF-32BE and UTF-32 encodings. Like the UTF-16 encoding above, UTF-32 defaults to UTF-32LE, but uses BOM and 'spaces heuristics' to determine input endianness. 
  * The default of UTF-32LE can be overridden with the `defaultEncoding: 'utf-32be'` option. Strips BOM unless `stripBOM: false`.
  * Encoding: uses UTF-32LE and writes BOM by default. Use `addBOM: false` to override. (`defaultEncoding: 'utf-32be'` can also be used here to change encoding.)
+ * Decoding is strict (per the Unicode Standard): a code unit that is a surrogate code point (U+D800–U+DFFF), is above U+10FFFF, or is a truncated trailing code unit is replaced with �. Pass `{ fatal: true }` to throw on such input instead.
+ * Encoding replaces a lone (unpaired) surrogate in the input with � so the output is always valid UTF-32.
 
 ## UTF-7 Encodings
 

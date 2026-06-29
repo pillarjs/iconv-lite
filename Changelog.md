@@ -20,15 +20,15 @@
 
     When decoding, ill-formed input — an incomplete code unit, non-zero Base64 padding bits, a shift-in ("+"/"&") not followed by Base64 or "-", or a non-ASCII byte outside a shifted run — is now replaced with U+FFFD instead of being passed through (lone surrogates still pass through as raw 16-bit code units). When encoding UTF-7, the optional "Set O" punctuation is now left as direct ASCII, so the output differs byte-for-byte for those characters, though it still decodes to the same text.
 
-- Rewrite the UTF-32 codecs - by [@bjohansebas](https://github.com/bjohansebas) in [#407](https://github.com/pillarjs/iconv-lite/pull/407)
+- Make the UTF-32 codecs strict and browser-native - by [@bjohansebas](https://github.com/bjohansebas) in [#407](https://github.com/pillarjs/iconv-lite/pull/407)
 
-    The UTF-32LE/BE and auto-detecting `utf-32` codecs were restructured to the class-based codec interface used by the other codecs, and rewritten to use only `Uint8Array` byte I/O instead of the Node `Buffer`, so they now run on the Web backend (browsers) like the UTF-16 codecs. Decoding is now strict per the Unicode Standard (§3.9): a code unit that is a surrogate code point (U+D800–U+DFFF), is above U+10FFFF, or is a truncated trailing code unit at the end of the input is replaced with U+FFFD instead of being passed through — surrogate code points are not valid in UTF-32. Encoding likewise replaces a lone (unpaired) surrogate in the input with U+FFFD. The opt-in `{ fatal: true }` decoding option makes ill-formed input throw instead. The internal `_utf32` codec alias — a private detail of the old `{ type: "_utf32" }` indirection — was removed.
+    UTF-32LE/BE and the auto-detecting `utf-32` codec now decode strictly per the Unicode Standard: a code unit that is a surrogate code point (U+D800–U+DFFF), is above U+10FFFF, or is a truncated trailing code unit is replaced with U+FFFD instead of being passed through. Encoding likewise replaces a lone (unpaired) surrogate with U+FFFD. The opt-in `{ fatal: true }` decoding option makes ill-formed input throw instead. The codecs no longer use the Node `Buffer` internally, so they also work on the Web backend (browsers), like UTF-16.
 
 ### 🚀 Improvements
 
 - Speed up the UTF-32 codecs - by [@bjohansebas](https://github.com/bjohansebas) in [#407](https://github.com/pillarjs/iconv-lite/pull/407)
 
-    Decoding long runs now goes through the native `TextDecoder`, and the encoder writes each code point through a `Uint32Array` view, making large UTF-32 conversions noticeably faster.
+    UTF-32 decoding and encoding are noticeably faster, and encoding no longer allocates a Node `Buffer`.
 
 - Recognize more WHATWG encoding labels - by [@bjohansebas](https://github.com/bjohansebas) in [#403](https://github.com/pillarjs/iconv-lite/pull/403)
 
