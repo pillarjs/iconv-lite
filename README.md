@@ -120,6 +120,12 @@ This library supports UTF-7 (RFC 2152) and UTF-7-IMAP / Modified UTF-7 (RFC 3501
 UTF-7 is designed for short, 7-bit-safe strings (mail headers, IMAP mailbox names) and is best used that way.
 It is not recommended for large or bulk text, where the native `utf8`/`utf16` encodings are faster.
 
+## EUC-JP
+
+EUC-JP decodes through the standard `TextDecoder`, so it follows the WHATWG Encoding Standard and the Node and Web backends behave identically.
+ * Decoding: invalid input is replaced with �. Pass `{ fatal: true }` to throw on invalid input instead.
+ * Encoding: in addition to the standard encoder, iconv-lite also encodes JIS X 0212 characters (which the Encoding Standard's encoder omits). Characters that have more than one valid encoding always round-trip, though the exact bytes may differ from older versions.
+
 ## Other notes
 
 When decoding, be sure to supply a Buffer to decode() method, otherwise [bad things usually happen](https://github.com/ashtuchkin/iconv-lite/wiki/Use-Buffers-when-decoding).  
