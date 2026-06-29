@@ -277,6 +277,7 @@ class Utf7Decoder {
 
     this.inBase64 = false
     this.pending = "" // Base64 chars of a run still open from a previous chunk.
+    this.units = new Uint16Array(0) // Reused across runs to avoid a per-run allocation; grows lazily.
   }
 
   // Decode one complete Base64 run (its chars) to a string, replacing ill-formed tails with U+FFFD.
@@ -303,7 +304,8 @@ class Utf7Decoder {
     const nUnits = bytes.length >> 1 // Pairs of bytes -> UTF-16BE code units.
     let s = ""
     if (nUnits > 0) {
-      const units = new Uint16Array(nUnits)
+      if (this.units.length < nUnits) { this.units = new Uint16Array(nUnits) }
+      const units = this.units
       for (let i = 0, j = 0; i < nUnits; i++, j += 2) {
         units[i] = (bytes.charCodeAt(j) << 8) | bytes.charCodeAt(j + 1)
       }

@@ -98,6 +98,46 @@ describe("UTF-7 codec", function () {
     // Non-ASCII byte while unshifted (only ASCII is valid in direct mode).
     assert.equal(iconv.decode(Buffer.from([0x41, 0x80, 0x42]), "utf-7"), "A\ufffdB")
   })
+
+  it("handles edge cases", function () {
+    // Empty input.
+    assert.equal(iconv.encode("", "utf-7").toString(), "")
+    assert.equal(iconv.decode(Buffer.from(""), "utf-7"), "")
+
+    // Non-BMP character (surrogate pair) round-trips through Base64.
+    assert.equal(iconv.encode("\ud83d\ude00", "utf-7").toString(), "+2D3eAA-")
+    assert.equal(iconv.decode(Buffer.from("+2D3eAA-"), "utf-7"), "\ud83d\ude00")
+
+    // '&' is an ordinary Set O direct char in plain UTF-7 (unlike UTF-7-IMAP, where it shifts).
+    assert.equal(iconv.encode("a&b", "utf-7").toString(), "a&b")
+    assert.equal(iconv.decode(Buffer.from("a&b"), "utf-7"), "a&b")
+
+    // '\' and '~' are not direct, so they are Base64-encoded.
+    assert.equal(iconv.encode("\\~", "utf-7").toString(), "+AFwAfg-")
+    assert.equal(iconv.decode(Buffer.from("+AFwAfg-"), "utf-7"), "\\~")
+
+    // A trailing lone '+' becomes "+-".
+    assert.equal(iconv.encode("a+", "utf-7").toString(), "a+-")
+  })
+
+  it("decodes across streaming chunk boundaries", function () {
+    function decodeChunks (chunks, encoding) {
+      var decoder = iconv.getDecoder(encoding)
+      var res = ""
+      for (var i = 0; i < chunks.length; i++) {
+        res += decoder.write(Buffer.from(chunks[i]))
+      }
+      var trail = decoder.end()
+      return trail ? res + trail : res
+    }
+
+    // Base64 run split mid-run (between code units of "ImIDkQ").
+    assert.equal(decodeChunks(["A+ImI", "DkQ-."], "utf-7"), "A\u2262\u0391.")
+    // Split at the shift-in boundary, run ends via end() with no trailing '-'.
+    assert.equal(decodeChunks(["abc+", "ZeVnLIqe"], "utf-7"), "abc\u65e5\u672c\u8a9e")
+    // The "+-" -> "+" escape split across chunks.
+    assert.equal(decodeChunks(["x+", "-y"], "utf-7"), "x+y")
+  })
 })
 
 describe("UTF-7-IMAP codec", function () {
@@ -141,5 +181,14 @@ describe("UTF-7-IMAP codec", function () {
 
     // & sign around non-ASCII chars
     assert.equal(iconv.decode(Buffer.from("&AOQ-&-&AOQ-&-&AOQ-"), "utf-7-imap"), "\u00E4&\u00E4&\u00E4")
+  })
+
+  it("decodes across streaming chunk boundaries", function () {
+    var decoder = iconv.getDecoder("utf-7-imap")
+    // Base64 run ("ImIDkQ") split between two chunks.
+    var res = decoder.write(Buffer.from("A&ImI"))
+    res += decoder.write(Buffer.from("DkQ-."))
+    var trail = decoder.end()
+    assert.equal(trail ? res + trail : res, "A\u2262\u0391.")
   })
 })
