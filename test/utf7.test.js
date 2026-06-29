@@ -13,13 +13,14 @@ describe("UTF-7 codec", function () {
     assert.equal(iconv.encode("A\u2262\u0391.", "utf-7").toString(), "A+ImIDkQ-.")
     assert.equal(iconv.encode("\u65E5\u672C\u8A9E", "utf-7").toString(), "+ZeVnLIqe-")
 
-    assert.equal(iconv.encode("Hi Mom -\u263A-!", "utf-7").toString(), "Hi Mom -+Jjo--+ACE-")
+    // Set O characters ('!', '"', ...) are left direct, per RFC 2152.
+    assert.equal(iconv.encode("Hi Mom -\u263A-!", "utf-7").toString(), "Hi Mom -+Jjo--!")
 
     assert.equal(iconv.encode("Item 3 is \u00A31.", "utf-7").toString(), "Item 3 is +AKM-1.")
 
     // Custom examples that contain more than one mode shift.
     assert.equal(iconv.encode("Jyv\u00E4skyl\u00E4", "utf-7").toString(), "Jyv+AOQ-skyl+AOQ-")
-    assert.equal(iconv.encode("'\u4F60\u597D' heißt \"Hallo\"", "utf-7").toString(), "'+T2BZfQ-' hei+AN8-t +ACI-Hallo+ACI-")
+    assert.equal(iconv.encode("'\u4F60\u597D' heißt \"Hallo\"", "utf-7").toString(), "'+T2BZfQ-' hei+AN8-t \"Hallo\"")
 
     // The plus sign is represented as +-.
     assert.equal(iconv.encode("Hot + Spicy + Fruity", "utf-7").toString(), "Hot +- Spicy +- Fruity")
@@ -85,6 +86,17 @@ describe("UTF-7 codec", function () {
     assert.equal(iconv.decode(Buffer.from("+AMAA4A"), "utf-7"), "\u00c0\u00e0")
     assert.equal(iconv.decode(Buffer.from("+AMAA4A-Next"), "utf-7"), "\u00c0\u00e0Next")
     assert.equal(iconv.decode(Buffer.from("+AMAA4A!Next"), "utf-7"), "\u00c0\u00e0!Next")
+  })
+
+  it("replaces ill-formed sequences with U+FFFD (RFC 2152)", function () {
+    // Incomplete code unit: a single Base64 char carries only 6 bits, not a full 16-bit unit.
+    assert.equal(iconv.decode(Buffer.from("+D-"), "utf-7"), "\ufffd")
+    // Truncated Base64 at end of stream (no terminator), still an incomplete code unit.
+    assert.equal(iconv.decode(Buffer.from("+DE"), "utf-7"), "\ufffd")
+    // A complete code unit followed by non-zero padding bits.
+    assert.equal(iconv.decode(Buffer.from("+DEH-"), "utf-7"), "\u0c41\ufffd")
+    // Non-ASCII byte while unshifted (only ASCII is valid in direct mode).
+    assert.equal(iconv.decode(Buffer.from([0x41, 0x80, 0x42]), "utf-7"), "A\ufffdB")
   })
 })
 

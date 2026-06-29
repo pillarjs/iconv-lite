@@ -1,283 +1,370 @@
 "use strict"
-var Buffer = require("buffer").Buffer
 
-// UTF-7 codec, according to https://tools.ietf.org/html/rfc2152
-// See also below a UTF-7-IMAP codec, according to http://tools.ietf.org/html/rfc3501#section-5.1.3
+// == UTF-7 / UTF-7-IMAP codecs ================================================
+//
+// UTF-7, according to https://tools.ietf.org/html/rfc2152
+// UTF-7-IMAP (Modified UTF-7), according to http://tools.ietf.org/html/rfc3501#section-5.1.3
+//
+// Both codecs are self-contained: they don't go through the iconv-lite backend for the actual
+// conversion, only native APIs shared by Node and browsers. Encoding uses a small hand-rolled bit
+// accumulator for the Base64 (no Buffer); decoding hands each Base64 run to atob() and turns direct
+// runs into substrings via TextDecoder. The only backend touch left is the encoder's final
+// "bytes -> result" step, so that encoding keeps returning a Buffer in Node (like the utf16 codec).
 
-exports.utf7 = Utf7Codec
-exports.unicode11utf7 = "utf7" // Alias UNICODE-1-1-UTF-7
-function Utf7Codec (codecOptions, iconv) {
-  this.iconv = iconv
-};
+// -- Shared tables and constants ----------------------------------------------
 
-Utf7Codec.prototype.encoder = Utf7Encoder
-Utf7Codec.prototype.decoder = Utf7Decoder
-Utf7Codec.prototype.bomAware = true
+var PLUS = 0x2b // '+'
+var MINUS = 0x2d // '-'
+var AMP = 0x26 // '&'
 
-// -- Encoding
+// Standard Base64 alphabet, plus the UTF-7-IMAP variant which uses ',' instead of '/'.
+var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+var BASE64_IMAP = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+,"
 
-// Why scape ()?./?
-// eslint-disable-next-line no-useless-escape
-var nonDirectChars = /[^A-Za-z0-9'\(\),-\.\/:\? \n\r\t]+/g
-
-function Utf7Encoder (options, codec) {
-  this.iconv = codec.iconv
+// value (0..63) -> output byte (ASCII code of the Base64 char).
+function buildBytes (alphabet) {
+  var bytes = new Uint8Array(64)
+  for (var i = 0; i < 64; i++) { bytes[i] = alphabet.charCodeAt(i) }
+  return bytes
 }
 
-Utf7Encoder.prototype.write = function (str) {
-  // Naive implementation.
-  // Non-direct chars are encoded as "+<base64>-"; single "+" char is encoded as "+-".
-  return Buffer.from(str.replace(nonDirectChars, function (chunk) {
-    return "+" + (chunk === "+"
-      ? ""
-      : this.iconv.encode(chunk, "utf16-be").toString("base64").replace(/=+$/, "")) +
-            "-"
-  }.bind(this)))
+// input byte -> Base64 value (0..63), or -1 if the byte is not a Base64 char.
+function buildInv (alphabet) {
+  var inv = new Int8Array(256).fill(-1)
+  for (var i = 0; i < alphabet.length; i++) { inv[alphabet.charCodeAt(i)] = i }
+  return inv
 }
 
-Utf7Encoder.prototype.end = function () {
+var BASE64_BYTES = buildBytes(BASE64)
+var BASE64_IMAP_BYTES = buildBytes(BASE64_IMAP)
+
+var INV = buildInv(BASE64)
+var INV_IMAP = buildInv(BASE64_IMAP)
+// UTF-7-IMAP decoding is forgiving and also accepts a literal '/' as value 63.
+INV_IMAP["/".charCodeAt(0)] = 63
+
+// Characters that UTF-7 represents directly (un-encoded), per RFC 2152: Set D (mandatory),
+// Set O (optional but allowed direct), and whitespace (SP, TAB, CR, LF). Everything else --
+// including '+' (the shift char), '\', '~' and all non-ASCII -- is shifted into Base64.
+var UTF7_DIRECT = new Uint8Array(128)
+var UTF7_DIRECT_CHARS =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" + // letters + digits (Set D)
+  "'(),-./:?" + // Set D punctuation
+  "!\"#$%&*;<=>@[]^_`{|}" + // Set O (optional direct)
+  " \t\n\r" // whitespace
+for (var di = 0; di < UTF7_DIRECT_CHARS.length; di++) { UTF7_DIRECT[UTF7_DIRECT_CHARS.charCodeAt(di)] = 1 }
+
+function utf7IsDirect (code) {
+  return code < 128 && UTF7_DIRECT[code] === 1
 }
 
-// -- Decoding
+// Regex matching the first non-direct char, derived from the same set so there's no second source
+// of truth. Used by the encoder to skip over direct runs in one native (C++) scan instead of a
+// per-char JS loop. The class metacharacters ] \ ^ - are escaped for use inside [^...].
+var UTF7_NONDIRECT = new RegExp("[^" + UTF7_DIRECT_CHARS.replace(/[\]\\^-]/g, "\\$&") + "]", "g")
 
-function Utf7Decoder (options, codec) {
-  this.iconv = codec.iconv
-  this.inBase64 = false
-  this.base64Accum = ""
+// Shared single-byte TextDecoder used to view the input as one char per byte. (The WHATWG
+// "latin1" label is windows-1252, single-byte; ASCII bytes < 0x80 decode 1:1, which is all the
+// parser relies on -- direct runs are ASCII substrings and Base64 runs are ASCII handed to atob().)
+var latin1Decoder = new TextDecoder("latin1")
+// Matches any non-ASCII char (a byte >= 0x80): invalid while unshifted, so replaced with U+FFFD.
+var NON_ASCII = /[\u0080-\uffff]/g
+
+// Shared TextEncoder to bulk-copy long direct (ASCII) runs into the output in one native call.
+var asciiEncoder = new TextEncoder()
+// Below this length, a per-char copy is cheaper than the slice()+encodeInto() setup.
+var DIRECT_BULK_MIN = 16
+
+// Max args for a single String.fromCharCode.apply() (avoids blowing the call stack on huge runs).
+var CHARS_CHUNK = 8192
+// Build a string from the first `len` code units of a Uint16Array, in bulk and stack-safe.
+function charsFromUnits (units, len) {
+  if (len === 0) { return "" }
+  if (len <= CHARS_CHUNK) {
+    return String.fromCharCode.apply(null, len === units.length ? units : units.subarray(0, len))
+  }
+  var s = ""
+  for (var i = 0; i < len; i += CHARS_CHUNK) {
+    s += String.fromCharCode.apply(null, units.subarray(i, Math.min(i + CHARS_CHUNK, len)))
+  }
+  return s
 }
 
-// Why scape /?
-// eslint-disable-next-line no-useless-escape
-var base64Regex = /[A-Za-z0-9\/+]/
-var base64Chars = []
-for (var i = 0; i < 256; i++) { base64Chars[i] = base64Regex.test(String.fromCharCode(i)) }
+// == UTF-7 codec ==============================================================
 
-var plusChar = "+".charCodeAt(0)
-var minusChar = "-".charCodeAt(0)
-var andChar = "&".charCodeAt(0)
-
-Utf7Decoder.prototype.write = function (buf) {
-  var res = ""; var lastI = 0
-  var inBase64 = this.inBase64
-  var base64Accum = this.base64Accum
-
-  // The decoder is more involved as we must handle chunks in stream.
-
-  for (var i = 0; i < buf.length; i++) {
-    if (!inBase64) { // We're in direct mode.
-      // Write direct chars until '+'
-      if (buf[i] == plusChar) {
-        res += this.iconv.decode(buf.slice(lastI, i), "ascii") // Write direct chars.
-        lastI = i + 1
-        inBase64 = true
-      }
-    } else { // We decode base64.
-      if (!base64Chars[buf[i]]) { // Base64 ended.
-        if (i == lastI && buf[i] == minusChar) { // "+-" -> "+"
-          res += "+"
-        } else {
-          var b64str = base64Accum + this.iconv.decode(buf.slice(lastI, i), "ascii")
-          res += this.iconv.decode(Buffer.from(b64str, "base64"), "utf16-be")
-        }
-
-        if (buf[i] != minusChar) // Minus is absorbed after base64.
-        { i-- }
-
-        lastI = i + 1
-        inBase64 = false
-        base64Accum = ""
-      }
-    }
+class Utf7Codec {
+  createEncoder (options, iconv) {
+    return new Utf7Encoder(iconv.backend)
   }
 
-  if (!inBase64) {
-    res += this.iconv.decode(buf.slice(lastI), "ascii") // Write direct chars.
-  } else {
-    var b64str = base64Accum + this.iconv.decode(buf.slice(lastI), "ascii")
-
-    var canBeDecoded = b64str.length - (b64str.length % 8) // Minimal chunk: 2 quads -> 2x3 bytes -> 3 chars.
-    base64Accum = b64str.slice(canBeDecoded) // The rest will be decoded in future.
-    b64str = b64str.slice(0, canBeDecoded)
-
-    res += this.iconv.decode(Buffer.from(b64str, "base64"), "utf16-be")
+  createDecoder (options, iconv) {
+    return new Utf7Decoder(PLUS, "+", INV, false)
   }
 
-  this.inBase64 = inBase64
-  this.base64Accum = base64Accum
-
-  return res
+  get bomAware () { return true }
 }
 
-Utf7Decoder.prototype.end = function () {
-  var res = ""
-  if (this.inBase64 && this.base64Accum.length > 0) { res = this.iconv.decode(Buffer.from(this.base64Accum, "base64"), "utf16-be") }
-
-  this.inBase64 = false
-  this.base64Accum = ""
-  return res
-}
-
-// UTF-7-IMAP codec.
-// RFC3501 Sec. 5.1.3 Modified UTF-7 (http://tools.ietf.org/html/rfc3501#section-5.1.3)
-// Differences:
+// == UTF-7-IMAP codec =========================================================
+// Differences from plain UTF-7:
 //  * Base64 part is started by "&" instead of "+"
 //  * Direct characters are 0x20-0x7E, except "&" (0x26)
 //  * In Base64, "," is used instead of "/"
 //  * Base64 must not be used to represent direct characters.
-//  * No implicit shift back from Base64 (should always end with '-')
-//  * String must end in non-shifted position.
-//  * "-&" while in base64 is not allowed.
+//  * No implicit shift back from Base64 (always ends with '-')
+
+class Utf7IMAPCodec {
+  createEncoder (options, iconv) {
+    return new Utf7IMAPEncoder(iconv.backend)
+  }
+
+  createDecoder (options, iconv) {
+    return new Utf7Decoder(AMP, "&", INV_IMAP, true)
+  }
+
+  get bomAware () { return true }
+}
+
+// == UTF-7 encoder ============================================================
+// Naive (stateless per write): non-direct chars are encoded as "+<base64>-"; a lone "+" -> "+-".
+
+class Utf7Encoder {
+  constructor (backend) {
+    this.backend = backend
+  }
+
+  write (str) {
+    var n = str.length
+    var out = new Uint8Array(n * 5 + 10)
+    var p = 0
+    var i = 0
+
+    while (i < n) {
+      // Maximal run of direct chars -> copied verbatim. The run end is found with one native regex
+      // scan; long runs go through TextEncoder in one native call, short ones are copied char by char.
+      var dStart = i
+      UTF7_NONDIRECT.lastIndex = i
+      var m = UTF7_NONDIRECT.exec(str)
+      i = m ? m.index : n
+      if (i - dStart >= DIRECT_BULK_MIN) {
+        // Avoid an extra substring copy when the whole string is one direct run (common for ASCII).
+        var src = (dStart === 0 && i === n) ? str : str.slice(dStart, i)
+        p += asciiEncoder.encodeInto(src, out.subarray(p)).written
+      } else {
+        for (var j = dStart; j < i; j++) { out[p++] = str.charCodeAt(j) }
+      }
+      if (i >= n) { break }
+
+      var code = str.charCodeAt(i)
+      if (code === PLUS && (i + 1 >= n || utf7IsDirect(str.charCodeAt(i + 1)))) {
+        // A lone "+" (not part of a longer non-direct run) is encoded as "+-".
+        out[p++] = PLUS
+        out[p++] = MINUS
+        i++
+        continue
+      }
+
+      // Maximal run of non-direct chars -> "+<base64>-".
+      out[p++] = PLUS
+      var bits = 0; var nbits = 0
+      while (i < n) {
+        var c = str.charCodeAt(i)
+        if (utf7IsDirect(c)) { break }
+        bits = (bits << 16) | c
+        nbits += 16
+        while (nbits >= 6) {
+          nbits -= 6
+          out[p++] = BASE64_BYTES[(bits >> nbits) & 0x3f]
+          bits &= (1 << nbits) - 1
+        }
+        i++
+      }
+      if (nbits > 0) {
+        out[p++] = BASE64_BYTES[(bits << (6 - nbits)) & 0x3f]
+      }
+      out[p++] = MINUS
+    }
+
+    return this.backend.bytesToResult(out, p)
+  }
+
+  end () {}
+}
+
+// == UTF-7-IMAP encoder =======================================================
+// Stateful across writes: keeps the Base64 bit accumulator open until a direct char or end().
+
+class Utf7IMAPEncoder {
+  constructor (backend) {
+    this.backend = backend
+    this.inBase64 = false
+    this.bits = 0
+    this.nbits = 0
+  }
+
+  write (str) {
+    var out = new Uint8Array(str.length * 5 + 10)
+    var p = 0
+
+    for (var i = 0; i < str.length; i++) {
+      var code = str.charCodeAt(i)
+
+      if (code >= 0x20 && code <= 0x7e) { // Direct character or '&'.
+        if (this.inBase64) {
+          if (this.nbits > 0) {
+            out[p++] = BASE64_IMAP_BYTES[(this.bits << (6 - this.nbits)) & 0x3f]
+          }
+          out[p++] = MINUS // Close Base64, back to direct mode.
+          this.inBase64 = false
+          this.bits = 0
+          this.nbits = 0
+        }
+
+        out[p++] = code
+        if (code === AMP) { out[p++] = MINUS } // Ampersand -> "&-".
+      } else { // Non-direct character.
+        if (!this.inBase64) {
+          out[p++] = AMP // Shift into Base64.
+          this.inBase64 = true
+        }
+        this.bits = (this.bits << 16) | code
+        this.nbits += 16
+        while (this.nbits >= 6) {
+          this.nbits -= 6
+          out[p++] = BASE64_IMAP_BYTES[(this.bits >> this.nbits) & 0x3f]
+          this.bits &= (1 << this.nbits) - 1
+        }
+      }
+    }
+
+    return this.backend.bytesToResult(out, p)
+  }
+
+  end () {
+    var out = new Uint8Array(2)
+    var p = 0
+    if (this.inBase64) {
+      if (this.nbits > 0) {
+        out[p++] = BASE64_IMAP_BYTES[(this.bits << (6 - this.nbits)) & 0x3f]
+      }
+      out[p++] = MINUS
+      this.inBase64 = false
+      this.bits = 0
+      this.nbits = 0
+    }
+    return this.backend.bytesToResult(out, p)
+  }
+}
+
+// == Decoder (shared by UTF-7 and UTF-7-IMAP) =================================
+// Each write() turns the input bytes into a "latin1" string (1 char per byte) and parses it with
+// native scans: direct runs are plain substrings, and each Base64 run is decoded in bulk with
+// atob(). Streaming-aware: a Base64 run split across chunks is buffered (in `pending`) until it
+// ends. A trailing shift-out ('-') is optional.
+//
+// Conformance (RFC 2152): only ASCII is valid in direct mode, and a Base64 run must end on a 16-bit
+// boundary with zero padding bits. Ill-formed input -- a non-ASCII byte while unshifted, an
+// incomplete code unit, or non-zero trailing bits -- is replaced with U+FFFD.
+
+class Utf7Decoder {
+  constructor (shiftIn, literal, inv, imap) {
+    this.shiftIn = String.fromCharCode(shiftIn) // Char that starts a Base64 run ('+' or '&').
+    this.literal = literal // The same char, for the "+-"/"&-" -> literal case.
+    this.inv = inv // Base64 char code -> value table (used to validate the last char).
+    this.imap = imap // UTF-7-IMAP uses ',' for value 63 and must be mapped back to '/' for atob().
+    // Matches the first char that ends a Base64 run (anything outside the Base64 alphabet).
+    this.runEnd = imap ? /[^A-Za-z0-9+,/]/g : /[^A-Za-z0-9+/]/g
+
+    this.inBase64 = false
+    this.pending = "" // Base64 chars of a run still open from a previous chunk.
+  }
+
+  // Decode one complete Base64 run (its chars) to a string, replacing ill-formed tails with U+FFFD.
+  _decodeRun (b64) {
+    var len = b64.length
+    if (len === 0) { return "" }
+
+    // Validate the trailing bits without decoding them: a run of `len` Base64 chars carries 6*len
+    // bits; the remainder mod 16 must be 0/2/4 zero-padding bits, else it's an incomplete or
+    // non-zero-padded code unit.
+    var leftover = (6 * len) % 16
+    var bad = leftover > 4
+    if (!bad && leftover > 0 && (this.inv[b64.charCodeAt(len - 1)] & ((1 << leftover) - 1)) !== 0) {
+      bad = true
+    }
+
+    var bytes
+    try {
+      bytes = atob(this.imap ? b64.replace(/,/g, "/") : b64)
+    } catch (e) {
+      return "�" // Not valid Base64 (e.g. length % 4 === 1).
+    }
+
+    var nUnits = bytes.length >> 1 // Pairs of bytes -> UTF-16BE code units.
+    var s = ""
+    if (nUnits > 0) {
+      var units = new Uint16Array(nUnits)
+      for (var i = 0, j = 0; i < nUnits; i++, j += 2) {
+        units[i] = (bytes.charCodeAt(j) << 8) | bytes.charCodeAt(j + 1)
+      }
+      s = charsFromUnits(units, nUnits)
+    }
+    return bad ? s + "�" : s
+  }
+
+  write (buf) {
+    var s = latin1Decoder.decode(buf) // 1 char per input byte.
+    var len = s.length
+    var res = ""
+    var i = 0
+
+    while (i < len) {
+      if (!this.inBase64) { // Direct mode: copy ASCII up to the next shift-in char.
+        var shift = s.indexOf(this.shiftIn, i)
+        var dEnd = shift === -1 ? len : shift
+        if (dEnd > i) {
+          var seg = s.slice(i, dEnd)
+          res += seg.replace(NON_ASCII, "�") // Non-ASCII bytes are ill-formed here.
+        }
+        if (shift === -1) { break }
+        this.inBase64 = true
+        i = shift + 1
+      } else { // Base64 mode.
+        this.runEnd.lastIndex = i
+        var m = this.runEnd.exec(s)
+        if (!m) { // Run continues past this chunk.
+          this.pending += s.slice(i)
+          return res
+        }
+        var end = m.index
+        var run = this.pending + s.slice(i, end)
+        this.pending = ""
+        var term = s.charCodeAt(end)
+        if (run.length === 0 && term === MINUS) { // "+-"/"&-" -> literal.
+          res += this.literal
+          i = end + 1
+        } else {
+          res += this._decodeRun(run)
+          i = term === MINUS ? end + 1 : end // '-' is absorbed; anything else is re-read as direct.
+        }
+        this.inBase64 = false
+      }
+    }
+
+    return res
+  }
+
+  end () {
+    // A stream may end mid-run (the trailing '-' is optional), so decode whatever is buffered.
+    var res = this.inBase64 ? this._decodeRun(this.pending) : ""
+    this.inBase64 = false
+    this.pending = ""
+    return res.length > 0 ? res : undefined
+  }
+}
+
+// == Exports ==================================================================
+
+exports.utf7 = Utf7Codec
+exports.unicode11utf7 = "utf7" // Alias UNICODE-1-1-UTF-7.
 
 exports.utf7imap = Utf7IMAPCodec
-function Utf7IMAPCodec (codecOptions, iconv) {
-  this.iconv = iconv
-};
-
-Utf7IMAPCodec.prototype.encoder = Utf7IMAPEncoder
-Utf7IMAPCodec.prototype.decoder = Utf7IMAPDecoder
-Utf7IMAPCodec.prototype.bomAware = true
-
-// -- Encoding
-
-function Utf7IMAPEncoder (options, codec) {
-  this.iconv = codec.iconv
-  this.inBase64 = false
-  this.base64Accum = Buffer.alloc(6)
-  this.base64AccumIdx = 0
-}
-
-Utf7IMAPEncoder.prototype.write = function (str) {
-  var inBase64 = this.inBase64
-  var base64Accum = this.base64Accum
-  var base64AccumIdx = this.base64AccumIdx
-  var buf = Buffer.alloc(str.length * 5 + 10); var bufIdx = 0
-
-  for (var i = 0; i < str.length; i++) {
-    var uChar = str.charCodeAt(i)
-    if (uChar >= 0x20 && uChar <= 0x7E) { // Direct character or '&'.
-      if (inBase64) {
-        if (base64AccumIdx > 0) {
-          bufIdx += buf.write(base64Accum.slice(0, base64AccumIdx).toString("base64").replace(/\//g, ",").replace(/=+$/, ""), bufIdx)
-          base64AccumIdx = 0
-        }
-
-        buf[bufIdx++] = minusChar // Write '-', then go to direct mode.
-        inBase64 = false
-      }
-
-      if (!inBase64) {
-        buf[bufIdx++] = uChar // Write direct character
-
-        if (uChar === andChar)  // Ampersand -> '&-'
-        { buf[bufIdx++] = minusChar }
-      }
-    } else { // Non-direct character
-      if (!inBase64) {
-        buf[bufIdx++] = andChar // Write '&', then go to base64 mode.
-        inBase64 = true
-      }
-      if (inBase64) {
-        base64Accum[base64AccumIdx++] = uChar >> 8
-        base64Accum[base64AccumIdx++] = uChar & 0xFF
-
-        if (base64AccumIdx == base64Accum.length) {
-          bufIdx += buf.write(base64Accum.toString("base64").replace(/\//g, ","), bufIdx)
-          base64AccumIdx = 0
-        }
-      }
-    }
-  }
-
-  this.inBase64 = inBase64
-  this.base64AccumIdx = base64AccumIdx
-
-  return buf.slice(0, bufIdx)
-}
-
-Utf7IMAPEncoder.prototype.end = function () {
-  var buf = Buffer.alloc(10); var bufIdx = 0
-  if (this.inBase64) {
-    if (this.base64AccumIdx > 0) {
-      bufIdx += buf.write(this.base64Accum.slice(0, this.base64AccumIdx).toString("base64").replace(/\//g, ",").replace(/=+$/, ""), bufIdx)
-      this.base64AccumIdx = 0
-    }
-
-    buf[bufIdx++] = minusChar // Write '-', then go to direct mode.
-    this.inBase64 = false
-  }
-
-  return buf.slice(0, bufIdx)
-}
-
-// -- Decoding
-
-function Utf7IMAPDecoder (options, codec) {
-  this.iconv = codec.iconv
-  this.inBase64 = false
-  this.base64Accum = ""
-}
-
-var base64IMAPChars = base64Chars.slice()
-base64IMAPChars[",".charCodeAt(0)] = true
-
-Utf7IMAPDecoder.prototype.write = function (buf) {
-  var res = ""; var lastI = 0
-  var inBase64 = this.inBase64
-  var base64Accum = this.base64Accum
-
-  // The decoder is more involved as we must handle chunks in stream.
-  // It is forgiving, closer to standard UTF-7 (for example, '-' is optional at the end).
-
-  for (var i = 0; i < buf.length; i++) {
-    if (!inBase64) { // We're in direct mode.
-      // Write direct chars until '&'
-      if (buf[i] == andChar) {
-        res += this.iconv.decode(buf.slice(lastI, i), "ascii") // Write direct chars.
-        lastI = i + 1
-        inBase64 = true
-      }
-    } else { // We decode base64.
-      if (!base64IMAPChars[buf[i]]) { // Base64 ended.
-        if (i == lastI && buf[i] == minusChar) { // "&-" -> "&"
-          res += "&"
-        } else {
-          var b64str = base64Accum + this.iconv.decode(buf.slice(lastI, i), "ascii").replace(/,/g, "/")
-          res += this.iconv.decode(Buffer.from(b64str, "base64"), "utf16-be")
-        }
-
-        if (buf[i] != minusChar) // Minus may be absorbed after base64.
-        { i-- }
-
-        lastI = i + 1
-        inBase64 = false
-        base64Accum = ""
-      }
-    }
-  }
-
-  if (!inBase64) {
-    res += this.iconv.decode(buf.slice(lastI), "ascii") // Write direct chars.
-  } else {
-    var b64str = base64Accum + this.iconv.decode(buf.slice(lastI), "ascii").replace(/,/g, "/")
-
-    var canBeDecoded = b64str.length - (b64str.length % 8) // Minimal chunk: 2 quads -> 2x3 bytes -> 3 chars.
-    base64Accum = b64str.slice(canBeDecoded) // The rest will be decoded in future.
-    b64str = b64str.slice(0, canBeDecoded)
-
-    res += this.iconv.decode(Buffer.from(b64str, "base64"), "utf16-be")
-  }
-
-  this.inBase64 = inBase64
-  this.base64Accum = base64Accum
-
-  return res
-}
-
-Utf7IMAPDecoder.prototype.end = function () {
-  var res = ""
-  if (this.inBase64 && this.base64Accum.length > 0) { res = this.iconv.decode(Buffer.from(this.base64Accum, "base64"), "utf16-be") }
-
-  this.inBase64 = false
-  this.base64Accum = ""
-  return res
-}
