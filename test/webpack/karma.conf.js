@@ -42,7 +42,8 @@ module.exports = function (config) {
           stream: require.resolve("stream-browserify"),
           assert: require.resolve("assert/"),
           util: require.resolve("util/"),
-          buffer: require.resolve("buffer") // This should't be needed, need work in remove this.
+          buffer: require.resolve("buffer"), // This should't be needed, need work in remove this.
+          iconv: false // Native binding used only by Node-only libiconv cross-checks; absent in the browser.
         }
       },
       node: {
