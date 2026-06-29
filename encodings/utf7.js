@@ -270,43 +270,43 @@ class Utf7Decoder {
     this.imap = imap // UTF-7-IMAP uses ',' for value 63 and must be mapped back to '/' for atob().
 
     this.inBase64 = false
-    this.pending = "" // Base64 chars of a run still open from a previous chunk.
+    this.pending = "" // Unflushed Base64 chars of a run open from a previous chunk (kept < 8).
+    this.sawBase64 = false // Whether the current run has had any Base64 char (vs the "+-" literal).
     this.units = new Uint16Array(0) // Decoded code units, reused across runs; grows lazily.
   }
 
-  // Decode one complete Base64 run (its chars) to a string. Per RFC 2152 the bytes are UTF-16BE
-  // code units, decoded verbatim (a lone surrogate passes through as its raw code unit). An
-  // ill-formed tail (incomplete code unit or non-zero padding) is replaced with U+FFFD.
+  // Decode a Base64 string (Base64 alphabet only) to its UTF-16BE code units. No validation: bytes
+  // are paired into code units verbatim (a lone surrogate passes through), and invalid Base64
+  // (length % 4 === 1) yields "" -- the caller flags that as ill-formed.
+  _decodeBase64 (b64) {
+    let bytes
+    try {
+      bytes = atob(this.imap ? b64.replace(/,/g, "/") : b64)
+    } catch {
+      return ""
+    }
+    const nUnits = bytes.length >> 1 // Pairs of bytes -> UTF-16BE code units.
+    if (nUnits === 0) { return "" }
+    if (this.units.length < nUnits) { this.units = new Uint16Array(nUnits) }
+    const units = this.units
+    for (let i = 0, j = 0; i < nUnits; i++, j += 2) {
+      units[i] = (bytes.charCodeAt(j) << 8) | bytes.charCodeAt(j + 1)
+    }
+    return charsFromUnits(units, nUnits)
+  }
+
+  // Decode one complete Base64 run, with RFC 2152 trailing-bit validation: a run of `len` Base64
+  // chars carries 6*len bits, whose remainder mod 16 must be 0/2/4 zero-padding bits -- else it's an
+  // incomplete code unit or non-zero padding, replaced with U+FFFD.
   _decodeRun (b64) {
     const len = b64.length
     if (len === 0) { return "" }
-
-    // Validate the trailing bits without decoding them: a run of `len` Base64 chars carries 6*len
-    // bits; the remainder mod 16 must be 0/2/4 zero-padding bits, else it's an incomplete or
-    // non-zero-padded code unit.
     const leftover = (6 * len) % 16
     let bad = leftover > 4
     if (!bad && leftover > 0 && (this.inv[b64.charCodeAt(len - 1)] & ((1 << leftover) - 1)) !== 0) {
       bad = true
     }
-
-    let bytes
-    try {
-      bytes = atob(this.imap ? b64.replace(/,/g, "/") : b64)
-    } catch {
-      return "�" // Not valid Base64 (e.g. length % 4 === 1).
-    }
-
-    const nUnits = bytes.length >> 1 // Pairs of bytes -> UTF-16BE code units.
-    let s = ""
-    if (nUnits > 0) {
-      if (this.units.length < nUnits) { this.units = new Uint16Array(nUnits) }
-      const units = this.units
-      for (let i = 0, j = 0; i < nUnits; i++, j += 2) {
-        units[i] = (bytes.charCodeAt(j) << 8) | bytes.charCodeAt(j + 1)
-      }
-      s = charsFromUnits(units, nUnits)
-    }
+    const s = this._decodeBase64(b64)
     return bad ? s + "�" : s
   }
 
@@ -331,18 +331,25 @@ class Utf7Decoder {
         }
         if (shift === -1) { break }
         this.inBase64 = true
+        this.sawBase64 = false
         i = shift + 1
       } else { // Base64 mode: scan bytes to the run terminator (first non-Base64 byte).
         let end = i
         while (end < len && this.inv[buf[end]] !== -1) { end++ }
-        if (end === len) { // Run continues past this chunk.
-          this.pending += s.slice(i)
+        if (end > i) { this.sawBase64 = true }
+        if (end === len) {
+          // Run continues past this chunk: flush its 16-bit-aligned prefix (8 Base64 chars = 3 code
+          // units, no leftover bits) and carry only the < 8-char tail, so memory stays bounded.
+          const acc = this.pending + s.slice(i)
+          const aligned = acc.length - (acc.length % 8)
+          res += this._decodeBase64(acc.slice(0, aligned))
+          this.pending = acc.slice(aligned)
           return res
         }
         const run = this.pending + s.slice(i, end)
         this.pending = ""
         const term = buf[end]
-        if (run.length === 0 && term === MINUS) { // "+-"/"&-" -> literal.
+        if (!this.sawBase64 && term === MINUS) { // "+-"/"&-" with no Base64 chars -> literal.
           res += this.literal
           i = end + 1
         } else {
@@ -350,6 +357,7 @@ class Utf7Decoder {
           i = term === MINUS ? end + 1 : end // '-' is absorbed; anything else is re-read as direct.
         }
         this.inBase64 = false
+        this.sawBase64 = false
       }
     }
 
@@ -361,6 +369,7 @@ class Utf7Decoder {
     const res = this.inBase64 ? this._decodeRun(this.pending) : ""
     this.inBase64 = false
     this.pending = ""
+    this.sawBase64 = false
     return res.length > 0 ? res : undefined
   }
 }

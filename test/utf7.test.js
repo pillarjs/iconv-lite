@@ -168,6 +168,23 @@ describe("UTF-7 codec #node-web", function () {
     const lone = "\u4E2D".repeat(600) + "\uD800"
     assert.equal(iconv.decode(iconv.encode(lone, "utf-7"), "utf-7"), lone)
   })
+
+  it("flushes long runs incrementally across chunks (bounded memory)", function () {
+    // A long run split at arbitrary (sub-quantum) byte boundaries reconstructs correctly.
+    const long = "\u4E2D".repeat(1000)
+    const encoded = iconv.encode(long, "utf-7")
+    const decoder = iconv.getDecoder("utf-7")
+    let res = ""
+    for (let p = 0; p < encoded.length; p += 7) {
+      res += decoder.write(encoded.subarray(p, p + 7))
+    }
+    const trail = decoder.end()
+    assert.equal(trail ? res + trail : res, long)
+
+    // A never-terminating run is flushed as it streams in, not buffered whole until it closes.
+    const partial = iconv.getDecoder("utf-7").write(buf("+" + "AAAAAAAA".repeat(500)))
+    assert(partial.length > 0, "expected incremental output for an unterminated run")
+  })
 })
 
 describe("UTF-7-IMAP codec #node-web", function () {
