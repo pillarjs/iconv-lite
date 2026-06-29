@@ -16,6 +16,10 @@
 
     Following the Encoding Standard's label-trimming rules, only ASCII whitespace (tab, LF, FF, CR, space) may surround an encoding label. Labels wrapped in other control or separator characters — NUL, vertical tab, NBSP, or the line/paragraph separators — are now rejected instead of being silently stripped and accepted. Punctuation such as dashes and underscores within an otherwise-valid label is still normalized.
 
+- Make the UTF-7 and UTF-7-IMAP codecs RFC 2152 conformant - by [@bjohansebas](https://github.com/bjohansebas)
+
+    When decoding, ill-formed input — an incomplete code unit, non-zero Base64 padding bits, or a non-ASCII byte outside a shifted run — is now replaced with U+FFFD instead of being passed through (lone surrogates still pass through as raw 16-bit code units). When encoding UTF-7, the optional "Set O" punctuation is now left as direct ASCII, so the output differs byte-for-byte for those characters, though it still decodes to the same text.
+
 ### 🚀 Improvements
 
 - Recognize more WHATWG encoding labels - by [@bjohansebas](https://github.com/bjohansebas) in [#403](https://github.com/pillarjs/iconv-lite/pull/403)

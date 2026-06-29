@@ -106,6 +106,16 @@ This library supports UTF-32LE, UTF-32BE and UTF-32 encodings. Like the UTF-16 e
  * The default of UTF-32LE can be overridden with the `defaultEncoding: 'utf-32be'` option. Strips BOM unless `stripBOM: false`.
  * Encoding: uses UTF-32LE and writes BOM by default. Use `addBOM: false` to override. (`defaultEncoding: 'utf-32be'` can also be used here to change encoding.)
 
+## UTF-7 Encodings
+
+This library supports UTF-7 (RFC 2152) and UTF-7-IMAP / Modified UTF-7 (RFC 3501).
+ * Encoding: for UTF-7, the optional "Set O" punctuation is left as direct ASCII (per RFC 2152), so output stays compact.
+ * Decoding follows RFC 2152: ill-formed input — an incomplete code unit, non-zero Base64 padding bits, or a
+   non-ASCII byte outside a shifted run — is replaced with �. Lone surrogates pass through as their raw 16-bit code units.
+
+UTF-7 is designed for short, 7-bit-safe strings (mail headers, IMAP mailbox names) and is best used that way.
+It is not recommended for large or bulk text, where the native `utf8`/`utf16` encodings are faster.
+
 ## Other notes
 
 When decoding, be sure to supply a Buffer to decode() method, otherwise [bad things usually happen](https://github.com/ashtuchkin/iconv-lite/wiki/Use-Buffers-when-decoding).  
