@@ -42,12 +42,15 @@ class EucJpCodec {
   }
 }
 
-// code unit (0x0000..0xFFFF) -> byte sequence (array). Built by decoding every valid EUC-JP byte
-// sequence once; first (lowest index-order) sequence wins for characters with duplicates.
+// code unit (0x0000..0xFFFF) -> byte sequence (array). The comments map each part to the steps of
+// the WHATWG EUC-JP encoder (https://encoding.spec.whatwg.org/#euc-jp-encoder). Step 1 (end-of-queue
+// -> finished) is handled by the encoder's write loop, not here.
 function buildEncodeMap () {
   const dec = new TextDecoder(LABEL)
   const map = new Array(0x10000).fill(null)
 
+  // Record the byte sequence for the character it decodes to (first/earliest sequence wins). This
+  // covers the steps whose output is simply "the bytes that decode back to the character".
   const put = (seq) => {
     const s = dec.decode(Uint8Array.from(seq))
     if (s.length === 1 && s !== REPLACEMENT && map[s.charCodeAt(0)] === null) {
@@ -55,19 +58,20 @@ function buildEncodeMap () {
     }
   }
 
-  for (let b = 0; b < 0x80; b++) { put([b]) } // ASCII
-  for (let t = 0xa1; t <= 0xdf; t++) { put([0x8e, t]) } // half-width katakana
-  for (let l = 0xa1; l <= 0xfe; l++) { for (let t = 0xa1; t <= 0xfe; t++) { put([l, t]) } } // JIS X 0208
-  for (let l = 0xa1; l <= 0xfe; l++) { for (let t = 0xa1; t <= 0xfe; t++) { put([0x8f, l, t]) } } // JIS X 0212
+  // Step 2: an ASCII code point encodes to the byte of the same value.
+  for (let b = 0; b < 0x80; b++) { put([b]) }
+  // Step 5: U+FF61..U+FF9F (half-width katakana) encode to 0x8E, code point - 0xFF61 + 0xA1.
+  for (let t = 0xa1; t <= 0xdf; t++) { put([0x8e, t]) }
+  // Step 7: look the code point up in index jis0208 (two bytes, lead/trail in 0xA1..0xFE).
+  for (let l = 0xa1; l <= 0xfe; l++) { for (let t = 0xa1; t <= 0xfe; t++) { put([l, t]) } }
+  // iconv-lite extension (the spec encoder only does jis0208): JIS X 0212, prefixed with 0x8F.
+  for (let l = 0xa1; l <= 0xfe; l++) { for (let t = 0xa1; t <= 0xfe; t++) { put([0x8f, l, t]) } }
 
-  // Special cases from the WHATWG EUC-JP encoder that decode-inversion can't recover, because no
-  // byte decodes to these characters (see https://encoding.spec.whatwg.org/#euc-jp-encoder):
-  //   steps 3-4: YEN SIGN / OVERLINE encode to 0x5C / 0x7E (JIS X 0201); encode-only, since the
-  //              decoder maps those bytes back to ASCII '\' and '~'.
-  //   step 6:    MINUS SIGN (U+2212) is encoded like FULLWIDTH HYPHEN-MINUS (U+FF0D).
-  map[0x00a5] = [0x5c]
-  map[0x203e] = [0x7e]
-  map[0x2212] = map[0xff0d]
+  // Steps 3, 4 and 6 map characters that NO byte decodes to, so the loops above can't capture them;
+  // add them explicitly (they take precedence over the index lookup, as in the spec's step order).
+  map[0x00a5] = [0x5c] // Step 3: U+00A5 (YEN SIGN) -> 0x5C. Encode-only; the decoder gives '\' for 0x5C.
+  map[0x203e] = [0x7e] // Step 4: U+203E (OVERLINE) -> 0x7E. Encode-only; the decoder gives '~' for 0x7E.
+  map[0x2212] = map[0xff0d] // Step 6: U+2212 (MINUS SIGN) -> encode as U+FF0D (FULLWIDTH HYPHEN-MINUS).
   return map
 }
 

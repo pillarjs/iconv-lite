@@ -76,6 +76,14 @@ describe("EUC-JP codec #node-web", function () {
     { inputs: [[0x8f], [0xb0]], outputs: ["", "", "�"] }
   ]))
 
+  it("re-processes an invalid trail byte after a lead, per WHATWG error handling", function () {
+    // The Encoding Standard "prepends" an invalid trail byte back to the stream, so it is decoded on
+    // its own after the U+FFFD emitted for the bad lead. (libiconv instead consumed the trail byte.)
+    assert.strictEqual(iconv.decode(utils.bytes([0xa1, 0x41]), "eucjp"), "�A") // JIS X 0208 lead + ASCII
+    assert.strictEqual(iconv.decode(utils.bytes([0x8e, 0x41]), "eucjp"), "�A") // 0x8E (SS2, kana) + ASCII
+    assert.strictEqual(iconv.decode(utils.bytes([0x8f, 0x41]), "eucjp"), "�A") // 0x8F (SS3, JIS X 0212) + ASCII
+  })
+
   it("throws in fatal mode on invalid input", function () {
     assert.throws(function () { iconv.decode(utils.bytes([0xff]), "eucjp", { fatal: true }) })
     assert.throws(function () { iconv.decode(utils.bytes([0x80]), "eucjp", { fatal: true }) }) // C1 byte
