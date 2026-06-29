@@ -26,6 +26,10 @@
 
 ### 🚀 Improvements
 
+- Speed up the UTF-32 codecs - by [@bjohansebas](https://github.com/bjohansebas) in [#407](https://github.com/pillarjs/iconv-lite/pull/407)
+
+    Decoding long runs now goes through the native `TextDecoder`, and the encoder writes each code point through a `Uint32Array` view, making large UTF-32 conversions noticeably faster.
+
 - Recognize more WHATWG encoding labels - by [@bjohansebas](https://github.com/bjohansebas) in [#403](https://github.com/pillarjs/iconv-lite/pull/403)
 
     Added the WHATWG label aliases for encodings iconv-lite already implements: `unicode`/`csunicode`/`iso-10646-ucs-2`/`unicodefeff` (UTF-16LE) and `unicodefffe` (UTF-16BE); `x-cp1250`–`x-cp1258` (windows-1250–1258); `dos-874`; `koi`/`koi8` (KOI8-R); `x-mac-cyrillic`/`x-mac-ukrainian`/`x-mac-roman`; `x-euc-jp`/`cseucpkdfmtjapanese` (EUC-JP); the `iso-8859-6`/`iso-8859-8` `-e`/`-i` and `visual`/`logical` variants; `csisolatin9`; `sun_eu_greek`; `unicode-2.0-utf-8`; and more. (Labels whose encoding iconv-lite does not implement, such as `iso-2022-jp` and `x-user-defined`, remain unsupported.)

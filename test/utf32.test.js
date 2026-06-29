@@ -103,6 +103,17 @@ describe("UTF-32LE codec", function () {
     }
   })
 
+  it("decodes both 4-byte-aligned and unaligned input", function () {
+    // The fast path views aligned input as a Uint32Array; unaligned input falls back to byte reads.
+    var ab = new ArrayBuffer(utf32leBuf.length + 4)
+    var aligned = new Uint8Array(ab, 0, utf32leBuf.length)
+    aligned.set(utf32leBuf)
+    var unaligned = new Uint8Array(ab.slice(0), 2, utf32leBuf.length) // byteOffset 2 -> not 4-aligned
+    unaligned.set(utf32leBuf)
+    assert.equal(iconv.decode(aligned, "utf-32le"), testStr)
+    assert.equal(iconv.decode(unaligned, "utf-32le"), testStr)
+  })
+
   it("replaces lone surrogates with U+FFFD", function () {
     var encoded = iconv.encode(testStr2, "UTF32-LE")
     assert.equal(escape(iconv.decode(encoded, "UTF32-LE")), escape(testStr2Fixed))
@@ -185,7 +196,7 @@ describe("UTF-32BE codec", function () {
 
   it("handles invalid Unicode codepoints gracefully", function () {
     assert.equal(iconv.decode(utf32beBufWithInvalidChar, "utf-32be"), testStr + "�")
-    // A code point with the high bit set reads as a negative int32; it's still out of range -> U+FFFD.
+    // A code point with the high bit set (0x80000000) is far above U+10FFFF -> U+FFFD.
     assert.equal(iconv.decode(Buffer.from([0, 0, 0, 0x80]), "utf-32le"), "�")
   })
 

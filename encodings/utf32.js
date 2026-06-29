@@ -156,23 +156,30 @@ class Utf32Decoder {
     if (this.units.length < maxUnits) { this.units = new Uint16Array(maxUnits) }
     const units = this.units
     let pos = 0
-    let codepoint = 0
     let i = 0
 
     // Finish a code point that was split across the previous chunk boundary.
     if (overflow.length > 0) {
       for (; i < src.length && overflow.length < 4; i++) { overflow.push(src[i]) }
       if (overflow.length === 4) {
-        codepoint = readCodepoint(overflow, 0, isLE)
+        pos = pushCodepoint(units, pos, readCodepoint(overflow, 0, isLE), badChar, fatal)
         overflow.length = 0
-        pos = pushCodepoint(units, pos, codepoint, badChar, fatal)
       }
     }
 
-    // Main loop.
-    for (; i < src.length - 3; i += 4) {
-      codepoint = readCodepoint(src, i, isLE)
-      pos = pushCodepoint(units, pos, codepoint, badChar, fatal)
+    // Main loop. For little-endian, view the aligned input as code points directly (one read each)
+    // instead of assembling them byte by byte; fall back to byte reads for big-endian or unaligned input.
+    const count = (src.length - i) >> 2
+    if (isLE && count > 0 && (src.byteOffset + i) % 4 === 0) {
+      const codepoints = new Uint32Array(src.buffer, src.byteOffset + i, count)
+      for (let k = 0; k < count; k++) {
+        pos = pushCodepoint(units, pos, codepoints[k], badChar, fatal)
+      }
+      i += count * 4
+    } else {
+      for (; i < src.length - 3; i += 4) {
+        pos = pushCodepoint(units, pos, readCodepoint(src, i, isLE), badChar, fatal)
+      }
     }
 
     // Keep the trailing bytes that don't complete a code point for the next chunk.
@@ -207,9 +214,8 @@ function swap32 (out, byteLength) {
 }
 
 /**
- * Reads a 4-byte code point from a byte source in the given endianness.
- * NOTE: the high byte uses `<< 24`, so the result is read as a signed int32 and can be negative; the
- * range check in pushCodepoint() treats negatives as out of range.
+ * Reads a 4-byte code point (unsigned, 0..0xFFFFFFFF) from a byte source in the given endianness. The
+ * high byte is added with `* 0x1000000` rather than `<< 24` to avoid the signed-int32 wrap of `|`.
  * @param {Uint8Array|number[]} src
  * @param {number} pos
  * @param {boolean} isLE
@@ -217,25 +223,25 @@ function swap32 (out, byteLength) {
  */
 function readCodepoint (src, pos, isLE) {
   if (isLE) {
-    return src[pos] | (src[pos + 1] << 8) | (src[pos + 2] << 16) | (src[pos + 3] << 24)
+    return (src[pos] | (src[pos + 1] << 8) | (src[pos + 2] << 16)) + src[pos + 3] * 0x1000000
   }
-  return src[pos + 3] | (src[pos + 2] << 8) | (src[pos + 1] << 16) | (src[pos] << 24)
+  return (src[pos + 3] | (src[pos + 2] << 8) | (src[pos + 1] << 16)) + src[pos] * 0x1000000
 }
 
 /**
  * Appends one decoded code point to the code-unit buffer, validating it as a Unicode scalar value.
- * A surrogate code point, a value above 0x10FFFF, or a negative value (high bit set) is ill-formed:
- * it becomes `badChar`, or throws when `fatal`.
+ * A surrogate code point or a value above 0x10FFFF is ill-formed: it becomes `badChar`, or throws
+ * when `fatal`. (Code points are read unsigned, so a value with the high bit set is just > 0x10FFFF.)
  * @param {Uint16Array} units
  * @param {number} pos Current code-unit write position.
- * @param {number} codepoint
+ * @param {number} codepoint An unsigned value in 0..0xFFFFFFFF.
  * @param {number} badChar
  * @param {boolean} fatal
  * @returns {number} The new code-unit write position.
  */
 function pushCodepoint (units, pos, codepoint, badChar, fatal) {
-  if (codepoint < 0 || codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
-    if (fatal) { throw new Error("Invalid UTF-32 code unit: 0x" + (codepoint >>> 0).toString(16)) }
+  if (codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
+    if (fatal) { throw new Error("Invalid UTF-32 code unit: 0x" + codepoint.toString(16)) }
     units[pos++] = badChar
     return pos
   }
