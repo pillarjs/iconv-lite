@@ -511,15 +511,15 @@ class Utf7Decoder {
         const runChars = this.pending + chars.slice(cursor, runEnd)
         this.pending = ""
         const terminator = buf[runEnd]
-        if (!this.sawBase64 && terminator === MINUS) {
-          // Step 2 (RFC 2152 Rule 2): "+-"/"&-" with no Base64 chars decodes to a literal "+"/"&".
-          result += this.literal
-          cursor = runEnd + 1
+        if (!this.sawBase64) {
+          // No Base64 char after the shift-in. RFC 2152: "+-"/"&-" decodes to a literal "+"/"&"
+          // (Step 2); "+"/"&" followed by any other non-Base64 char is an ill-formed sequence.
+          result += terminator === MINUS ? this.literal : "�"
         } else {
           result += this._decodeRun(runChars)
-          // Step 4 (RFC 2152 Rule 2): a closing "-" is absorbed; any other terminator is re-read.
-          cursor = terminator === MINUS ? runEnd + 1 : runEnd
         }
+        // Step 4 (RFC 2152 Rule 2): a closing "-" is absorbed; any other terminator is re-read.
+        cursor = terminator === MINUS ? runEnd + 1 : runEnd
         this.inBase64 = false
         this.sawBase64 = false
       }

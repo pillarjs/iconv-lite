@@ -135,8 +135,10 @@ describe("UTF-7 codec #node-web", function () {
     // A trailing lone '+' becomes "+-".
     assert.equal(enc("a+", "utf-7"), "a+-")
 
-    // A shift in immediately closed by a non-'-' char is an empty run, then a direct char.
-    assert.equal(iconv.decode(buf("+."), "utf-7"), ".")
+    // RFC 2152: "+" followed immediately by a non-Base64, non-'-' char is ill-formed (-> U+FFFD);
+    // the terminator is then re-read as direct.
+    assert.equal(iconv.decode(buf("+."), "utf-7"), "\uFFFD.")
+    assert.equal(iconv.decode(buf("&."), "utf-7-imap"), "\uFFFD.")
   })
 
   it("decodes across streaming chunk boundaries", function () {
