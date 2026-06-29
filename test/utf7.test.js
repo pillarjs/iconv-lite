@@ -119,6 +119,8 @@ describe("UTF-7 codec #node-web", function () {
     assert.equal(iconv.decode(utils.bytes([0x41, 0x80, 0x42]), "utf-7"), "A\uFFFDB")
     // A non-ASCII byte ends the Base64 run (it's not Base64), then is re-read as ill-formed direct.
     assert.equal(iconv.decode(utils.bytes([0x2b, 0x41, 0x4f, 0x51, 0x80]), "utf-7"), "\u00E4\uFFFD")
+    // A medium invalid Base64 run (length % 4 === 1, past the inline threshold) -> U+FFFD.
+    assert.equal(iconv.decode(buf("+" + "A".repeat(109) + "-"), "utf-7"), "\uFFFD")
     // A long invalid Base64 run (length % 4 === 1) -> U+FFFD (the bulk decode rejects it too).
     assert.equal(iconv.decode(buf("+" + "A".repeat(345) + "-"), "utf-7"), "\uFFFD")
     // A long well-formed-length run with non-zero trailing bits: the bulk path still yields the whole
@@ -172,14 +174,23 @@ describe("UTF-7 codec #node-web", function () {
   })
 
   it("decodes long runs and passes lone surrogates through", function () {
+    // A short run (< the inline threshold) decodes via the hand-rolled accumulator.
+    const short = "\u4E2D".repeat(10)
+    assert.equal(iconv.decode(iconv.encode(short, "utf-7"), "utf-7"), short)
+    // A run just past the inline threshold but below the TextDecoder one (atob + fromCharCode).
+    const small = "\u4E2D".repeat(50)
+    assert.equal(iconv.decode(iconv.encode(small, "utf-7"), "utf-7"), small)
     // A medium BMP run (~100 units) uses the atob + bulk utf-16le step.
     const medium = "\u4E2D".repeat(100)
     assert.equal(iconv.decode(iconv.encode(medium, "utf-7"), "utf-7"), medium)
     // A long BMP run (no surrogates) round-trips via the bulk TextDecoder path.
     const long = "\u4E2D".repeat(600)
     assert.equal(iconv.decode(iconv.encode(long, "utf-7"), "utf-7"), long)
-    // A long run of valid surrogate pairs (non-BMP) round-trips via the verbatim fromCharCode path
-    // (a surrogate in the run keeps it off the TextDecoder path).
+    // A medium run of surrogate pairs (atob path, below the TextDecoder threshold) round-trips via
+    // the verbatim fromCharCode path (a surrogate keeps it off the TextDecoder path).
+    const emojiMedium = "\uD83D\uDE00".repeat(30)
+    assert.equal(iconv.decode(iconv.encode(emojiMedium, "utf-7"), "utf-7"), emojiMedium)
+    // A long run of valid surrogate pairs (non-BMP) round-trips via the verbatim fromCharCode path.
     const emoji = "\uD83D\uDE00".repeat(200)
     assert.equal(iconv.decode(iconv.encode(emoji, "utf-7"), "utf-7"), emoji)
     // Per RFC 2152 the Base64 carries raw 16-bit units, so a lone surrogate passes through as its

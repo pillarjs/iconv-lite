@@ -114,6 +114,11 @@ const utf16beDecoder = new TextDecoder("utf-16be", { ignoreBOM: true })
 const HAS_FROM_BASE64 = typeof Uint8Array.fromBase64 === "function"
 /** Above this many code units the native fromBase64 + utf-16be path (no JS pairs loop) beats atob. */
 const FROM_BASE64_MIN_UNITS = 128
+/**
+ * Below this many code units a hand-rolled inline decode beats the per-run setup of atob/TextDecoder.
+ * This is the common case: a short Base64 run in otherwise-ASCII text (mail headers, IMAP folders).
+ */
+const SMALL_RUN_MAX_UNITS = 40
 
 /** Matches any non-ASCII char (a byte >= 0x80): invalid while unshifted, so replaced with U+FFFD. @type {RegExp} */
 const NON_ASCII = /[\u0080-\uffff]/g
@@ -443,6 +448,32 @@ class Utf7Decoder {
    * @returns {string}
    */
   _decodeBase64 (base64) {
+    const length = base64.length
+
+    // Small-run fast path (the common case: a short Base64 run amid mostly-ASCII text -- mail headers,
+    // IMAP folder names). A 6-bit accumulator decodes straight into a string: no atob, no typed array,
+    // no TextDecoder setup, which is ~2-8x faster for short runs. A lone surrogate passes through
+    // naturally (fromCharCode emits the raw code unit), so no surrogate scan is needed. atob rejects a
+    // length of 4k+1 Base64 chars (no whole final unit), so mirror that to stay identical with the bulk
+    // paths. `this.inv` already maps IMAP's ',' to 63, so no ','->'/' rewrite is needed here.
+    if (((length * 3) >> 3) < SMALL_RUN_MAX_UNITS) {
+      if ((length & 3) === 1) { return "" }
+      const inv = this.inv
+      let bits = 0
+      let nbits = 0
+      let result = ""
+      for (let pos = 0; pos < length; pos++) {
+        bits = (bits << 6) | inv[base64.charCodeAt(pos)]
+        nbits += 6
+        if (nbits >= 16) {
+          nbits -= 16
+          result += String.fromCharCode((bits >> nbits) & 0xffff)
+          bits &= (1 << nbits) - 1
+        }
+      }
+      return result
+    }
+
     const std = this.imap ? base64.replace(/,/g, "/") : base64
 
     // Fast path (Node 25+/modern browsers): for long runs, decode base64 -> bytes -> string entirely
@@ -482,7 +513,6 @@ class Utf7Decoder {
       return ""
     }
     const unitCount = bytes.length >> 1
-    if (unitCount === 0) { return "" }
     if (this.units.length < unitCount) { this.units = new Uint16Array(unitCount) }
     const units = this.units
     let hasSurrogate = false
