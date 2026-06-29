@@ -10,6 +10,7 @@ const modules = [
   require("./sbcs-codec"),
   require("./sbcs-data"),
   require("./sbcs-data-generated"),
+  require("./eucjp"),
   require("./dbcs-codec"),
   require("./dbcs-data"),
   require("./whatwg-aliases")
