@@ -253,14 +253,21 @@ function readCodepoint (src, pos, isLE) {
  * @returns {number} The new code-unit write position.
  */
 function pushCodepoint (units, pos, codepoint, badChar, fatal) {
-  // Step 2: reject non-scalar values (surrogate code points and values past U+10FFFF).
-  if (codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
+  // Step 3 fast path: a BMP scalar value below the surrogate range (the common case for real text).
+  if (codepoint < 0xD800) {
+    units[pos++] = codepoint
+    return pos
+  }
+
+  // Step 2: reject non-scalar values. Past the check above, codepoint >= 0xD800, so codepoint <= 0xDFFF
+  // means a surrogate code point; codepoint > 0x10FFFF is out of range.
+  if (codepoint > 0x10FFFF || codepoint <= 0xDFFF) {
     if (fatal) { throw new Error("Invalid UTF-32 code unit: 0x" + codepoint.toString(16)) }
     units[pos++] = badChar
     return pos
   }
 
-  // Step 3: emit the scalar value as UTF-16.
+  // Step 3: emit the remaining scalar values (E000..10FFFF) as UTF-16.
   if (codepoint > 0xFFFF) {
     // Supplementary code point -> surrogate pair.
     const offset = codepoint - 0x10000

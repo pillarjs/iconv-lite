@@ -66,6 +66,12 @@ describe("UTF-32LE codec #node-web", function () {
     assert.equal(hex(iconv.encode("a\uD800", "UTF32-LE")), hex(utils.bytes("61 00 00 00 fd ff 00 00")))
   })
 
+  it("replaces a mid-string lone surrogate with U+FFFD when encoding", function () {
+    // A high surrogate not followed by a low one, and a lone low surrogate: each -> U+FFFD (fd ff 00 00).
+    assert.equal(hex(iconv.encode("\uD800x", "utf-32le")), hex(utils.bytes("fd ff 00 00 78 00 00 00")))
+    assert.equal(hex(iconv.encode("\uDC00x", "utf-32le")), hex(utils.bytes("fd ff 00 00 78 00 00 00")))
+  })
+
   it("throws on ill-formed input in fatal mode", function () {
     assert.throws(function () { iconv.decode(utils.bytes("00 d8 00 00"), "utf-32le", { fatal: true }) })
     assert.throws(function () { iconv.decode(utils.bytes("61 00 00"), "utf-32le", { fatal: true }) }) // truncated
