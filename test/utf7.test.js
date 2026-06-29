@@ -167,11 +167,15 @@ describe("UTF-7 codec #node-web", function () {
   })
 
   it("decodes long runs and passes lone surrogates through", function () {
-    // A long contiguous non-ASCII run round-trips (exercises the chunked string assembly).
+    // A long BMP run (no surrogates) round-trips via the bulk TextDecoder path.
     const long = "\u4E2D".repeat(600)
     assert.equal(iconv.decode(iconv.encode(long, "utf-7"), "utf-7"), long)
+    // A long run of valid surrogate pairs (non-BMP) round-trips via the verbatim fromCharCode path
+    // (a surrogate in the run keeps it off the TextDecoder path).
+    const emoji = "\uD83D\uDE00".repeat(200)
+    assert.equal(iconv.decode(iconv.encode(emoji, "utf-7"), "utf-7"), emoji)
     // Per RFC 2152 the Base64 carries raw 16-bit units, so a lone surrogate passes through as its
-    // code unit (not U+FFFD), consistently regardless of run length.
+    // code unit (not U+FFFD), consistently in a short run and in a long run.
     assert.equal(iconv.decode(buf("+2AA-"), "utf-7"), "\uD800")
     const lone = "\u4E2D".repeat(600) + "\uD800"
     assert.equal(iconv.decode(iconv.encode(lone, "utf-7"), "utf-7"), lone)
