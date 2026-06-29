@@ -57,6 +57,17 @@ describe("UTF-32LE codec #node-web", function () {
     assert.equal(iconv.decode(utils.bytes("00 00 11 00"), "utf-32le"), "\uFFFD") // U+110000, just past the maximum
   })
 
+  it("replaces an ill-formed code unit at any offset", function () {
+    // a surrogate code point and an out-of-range value are
+    // each replaced with U+FFFD wherever they appear, regardless of how much valid data precedes them.
+    for (const bad of ["00 d8 00 00", "00 00 11 00"]) { // U+D800 (surrogate), U+110000 (above U+10FFFF)
+      for (let n = 0; n <= 40; n++) {
+        const input = utils.bytes("41 00 00 00 ".repeat(n) + bad + " 42 00 00 00")
+        assert.equal(iconv.decode(input, "utf-32le"), "A".repeat(n) + "\uFFFDB")
+      }
+    }
+  })
+
   it("replaces lone surrogates with U+FFFD when encoding", function () {
     assert.equal(escape(iconv.decode(iconv.encode(testStr2, "UTF32-LE"), "UTF32-LE")), escape(testStr2Fixed))
   })
