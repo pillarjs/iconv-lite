@@ -145,6 +145,13 @@ const asciiEncoder = new TextEncoder()
 /** Below this run length, a per-char copy is cheaper than the slice()+encodeInto() setup. */
 const DIRECT_BULK_MIN = 16
 
+/** Whether the runtime has Uint8Array.prototype.toBase64 (Node 25+, modern browsers). */
+const HAS_TO_BASE64 = typeof Uint8Array.prototype.toBase64 === "function"
+/** Above this many code units, native toBase64 (no JS sextet loop) beats the bit accumulator. */
+const TO_BASE64_MIN_UNITS = 64
+/** Reused UTF-16BE byte buffer feeding toBase64 on the encode fast path; grows lazily. @type {Uint8Array} */
+let base64Scratch = new Uint8Array(0)
+
 /**
  * Emits the final partial Base64 sextet (the leftover < 6 bits, zero-padded).
  * @param {Uint8Array} out Output buffer.
@@ -180,7 +187,8 @@ function copyDirectRun (str, from, to, out, pos) {
 }
 
 /**
- * Encodes the non-direct run str[from, to) as "+<base64>-" (UTF-16BE -> modified Base64).
+ * Encodes the non-direct run str[from, to) as "+<base64>-" (UTF-16BE -> standard Base64). Only ever
+ * called for plain UTF-7 (standard alphabet); UTF-7-IMAP has its own streaming encoder with ','.
  * @param {string} str
  * @param {number} from Inclusive start index.
  * @param {number} to Exclusive end index.
@@ -190,6 +198,24 @@ function copyDirectRun (str, from, to, out, pos) {
  * @returns {number} The new write position.
  */
 function encodeBase64Run (str, from, to, out, pos, bytes) {
+  // Fast path (Node 25+/modern browsers): for long runs, serialize the code units to UTF-16BE bytes
+  // and let native toBase64 do the sextet packing in one call instead of a per-char JS loop.
+  if (HAS_TO_BASE64 && to - from >= TO_BASE64_MIN_UNITS) {
+    const byteCount = (to - from) * 2
+    if (base64Scratch.length < byteCount) { base64Scratch = new Uint8Array(byteCount) }
+    let bytePos = 0
+    for (let index = from; index < to; index++) {
+      const code = str.charCodeAt(index)
+      base64Scratch[bytePos++] = code >> 8
+      base64Scratch[bytePos++] = code & 0xff
+    }
+    out[pos++] = PLUS
+    const view = byteCount === base64Scratch.length ? base64Scratch : base64Scratch.subarray(0, byteCount)
+    pos += asciiEncoder.encodeInto(view.toBase64({ omitPadding: true }), out.subarray(pos)).written
+    out[pos++] = MINUS
+    return pos
+  }
+
   out[pos++] = PLUS
   let bits = 0
   let nbits = 0
