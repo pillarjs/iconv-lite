@@ -24,14 +24,14 @@ const BASE64_IMAP = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456
 // value (0..63) -> output byte (ASCII code of the Base64 char).
 function buildBytes (alphabet) {
   const bytes = new Uint8Array(64)
-  for (let i = 0; i < 64; i++) { bytes[i] = alphabet.charCodeAt(i) }
+  for (let value = 0; value < 64; value++) { bytes[value] = alphabet.charCodeAt(value) }
   return bytes
 }
 
 // input byte -> Base64 value (0..63), or -1 if the byte is not a Base64 char.
 function buildInv (alphabet) {
   const inv = new Int8Array(256).fill(-1)
-  for (let i = 0; i < alphabet.length; i++) { inv[alphabet.charCodeAt(i)] = i }
+  for (let value = 0; value < alphabet.length; value++) { inv[alphabet.charCodeAt(value)] = value }
   return inv
 }
 
@@ -52,7 +52,9 @@ const UTF7_DIRECT_CHARS =
   "'(),-./:?" + // Set D punctuation
   "!\"#$%&*;<=>@[]^_`{|}" + // Set O (optional direct)
   " \t\n\r" // whitespace
-for (let di = 0; di < UTF7_DIRECT_CHARS.length; di++) { UTF7_DIRECT[UTF7_DIRECT_CHARS.charCodeAt(di)] = 1 }
+for (let index = 0; index < UTF7_DIRECT_CHARS.length; index++) {
+  UTF7_DIRECT[UTF7_DIRECT_CHARS.charCodeAt(index)] = 1
+}
 
 function utf7IsDirect (code) {
   return code < 128 && UTF7_DIRECT[code] === 1
@@ -70,21 +72,61 @@ const latin1Decoder = new TextDecoder("latin1")
 // Matches any non-ASCII char (a byte >= 0x80): invalid while unshifted, so replaced with U+FFFD.
 const NON_ASCII = /[\u0080-\uffff]/g
 
-// Builds a string from the first `len` code units of a Uint16Array. Done in chunks because
+// Builds a string from the first `length` code units of a Uint16Array. Done in chunks because
 // String.fromCharCode.apply() blows the call stack on very large argument counts.
 const CHARS_CHUNK = 8192
-function charsFromUnits (units, len) {
-  let s = ""
-  for (let i = 0; i < len; i += CHARS_CHUNK) {
-    s += String.fromCharCode.apply(null, units.subarray(i, Math.min(i + CHARS_CHUNK, len)))
+function charsFromUnits (units, length) {
+  let result = ""
+  for (let offset = 0; offset < length; offset += CHARS_CHUNK) {
+    result += String.fromCharCode.apply(null, units.subarray(offset, Math.min(offset + CHARS_CHUNK, length)))
   }
-  return s
+  return result
 }
 
 // Shared TextEncoder to bulk-copy long direct (ASCII) runs into the output in one native call.
 const asciiEncoder = new TextEncoder()
 // Below this length, a per-char copy is cheaper than the slice()+encodeInto() setup.
 const DIRECT_BULK_MIN = 16
+
+// -- Encoder helpers ----------------------------------------------------------
+
+// Emit the final partial Base64 sextet (the leftover < 6 bits, zero-padded). Returns the new `pos`.
+function flushBase64Tail (out, pos, bits, nbits, bytes) {
+  if (nbits > 0) { out[pos++] = bytes[(bits << (6 - nbits)) & 0x3f] }
+  return pos
+}
+
+// Copy a run of direct chars str[from, to) into `out` verbatim. Long runs go through TextEncoder in
+// one native call; short ones are cheaper to copy char by char. Returns the new `pos`.
+function copyDirectRun (str, from, to, out, pos) {
+  if (to - from >= DIRECT_BULK_MIN) {
+    // Avoid an extra substring copy when the whole string is one direct run (common for ASCII).
+    const source = (from === 0 && to === str.length) ? str : str.slice(from, to)
+    return pos + asciiEncoder.encodeInto(source, out.subarray(pos)).written
+  }
+  for (let index = from; index < to; index++) { out[pos++] = str.charCodeAt(index) }
+  return pos
+}
+
+// Encode the non-direct run str[from, to) as "+<base64>-" (UTF-16BE -> modified Base64). Returns
+// the new `pos`.
+function encodeBase64Run (str, from, to, out, pos, bytes) {
+  out[pos++] = PLUS
+  let bits = 0
+  let nbits = 0
+  for (let index = from; index < to; index++) {
+    bits = (bits << 16) | str.charCodeAt(index)
+    nbits += 16
+    while (nbits >= 6) {
+      nbits -= 6
+      out[pos++] = bytes[(bits >> nbits) & 0x3f]
+      bits &= (1 << nbits) - 1
+    }
+  }
+  pos = flushBase64Tail(out, pos, bits, nbits, bytes)
+  out[pos++] = MINUS
+  return pos
+}
 
 // == UTF-7 codec ==============================================================
 
@@ -129,59 +171,37 @@ class Utf7Encoder {
   }
 
   write (str) {
-    const n = str.length
-    const out = new Uint8Array(n * 5 + 10)
-    let p = 0
-    let i = 0
+    const length = str.length
+    const out = new Uint8Array(length * 5 + 10)
+    let pos = 0
+    let cursor = 0
 
-    while (i < n) {
-      // Maximal run of direct chars -> copied verbatim. The run end is found with one native regex
-      // scan; long runs go through TextEncoder in one native call, short ones are copied char by char.
-      const dStart = i
-      UTF7_NONDIRECT.lastIndex = i
-      const m = UTF7_NONDIRECT.exec(str)
-      i = m ? m.index : n
-      if (i - dStart >= DIRECT_BULK_MIN) {
-        // Avoid an extra substring copy when the whole string is one direct run (common for ASCII).
-        const src = (dStart === 0 && i === n) ? str : str.slice(dStart, i)
-        p += asciiEncoder.encodeInto(src, out.subarray(p)).written
-      } else {
-        for (let j = dStart; j < i; j++) { out[p++] = str.charCodeAt(j) }
-      }
-      if (i >= n) { break }
+    while (cursor < length) {
+      // Maximal run of direct chars -> copied verbatim (run end found with one native regex scan).
+      const directStart = cursor
+      UTF7_NONDIRECT.lastIndex = cursor
+      const match = UTF7_NONDIRECT.exec(str)
+      cursor = match ? match.index : length
+      pos = copyDirectRun(str, directStart, cursor, out, pos)
+      if (cursor >= length) { break }
 
-      const code = str.charCodeAt(i)
-      if (code === PLUS && (i + 1 >= n || utf7IsDirect(str.charCodeAt(i + 1)))) {
+      const code = str.charCodeAt(cursor)
+      if (code === PLUS && (cursor + 1 >= length || utf7IsDirect(str.charCodeAt(cursor + 1)))) {
         // A lone "+" (not part of a longer non-direct run) is encoded as "+-".
-        out[p++] = PLUS
-        out[p++] = MINUS
-        i++
+        out[pos++] = PLUS
+        out[pos++] = MINUS
+        cursor++
         continue
       }
 
       // Maximal run of non-direct chars -> "+<base64>-".
-      out[p++] = PLUS
-      let bits = 0
-      let nbits = 0
-      while (i < n) {
-        const c = str.charCodeAt(i)
-        if (utf7IsDirect(c)) { break }
-        bits = (bits << 16) | c
-        nbits += 16
-        while (nbits >= 6) {
-          nbits -= 6
-          out[p++] = BASE64_BYTES[(bits >> nbits) & 0x3f]
-          bits &= (1 << nbits) - 1
-        }
-        i++
-      }
-      if (nbits > 0) {
-        out[p++] = BASE64_BYTES[(bits << (6 - nbits)) & 0x3f]
-      }
-      out[p++] = MINUS
+      let runEnd = cursor + 1
+      while (runEnd < length && !utf7IsDirect(str.charCodeAt(runEnd))) { runEnd++ }
+      pos = encodeBase64Run(str, cursor, runEnd, out, pos, BASE64_BYTES)
+      cursor = runEnd
     }
 
-    return this.backend.bytesToResult(out, p)
+    return this.backend.bytesToResult(out, pos)
   }
 
   end () {}
@@ -198,65 +218,57 @@ class Utf7IMAPEncoder {
     this.nbits = 0
   }
 
+  // Close an open Base64 run: flush the leftover bits, write the shift-out '-', reset. Returns `pos`.
+  _closeBase64 (out, pos) {
+    pos = flushBase64Tail(out, pos, this.bits, this.nbits, BASE64_IMAP_BYTES)
+    out[pos++] = MINUS
+    this.inBase64 = false
+    this.bits = 0
+    this.nbits = 0
+    return pos
+  }
+
   write (str) {
     const out = new Uint8Array(str.length * 5 + 10)
-    let p = 0
+    let pos = 0
 
-    for (let i = 0; i < str.length; i++) {
-      const code = str.charCodeAt(i)
+    for (let cursor = 0; cursor < str.length; cursor++) {
+      const code = str.charCodeAt(cursor)
 
       if (code >= 0x20 && code <= 0x7e) { // Direct character or '&'.
-        if (this.inBase64) {
-          if (this.nbits > 0) {
-            out[p++] = BASE64_IMAP_BYTES[(this.bits << (6 - this.nbits)) & 0x3f]
-          }
-          out[p++] = MINUS // Close Base64, back to direct mode.
-          this.inBase64 = false
-          this.bits = 0
-          this.nbits = 0
-        }
-
-        out[p++] = code
-        if (code === AMP) { out[p++] = MINUS } // Ampersand -> "&-".
+        if (this.inBase64) { pos = this._closeBase64(out, pos) }
+        out[pos++] = code
+        if (code === AMP) { out[pos++] = MINUS } // Ampersand -> "&-".
       } else { // Non-direct character.
         if (!this.inBase64) {
-          out[p++] = AMP // Shift into Base64.
+          out[pos++] = AMP // Shift into Base64.
           this.inBase64 = true
         }
         this.bits = (this.bits << 16) | code
         this.nbits += 16
         while (this.nbits >= 6) {
           this.nbits -= 6
-          out[p++] = BASE64_IMAP_BYTES[(this.bits >> this.nbits) & 0x3f]
+          out[pos++] = BASE64_IMAP_BYTES[(this.bits >> this.nbits) & 0x3f]
           this.bits &= (1 << this.nbits) - 1
         }
       }
     }
 
-    return this.backend.bytesToResult(out, p)
+    return this.backend.bytesToResult(out, pos)
   }
 
   end () {
     const out = new Uint8Array(2)
-    let p = 0
-    if (this.inBase64) {
-      if (this.nbits > 0) {
-        out[p++] = BASE64_IMAP_BYTES[(this.bits << (6 - this.nbits)) & 0x3f]
-      }
-      out[p++] = MINUS
-      this.inBase64 = false
-      this.bits = 0
-      this.nbits = 0
-    }
-    return this.backend.bytesToResult(out, p)
+    const pos = this.inBase64 ? this._closeBase64(out, 0) : 0
+    return this.backend.bytesToResult(out, pos)
   }
 }
 
 // == Decoder (shared by UTF-7 and UTF-7-IMAP) =================================
 // Each write() turns the input bytes into a "latin1" string (1 char per byte) and parses it with
 // native scans: direct runs are plain substrings, and each Base64 run is decoded in bulk with
-// atob(). Streaming-aware: a Base64 run split across chunks is buffered (in `pending`) until it
-// ends. A trailing shift-out ('-') is optional.
+// atob(). Streaming-aware: a Base64 run split across chunks flushes its aligned prefix and carries
+// only the < 8-char tail. A trailing shift-out ('-') is optional.
 //
 // Conformance (RFC 2152): only ASCII is valid in direct mode, and a Base64 run must end on a 16-bit
 // boundary with zero padding bits. Ill-formed input -- a non-ASCII byte while unshifted, an
@@ -278,99 +290,99 @@ class Utf7Decoder {
   // Decode a Base64 string (Base64 alphabet only) to its UTF-16BE code units. No validation: bytes
   // are paired into code units verbatim (a lone surrogate passes through), and invalid Base64
   // (length % 4 === 1) yields "" -- the caller flags that as ill-formed.
-  _decodeBase64 (b64) {
+  _decodeBase64 (base64) {
     let bytes
     try {
-      bytes = atob(this.imap ? b64.replace(/,/g, "/") : b64)
+      bytes = atob(this.imap ? base64.replace(/,/g, "/") : base64)
     } catch {
       return ""
     }
-    const nUnits = bytes.length >> 1 // Pairs of bytes -> UTF-16BE code units.
-    if (nUnits === 0) { return "" }
-    if (this.units.length < nUnits) { this.units = new Uint16Array(nUnits) }
+    const unitCount = bytes.length >> 1 // Pairs of bytes -> UTF-16BE code units.
+    if (unitCount === 0) { return "" }
+    if (this.units.length < unitCount) { this.units = new Uint16Array(unitCount) }
     const units = this.units
-    for (let i = 0, j = 0; i < nUnits; i++, j += 2) {
-      units[i] = (bytes.charCodeAt(j) << 8) | bytes.charCodeAt(j + 1)
+    for (let unitPos = 0, bytePos = 0; unitPos < unitCount; unitPos++, bytePos += 2) {
+      units[unitPos] = (bytes.charCodeAt(bytePos) << 8) | bytes.charCodeAt(bytePos + 1)
     }
-    return charsFromUnits(units, nUnits)
+    return charsFromUnits(units, unitCount)
   }
 
-  // Decode one complete Base64 run, with RFC 2152 trailing-bit validation: a run of `len` Base64
-  // chars carries 6*len bits, whose remainder mod 16 must be 0/2/4 zero-padding bits -- else it's an
-  // incomplete code unit or non-zero padding, replaced with U+FFFD.
-  _decodeRun (b64) {
-    const len = b64.length
-    if (len === 0) { return "" }
-    const leftover = (6 * len) % 16
+  // Decode one complete Base64 run, with RFC 2152 trailing-bit validation: a run of `length` Base64
+  // chars carries 6*length bits, whose remainder mod 16 must be 0/2/4 zero-padding bits -- else it's
+  // an incomplete code unit or non-zero padding, replaced with U+FFFD.
+  _decodeRun (base64) {
+    const length = base64.length
+    if (length === 0) { return "" }
+    const leftover = (6 * length) % 16
     let bad = leftover > 4
-    if (!bad && leftover > 0 && (this.inv[b64.charCodeAt(len - 1)] & ((1 << leftover) - 1)) !== 0) {
+    if (!bad && leftover > 0 && (this.inv[base64.charCodeAt(length - 1)] & ((1 << leftover) - 1)) !== 0) {
       bad = true
     }
-    const s = this._decodeBase64(b64)
-    return bad ? s + "�" : s
+    const decoded = this._decodeBase64(base64)
+    return bad ? decoded + "�" : decoded
   }
 
   write (buf) {
-    const s = latin1Decoder.decode(buf) // 1 char per input byte.
-    const len = s.length
-    let res = ""
-    let i = 0
-    // Whether `s` has any non-ASCII byte (ill-formed in direct mode). Valid UTF-7 is pure ASCII, so
-    // this is usually false and lets the direct segments skip the per-segment replace. Computed once,
-    // lazily on the first direct segment, so an all-Base64 run never pays for the scan.
+    const chars = latin1Decoder.decode(buf) // 1 char per input byte.
+    const length = chars.length
+    let result = ""
+    let cursor = 0
+    // Whether `chars` has any non-ASCII byte (ill-formed in direct mode). Valid UTF-7 is pure ASCII,
+    // so this is usually false and lets the direct segments skip the per-segment replace. Computed
+    // once, lazily on the first direct segment, so an all-Base64 run never pays for the scan.
     let hasNonAscii = -1
 
-    while (i < len) {
+    while (cursor < length) {
       if (!this.inBase64) { // Direct mode: copy ASCII up to the next shift-in byte.
-        const shift = buf.indexOf(this.shiftIn, i)
-        const dEnd = shift === -1 ? len : shift
-        if (dEnd > i) {
-          if (hasNonAscii === -1) { hasNonAscii = s.search(NON_ASCII) !== -1 ? 1 : 0 }
-          const seg = s.slice(i, dEnd)
-          res += hasNonAscii === 0 ? seg : seg.replace(NON_ASCII, "�") // Non-ASCII is ill-formed here.
+        const shift = buf.indexOf(this.shiftIn, cursor)
+        const directEnd = shift === -1 ? length : shift
+        if (directEnd > cursor) {
+          if (hasNonAscii === -1) { hasNonAscii = chars.search(NON_ASCII) !== -1 ? 1 : 0 }
+          const segment = chars.slice(cursor, directEnd)
+          result += hasNonAscii === 0 ? segment : segment.replace(NON_ASCII, "�") // Non-ASCII is ill-formed here.
         }
         if (shift === -1) { break }
         this.inBase64 = true
         this.sawBase64 = false
-        i = shift + 1
+        cursor = shift + 1
       } else { // Base64 mode: scan bytes to the run terminator (first non-Base64 byte).
-        let end = i
-        while (end < len && this.inv[buf[end]] !== -1) { end++ }
-        if (end > i) { this.sawBase64 = true }
-        if (end === len) {
+        let runEnd = cursor
+        while (runEnd < length && this.inv[buf[runEnd]] !== -1) { runEnd++ }
+        if (runEnd > cursor) { this.sawBase64 = true }
+        if (runEnd === length) {
           // Run continues past this chunk: flush its 16-bit-aligned prefix (8 Base64 chars = 3 code
           // units, no leftover bits) and carry only the < 8-char tail, so memory stays bounded.
-          const acc = this.pending + s.slice(i)
-          const aligned = acc.length - (acc.length % 8)
-          res += this._decodeBase64(acc.slice(0, aligned))
-          this.pending = acc.slice(aligned)
-          return res
+          const accumulated = this.pending + chars.slice(cursor)
+          const aligned = accumulated.length - (accumulated.length % 8)
+          result += this._decodeBase64(accumulated.slice(0, aligned))
+          this.pending = accumulated.slice(aligned)
+          return result
         }
-        const run = this.pending + s.slice(i, end)
+        const runChars = this.pending + chars.slice(cursor, runEnd)
         this.pending = ""
-        const term = buf[end]
-        if (!this.sawBase64 && term === MINUS) { // "+-"/"&-" with no Base64 chars -> literal.
-          res += this.literal
-          i = end + 1
+        const terminator = buf[runEnd]
+        if (!this.sawBase64 && terminator === MINUS) { // "+-"/"&-" with no Base64 chars -> literal.
+          result += this.literal
+          cursor = runEnd + 1
         } else {
-          res += this._decodeRun(run)
-          i = term === MINUS ? end + 1 : end // '-' is absorbed; anything else is re-read as direct.
+          result += this._decodeRun(runChars)
+          cursor = terminator === MINUS ? runEnd + 1 : runEnd // '-' absorbed; else re-read as direct.
         }
         this.inBase64 = false
         this.sawBase64 = false
       }
     }
 
-    return res
+    return result
   }
 
   end () {
     // A stream may end mid-run (the trailing '-' is optional), so decode whatever is buffered.
-    const res = this.inBase64 ? this._decodeRun(this.pending) : ""
+    const result = this.inBase64 ? this._decodeRun(this.pending) : ""
     this.inBase64 = false
     this.pending = ""
     this.sawBase64 = false
-    return res.length > 0 ? res : undefined
+    return result.length > 0 ? result : undefined
   }
 }
 
