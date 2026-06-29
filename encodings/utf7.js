@@ -13,8 +13,6 @@
  * @see http://tools.ietf.org/html/rfc3501#section-5.1.3
  */
 
-// == Shared tables and constants ==============================================
-
 const PLUS = 0x2b // '+'
 const MINUS = 0x2d // '-'
 const AMP = 0x26 // '&'
@@ -95,6 +93,16 @@ const UTF7_NONDIRECT = new RegExp("[^" + UTF7_DIRECT_CHARS.replace(/[\]\\^-]/g, 
  */
 const latin1Decoder = new TextDecoder("latin1")
 
+/**
+ * Turns decoded UTF-16 code units (held in a Uint16Array, native little-endian) into a string in one
+ * native call. Only used for runs with no surrogate (where it equals the verbatim conversion), since
+ * it would otherwise replace a lone surrogate with U+FFFD instead of passing it through.
+ * @type {TextDecoder}
+ */
+const utf16leDecoder = new TextDecoder("utf-16le", { ignoreBOM: true })
+/** Above this many code units the native TextDecoder beats fromCharCode; below it the per-call setup costs more. */
+const TEXT_DECODER_MIN_UNITS = 64
+
 /** Matches any non-ASCII char (a byte >= 0x80): invalid while unshifted, so replaced with U+FFFD. @type {RegExp} */
 const NON_ASCII = /[\u0080-\uffff]/g
 
@@ -119,8 +127,6 @@ function charsFromUnits (units, length) {
 const asciiEncoder = new TextEncoder()
 /** Below this run length, a per-char copy is cheaper than the slice()+encodeInto() setup. */
 const DIRECT_BULK_MIN = 16
-
-// == Encoder helpers ==========================================================
 
 /**
  * Emits the final partial Base64 sextet (the leftover < 6 bits, zero-padded).
@@ -184,8 +190,6 @@ function encodeBase64Run (str, from, to, out, pos, bytes) {
   return pos
 }
 
-// == UTF-7 codec ==============================================================
-
 /** UTF-7 codec (RFC 2152). */
 class Utf7Codec {
   /**
@@ -240,8 +244,6 @@ class Utf7IMAPCodec {
   /** @returns {boolean} */
   get bomAware () { return true }
 }
-
-// == UTF-7 encoder ============================================================
 
 /**
  * UTF-7 encoder. The steps follow the three rules in RFC 2152, section "UTF-7 Definition".
@@ -304,8 +306,6 @@ class Utf7Encoder {
   /** @returns {void} */
   end () {}
 }
-
-// == UTF-7-IMAP encoder =======================================================
 
 /**
  * UTF-7-IMAP / Modified UTF-7 encoder. The steps follow RFC 3501, section 5.1.3 ("Mailbox
@@ -382,8 +382,6 @@ class Utf7IMAPEncoder {
   }
 }
 
-// == Decoder (shared by UTF-7 and UTF-7-IMAP) =================================
-
 /**
  * UTF-7 / UTF-7-IMAP decoder. The steps invert RFC 2152, Rule 2 (and Rule 1/3 for direct chars);
  * for UTF-7-IMAP the equivalent rules are in RFC 3501, section 5.1.3. It runs in two alternating
@@ -443,8 +441,17 @@ class Utf7Decoder {
     if (unitCount === 0) { return "" }
     if (this.units.length < unitCount) { this.units = new Uint16Array(unitCount) }
     const units = this.units
+    let hasSurrogate = false
     for (let unitPos = 0, bytePos = 0; unitPos < unitCount; unitPos++, bytePos += 2) {
-      units[unitPos] = (bytes.charCodeAt(bytePos) << 8) | bytes.charCodeAt(bytePos + 1)
+      const unit = (bytes.charCodeAt(bytePos) << 8) | bytes.charCodeAt(bytePos + 1)
+      if (unit >= 0xd800 && unit <= 0xdfff) { hasSurrogate = true }
+      units[unitPos] = unit
+    }
+    // With no surrogate, TextDecoder over the native-LE Uint16Array buffer is exact and much faster
+    // for long runs. With a surrogate present, fall back to fromCharCode so lone surrogates pass
+    // through verbatim (TextDecoder would turn them into U+FFFD).
+    if (!hasSurrogate && unitCount >= TEXT_DECODER_MIN_UNITS) {
+      return utf16leDecoder.decode(new Uint8Array(units.buffer, units.byteOffset, unitCount * 2))
     }
     return charsFromUnits(units, unitCount)
   }
@@ -538,8 +545,6 @@ class Utf7Decoder {
     return result.length > 0 ? result : undefined
   }
 }
-
-// == Exports ==================================================================
 
 exports.utf7 = Utf7Codec
 exports.unicode11utf7 = "utf7" // Alias UNICODE-1-1-UTF-7.
