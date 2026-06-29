@@ -17,8 +17,9 @@ function buf (ascii) {
   return utils.bytes(arr)
 }
 
-// These tests are mostly from https://github.com/kkaefer/utf7
-// In case of ambiguity, we do the same as iconv. For example, we encode "optional direct" characters, but leave spaces and \n\r\t as-is.
+// Several encode/decode cases come from https://github.com/kkaefer/utf7 and the RFC 2152 examples.
+// Where the spec leaves a choice we follow RFC 2152: the optional "Set O" punctuation and whitespace
+// (space, tab, CR, LF) are left direct (not Base64-encoded), and ill-formed input is replaced with U+FFFD.
 
 describe("UTF-7 codec #node-web", function () {
   it("encodes correctly", function () {
@@ -48,6 +49,9 @@ describe("UTF-7 codec #node-web", function () {
     // whole string and when it is only a slice of it (followed by a shifted run).
     assert.equal(enc("This is a long ASCII run.", "utf-7"), "This is a long ASCII run.")
     assert.equal(enc("This is a long ASCII run\u4E2D", "utf-7"), "This is a long ASCII run+Ti0-")
+
+    // Whitespace (space, tab, CR, LF) is represented directly (RFC 2152, Rule 3).
+    assert.equal(enc("a\tb\r\nc d", "utf-7"), "a\tb\r\nc d")
   })
 
   it("decodes correctly", function () {
@@ -113,6 +117,8 @@ describe("UTF-7 codec #node-web", function () {
     assert.equal(iconv.decode(buf("+DEH-"), "utf-7"), "\u0C41\uFFFD")
     // Non-ASCII byte while unshifted (only ASCII is valid in direct mode).
     assert.equal(iconv.decode(utils.bytes([0x41, 0x80, 0x42]), "utf-7"), "A\uFFFDB")
+    // A non-ASCII byte ends the Base64 run (it's not Base64), then is re-read as ill-formed direct.
+    assert.equal(iconv.decode(utils.bytes([0x2b, 0x41, 0x4f, 0x51, 0x80]), "utf-7"), "\u00E4\uFFFD")
   })
 
   it("handles edge cases", function () {
@@ -227,6 +233,8 @@ describe("UTF-7-IMAP codec #node-web", function () {
 
     // Slashes are converted to commas.
     assert.equal(iconv.decode(buf("&,,,typh2VDIf7Q-"), "utf-7-imap"), "\uFFFF\uEDCA\u9876\u5432\u1FED")
+    // Forgiving: a literal '/' is also accepted as value 63 (decodes the same as ',').
+    assert.equal(iconv.decode(buf("&///typh2VDIf7Q-"), "utf-7-imap"), "\uFFFF\uEDCA\u9876\u5432\u1FED")
 
     // & sign around non-ASCII chars
     assert.equal(iconv.decode(buf("&AOQ-&-&AOQ-&-&AOQ-"), "utf-7-imap"), "\u00E4&\u00E4&\u00E4")
