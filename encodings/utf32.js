@@ -5,15 +5,25 @@
  *
  * Browser-native: the conversion uses only plain Uint8Array byte I/O, never the Node Buffer (the
  * backend is touched only for the encoder's final "bytes -> result" step, so encoding keeps returning
- * a Buffer in Node, like the utf16 codec). The decoder builds the output string with String.fromCharCode
- * so a lone surrogate still passes through unchanged.
+ * a Buffer in Node, like the utf16 codec). There is no TextDecoder for UTF-32 (the WHATWG Encoding
+ * Standard dropped it), so the code unit <-> UTF-16 conversion is done by hand here.
  *
- * NOTE: the behavior is still lenient (surrogate code points pass through, out-of-range code points
- * become the bad-char, trailing incomplete bytes are dropped). Performance and strict conformance come
- * in later steps.
+ * Unlike UTF-8 (RFC 3629) and UTF-16 (RFC 2781), UTF-32 has no dedicated IETF RFC; it is defined by
+ * The Unicode Standard, Section 3.9 "Unicode Encoding Forms" (definition D90), and ISO/IEC 10646
+ * (UCS-4). Conformance: a UTF-32 code unit must be a Unicode scalar value (definition D76), i.e.
+ * 0..0x10FFFF EXCLUDING the surrogate range 0xD800..0xDFFF (surrogate code points are not scalar
+ * values, so they cannot appear in UTF-32). On decode, any other value - a surrogate code point, a
+ * value above 0x10FFFF, or a truncated trailing code unit - is replaced with the bad-char (U+FFFD by
+ * default), or throws with { fatal: true }. On encode, a lone (unpaired) surrogate in the input is
+ * replaced with U+FFFD so the output is always well-formed UTF-32.
  *
- * @see https://en.wikipedia.org/wiki/UTF-32
+ * @see https://www.unicode.org/versions/latest/ (The Unicode Standard, Section 3.9)
+ * @see https://www.unicode.org/reports/tr19/ (UAX #19: UTF-32, now folded into the core standard)
+ * @see https://unicode.org/faq/utf_bom#utf32-7
  */
+
+/** Unicode replacement character, emitted by the encoder for ill-formed input. */
+const REPLACEMENT = 0xFFFD
 
 /** Max args for one String.fromCharCode.apply() before risking a call-stack overflow. */
 const CHARS_CHUNK = 8192
@@ -21,22 +31,21 @@ const CHARS_CHUNK = 8192
 /** UTF-32LE codec. */
 class Utf32LECodec {
   createEncoder (options, iconv) { return new Utf32Encoder(iconv.backend, true) }
-  createDecoder (options, iconv) { return new Utf32Decoder(true, iconv.defaultCharUnicode.charCodeAt(0)) }
+  createDecoder (options, iconv) { return new Utf32Decoder(true, iconv.defaultCharUnicode.charCodeAt(0), !!(options && options.fatal)) }
   get bomAware () { return true }
 }
 
 /** UTF-32BE codec. */
 class Utf32BECodec {
   createEncoder (options, iconv) { return new Utf32Encoder(iconv.backend, false) }
-  createDecoder (options, iconv) { return new Utf32Decoder(false, iconv.defaultCharUnicode.charCodeAt(0)) }
+  createDecoder (options, iconv) { return new Utf32Decoder(false, iconv.defaultCharUnicode.charCodeAt(0), !!(options && options.fatal)) }
   get bomAware () { return true }
 }
 
 /**
  * UTF-32 encoder. Combines surrogate pairs into code points and writes each as 4 bytes. A lone
- * surrogate is written through as its own (semi-invalid) code point, which some applications expect
- * (e.g. Windows file names). Stateful across writes: a high surrogate at the end of one write() is
- * held for the next.
+ * (unpaired) surrogate is replaced with U+FFFD so the output is always well-formed UTF-32. Stateful
+ * across writes: a high surrogate at the end of one write() is held for the next.
  */
 class Utf32Encoder {
   /**
@@ -62,58 +71,57 @@ class Utf32Encoder {
 
     for (let index = 0; index < length; index++) {
       const code = str.charCodeAt(index)
-      const isHighSurrogate = code >= 0xD800 && code < 0xDC00
-      const isLowSurrogate = code >= 0xDC00 && code < 0xE000
 
-      if (this.highSurrogate) {
-        if (isHighSurrogate || !isLowSurrogate) {
-          // Two high surrogates in a row, or a high surrogate not followed by a low one: keep the
-          // pending high surrogate as a stand-alone (semi-invalid) character.
-          pos = writeCodepoint(out, pos, this.highSurrogate, isLE)
-        } else {
-          // Combine the high and low surrogate into a single 32-bit code point.
+      if (this.highSurrogate !== 0) {
+        if (code >= 0xDC00 && code <= 0xDFFF) {
+          // Valid pair -> one astral code point.
           pos = writeCodepoint(out, pos, (((this.highSurrogate - 0xD800) << 10) | (code - 0xDC00)) + 0x10000, isLE)
           this.highSurrogate = 0
           continue
         }
+        // Unpaired high surrogate -> U+FFFD, then handle the current unit below.
+        pos = writeCodepoint(out, pos, REPLACEMENT, isLE)
+        this.highSurrogate = 0
       }
 
-      if (isHighSurrogate) {
-        this.highSurrogate = code
+      if (code >= 0xD800 && code <= 0xDBFF) {
+        this.highSurrogate = code // Hold for the next unit.
+      } else if (code >= 0xDC00 && code <= 0xDFFF) {
+        pos = writeCodepoint(out, pos, REPLACEMENT, isLE) // Unpaired low surrogate.
       } else {
-        // A low surrogate with no preceding high surrogate is also kept as a stand-alone character.
         pos = writeCodepoint(out, pos, code, isLE)
-        this.highSurrogate = 0
       }
     }
 
     return this.backend.bytesToResult(out, pos)
   }
 
-  /** @returns {Buffer|Uint8Array|undefined} A leftover unpaired high surrogate, as a stand-alone character. */
+  /** @returns {Buffer|Uint8Array|undefined} U+FFFD for a high surrogate left unpaired at end of input. */
   end () {
-    if (!this.highSurrogate) { return }
+    if (this.highSurrogate === 0) { return }
     const out = new Uint8Array(4)
-    writeCodepoint(out, 0, this.highSurrogate, this.isLE)
+    writeCodepoint(out, 0, REPLACEMENT, this.isLE)
     this.highSurrogate = 0
     return this.backend.bytesToResult(out, 4)
   }
 }
 
 /**
- * UTF-32 decoder. Reads 4-byte code points and emits the corresponding UTF-16. A code point outside
- * 0..0x10FFFF is replaced with the bad-char. Streaming: a code point split across a chunk boundary is
- * buffered (`overflow`) and finished on the next write; trailing bytes that never complete a code
- * point are dropped at end().
+ * UTF-32 decoder. Reads 4-byte code points and emits the corresponding UTF-16. Ill-formed input (a
+ * surrogate code point, a value above 0x10FFFF, or a truncated trailing code unit) is replaced with
+ * the bad-char, or throws when `fatal`. Streaming: a code point split across a chunk boundary is
+ * buffered (`overflow`) and finished on the next write.
  */
 class Utf32Decoder {
   /**
    * @param {boolean} isLE Little-endian when true.
-   * @param {number} badChar Code unit emitted for an out-of-range code point.
+   * @param {number} badChar Code unit emitted for ill-formed input.
+   * @param {boolean} fatal Throw on ill-formed input instead of emitting the bad-char.
    */
-  constructor (isLE, badChar) {
+  constructor (isLE, badChar, fatal) {
     this.isLE = isLE
     this.badChar = badChar
+    this.fatal = fatal
     this.overflow = []
     this.units = new Uint16Array(0) // Decoded code units, reused across writes; grows lazily.
   }
@@ -128,6 +136,7 @@ class Utf32Decoder {
     const isLE = this.isLE
     const overflow = this.overflow
     const badChar = this.badChar
+    const fatal = this.fatal
     // Each code point yields at most 2 UTF-16 units; +2 of slack covers rounding and a finished overflow.
     const maxUnits = (((overflow.length + src.length) >> 2) + 1) * 2
     if (this.units.length < maxUnits) { this.units = new Uint16Array(maxUnits) }
@@ -142,14 +151,14 @@ class Utf32Decoder {
       if (overflow.length === 4) {
         codepoint = readCodepoint(overflow, 0, isLE)
         overflow.length = 0
-        pos = pushCodepoint(units, pos, codepoint, badChar)
+        pos = pushCodepoint(units, pos, codepoint, badChar, fatal)
       }
     }
 
     // Main loop.
     for (; i < src.length - 3; i += 4) {
       codepoint = readCodepoint(src, i, isLE)
-      pos = pushCodepoint(units, pos, codepoint, badChar)
+      pos = pushCodepoint(units, pos, codepoint, badChar, fatal)
     }
 
     // Keep the trailing bytes that don't complete a code point for the next chunk.
@@ -158,9 +167,12 @@ class Utf32Decoder {
     return stringFromUnits(units, pos)
   }
 
-  /** @returns {void} Trailing incomplete bytes are dropped. */
+  /** @returns {string|undefined} U+FFFD for a code point left truncated at end of input (or throws when fatal). */
   end () {
+    if (this.overflow.length === 0) { return }
     this.overflow.length = 0
+    if (this.fatal) { throw new Error("Truncated UTF-32 code unit at end of input") }
+    return String.fromCharCode(this.badChar)
   }
 }
 
@@ -204,15 +216,22 @@ function readCodepoint (src, pos, isLE) {
 }
 
 /**
- * Appends one decoded code point to the code-unit buffer, replacing out-of-range values with `badChar`.
+ * Appends one decoded code point to the code-unit buffer, validating it as a Unicode scalar value.
+ * A surrogate code point, a value above 0x10FFFF, or a negative value (high bit set) is ill-formed:
+ * it becomes `badChar`, or throws when `fatal`.
  * @param {Uint16Array} units
  * @param {number} pos Current code-unit write position.
  * @param {number} codepoint
  * @param {number} badChar
+ * @param {boolean} fatal
  * @returns {number} The new code-unit write position.
  */
-function pushCodepoint (units, pos, codepoint, badChar) {
-  if (codepoint < 0 || codepoint > 0x10FFFF) { codepoint = badChar }
+function pushCodepoint (units, pos, codepoint, badChar, fatal) {
+  if (codepoint < 0 || codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
+    if (fatal) { throw new Error("Invalid UTF-32 code unit: 0x" + (codepoint >>> 0).toString(16)) }
+    units[pos++] = badChar
+    return pos
+  }
 
   if (codepoint > 0xFFFF) {
     // Astral plane: split into a surrogate pair.
@@ -226,8 +245,7 @@ function pushCodepoint (units, pos, codepoint, badChar) {
 }
 
 /**
- * Builds a string from the first `length` UTF-16 code units of a Uint16Array. Uses String.fromCharCode
- * (not TextDecoder) so a lone surrogate passes through as its own code unit.
+ * Builds a string from the first `length` UTF-16 code units of a Uint16Array.
  * @param {Uint16Array} units
  * @param {number} length Number of valid code units in `units`.
  * @returns {string}
@@ -281,8 +299,10 @@ class Utf32AutoDecoder {
   end () {
     if (this.decoder) { return this.decoder.end() }
     // Endianness wasn't decided during write() (fewer than 32 bytes): decide and decode the buffered
-    // bytes now. A trailing incomplete code point is dropped, like in the LE/BE decoders.
-    return this._chooseDecoder()
+    // bytes now, then flush any trailing replacement char from the chosen decoder.
+    const res = this._chooseDecoder()
+    const trail = this.decoder.end()
+    return trail ? res + trail : res
   }
 
   _chooseDecoder () {
