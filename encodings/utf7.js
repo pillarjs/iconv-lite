@@ -264,12 +264,10 @@ class Utf7IMAPEncoder {
 
 class Utf7Decoder {
   constructor (shiftIn, literal, inv, imap) {
-    this.shiftIn = String.fromCharCode(shiftIn) // Char that starts a Base64 run ('+' or '&').
+    this.shiftIn = shiftIn // Byte that starts a Base64 run ('+' or '&').
     this.literal = literal // The same char, for the "+-"/"&-" -> literal case.
-    this.inv = inv // Base64 char code -> value table (used to validate the last char).
+    this.inv = inv // Base64 byte -> value table; also tells a Base64 byte from a run terminator (-1).
     this.imap = imap // UTF-7-IMAP uses ',' for value 63 and must be mapped back to '/' for atob().
-    // Matches the first char that ends a Base64 run (anything outside the Base64 alphabet).
-    this.runEnd = imap ? /[^A-Za-z0-9+,/]/g : /[^A-Za-z0-9+/]/g
 
     this.inBase64 = false
     this.pending = "" // Base64 chars of a run still open from a previous chunk.
@@ -317,28 +315,33 @@ class Utf7Decoder {
     const len = s.length
     let res = ""
     let i = 0
+    // Whether `s` has any non-ASCII byte (ill-formed in direct mode). Valid UTF-7 is pure ASCII, so
+    // this is usually false and lets the direct segments skip the per-segment replace. Computed once,
+    // lazily on the first direct segment, so an all-Base64 run never pays for the scan.
+    let hasNonAscii = -1
 
     while (i < len) {
-      if (!this.inBase64) { // Direct mode: copy ASCII up to the next shift-in char.
-        const shift = s.indexOf(this.shiftIn, i)
+      if (!this.inBase64) { // Direct mode: copy ASCII up to the next shift-in byte.
+        const shift = buf.indexOf(this.shiftIn, i)
         const dEnd = shift === -1 ? len : shift
         if (dEnd > i) {
-          res += s.slice(i, dEnd).replace(NON_ASCII, "�") // Non-ASCII bytes are ill-formed here.
+          if (hasNonAscii === -1) { hasNonAscii = s.search(NON_ASCII) !== -1 ? 1 : 0 }
+          const seg = s.slice(i, dEnd)
+          res += hasNonAscii === 0 ? seg : seg.replace(NON_ASCII, "�") // Non-ASCII is ill-formed here.
         }
         if (shift === -1) { break }
         this.inBase64 = true
         i = shift + 1
-      } else { // Base64 mode.
-        this.runEnd.lastIndex = i
-        const m = this.runEnd.exec(s)
-        if (!m) { // Run continues past this chunk.
+      } else { // Base64 mode: scan bytes to the run terminator (first non-Base64 byte).
+        let end = i
+        while (end < len && this.inv[buf[end]] !== -1) { end++ }
+        if (end === len) { // Run continues past this chunk.
           this.pending += s.slice(i)
           return res
         }
-        const end = m.index
         const run = this.pending + s.slice(i, end)
         this.pending = ""
-        const term = s.charCodeAt(end)
+        const term = buf[end]
         if (run.length === 0 && term === MINUS) { // "+-"/"&-" -> literal.
           res += this.literal
           i = end + 1
