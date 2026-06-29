@@ -18,7 +18,20 @@ const encodingStrings = {
   gbk: "这是中文字符测试。。！@￥%12",
   utf8: "这是中文字符测试。。！@￥%12This is a test string 48 chars..",
   "utf-16le": "这是中文字符测试。。！@￥%12This is a test string 48 chars..",
-  "utf-16be": "这是中文字符测试。。！@￥%12This is a test string 48 chars.."
+  "utf-16be": "这是中文字符测试。。！@￥%12This is a test string 48 chars..",
+  "utf-7": "这是中文字符测试。。！@￥%12This is a test string 48 chars..",
+  "utf-32": "这是中文字符测试。。！@￥%12This is a test string 48 chars.."
+}
+
+// Not every encoding is supported by the native TextDecoder (e.g. utf-7 is not part of
+// the WHATWG Encoding Standard), so we only add that comparison when the runtime supports it.
+function textDecoderSupports (encoding) {
+  try {
+    const decoder = new TextDecoder(encoding)
+    return Boolean(decoder)
+  } catch {
+    return false
+  }
 }
 
 // How many times the base string is repeated for each size variant. "small" is a typical short
@@ -49,12 +62,14 @@ for (const [encoding, baseString] of Object.entries(encodingStrings)) {
       converter.convert(buffer).toString()
       timer.end()
     })
-    suite.add(`${encoding}/${size}/decode/native-TextDecoder`, function (timer) {
-      const buffer = iconvLite.encode(string, encoding)
-      timer.start()
-      new TextDecoder(encoding).decode(buffer)
-      timer.end()
-    })
+    if (textDecoderSupports(encoding)) {
+      suite.add(`${encoding}/${size}/decode/native-TextDecoder`, function (timer) {
+        const buffer = iconvLite.encode(string, encoding)
+        timer.start()
+        new TextDecoder(encoding).decode(buffer)
+        timer.end()
+      })
+    }
   }
 }
 
