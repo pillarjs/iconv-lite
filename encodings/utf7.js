@@ -13,46 +13,46 @@
 
 // -- Shared tables and constants ----------------------------------------------
 
-var PLUS = 0x2b // '+'
-var MINUS = 0x2d // '-'
-var AMP = 0x26 // '&'
+const PLUS = 0x2b // '+'
+const MINUS = 0x2d // '-'
+const AMP = 0x26 // '&'
 
 // Standard Base64 alphabet, plus the UTF-7-IMAP variant which uses ',' instead of '/'.
-var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-var BASE64_IMAP = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+,"
+const BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+const BASE64_IMAP = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+,"
 
 // value (0..63) -> output byte (ASCII code of the Base64 char).
 function buildBytes (alphabet) {
-  var bytes = new Uint8Array(64)
-  for (var i = 0; i < 64; i++) { bytes[i] = alphabet.charCodeAt(i) }
+  const bytes = new Uint8Array(64)
+  for (let i = 0; i < 64; i++) { bytes[i] = alphabet.charCodeAt(i) }
   return bytes
 }
 
 // input byte -> Base64 value (0..63), or -1 if the byte is not a Base64 char.
 function buildInv (alphabet) {
-  var inv = new Int8Array(256).fill(-1)
-  for (var i = 0; i < alphabet.length; i++) { inv[alphabet.charCodeAt(i)] = i }
+  const inv = new Int8Array(256).fill(-1)
+  for (let i = 0; i < alphabet.length; i++) { inv[alphabet.charCodeAt(i)] = i }
   return inv
 }
 
-var BASE64_BYTES = buildBytes(BASE64)
-var BASE64_IMAP_BYTES = buildBytes(BASE64_IMAP)
+const BASE64_BYTES = buildBytes(BASE64)
+const BASE64_IMAP_BYTES = buildBytes(BASE64_IMAP)
 
-var INV = buildInv(BASE64)
-var INV_IMAP = buildInv(BASE64_IMAP)
+const INV = buildInv(BASE64)
+const INV_IMAP = buildInv(BASE64_IMAP)
 // UTF-7-IMAP decoding is forgiving and also accepts a literal '/' as value 63.
 INV_IMAP["/".charCodeAt(0)] = 63
 
 // Characters that UTF-7 represents directly (un-encoded), per RFC 2152: Set D (mandatory),
 // Set O (optional but allowed direct), and whitespace (SP, TAB, CR, LF). Everything else --
 // including '+' (the shift char), '\', '~' and all non-ASCII -- is shifted into Base64.
-var UTF7_DIRECT = new Uint8Array(128)
-var UTF7_DIRECT_CHARS =
+const UTF7_DIRECT = new Uint8Array(128)
+const UTF7_DIRECT_CHARS =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" + // letters + digits (Set D)
   "'(),-./:?" + // Set D punctuation
   "!\"#$%&*;<=>@[]^_`{|}" + // Set O (optional direct)
   " \t\n\r" // whitespace
-for (var di = 0; di < UTF7_DIRECT_CHARS.length; di++) { UTF7_DIRECT[UTF7_DIRECT_CHARS.charCodeAt(di)] = 1 }
+for (let di = 0; di < UTF7_DIRECT_CHARS.length; di++) { UTF7_DIRECT[UTF7_DIRECT_CHARS.charCodeAt(di)] = 1 }
 
 function utf7IsDirect (code) {
   return code < 128 && UTF7_DIRECT[code] === 1
@@ -61,30 +61,30 @@ function utf7IsDirect (code) {
 // Regex matching the first non-direct char, derived from the same set so there's no second source
 // of truth. Used by the encoder to skip over direct runs in one native (C++) scan instead of a
 // per-char JS loop. The class metacharacters ] \ ^ - are escaped for use inside [^...].
-var UTF7_NONDIRECT = new RegExp("[^" + UTF7_DIRECT_CHARS.replace(/[\]\\^-]/g, "\\$&") + "]", "g")
+const UTF7_NONDIRECT = new RegExp("[^" + UTF7_DIRECT_CHARS.replace(/[\]\\^-]/g, "\\$&") + "]", "g")
 
 // Shared single-byte TextDecoder used to view the input as one char per byte. (The WHATWG
 // "latin1" label is windows-1252, single-byte; ASCII bytes < 0x80 decode 1:1, which is all the
 // parser relies on -- direct runs are ASCII substrings and Base64 runs are ASCII handed to atob().)
-var latin1Decoder = new TextDecoder("latin1")
+const latin1Decoder = new TextDecoder("latin1")
 // Matches any non-ASCII char (a byte >= 0x80): invalid while unshifted, so replaced with U+FFFD.
-var NON_ASCII = /[\u0080-\uffff]/g
+const NON_ASCII = /[\u0080-\uffff]/g
 
 // Shared TextEncoder to bulk-copy long direct (ASCII) runs into the output in one native call.
-var asciiEncoder = new TextEncoder()
+const asciiEncoder = new TextEncoder()
 // Below this length, a per-char copy is cheaper than the slice()+encodeInto() setup.
-var DIRECT_BULK_MIN = 16
+const DIRECT_BULK_MIN = 16
 
 // Max args for a single String.fromCharCode.apply() (avoids blowing the call stack on huge runs).
-var CHARS_CHUNK = 8192
+const CHARS_CHUNK = 8192
 // Build a string from the first `len` code units of a Uint16Array, in bulk and stack-safe.
 function charsFromUnits (units, len) {
   if (len === 0) { return "" }
   if (len <= CHARS_CHUNK) {
     return String.fromCharCode.apply(null, len === units.length ? units : units.subarray(0, len))
   }
-  var s = ""
-  for (var i = 0; i < len; i += CHARS_CHUNK) {
+  let s = ""
+  for (let i = 0; i < len; i += CHARS_CHUNK) {
     s += String.fromCharCode.apply(null, units.subarray(i, Math.min(i + CHARS_CHUNK, len)))
   }
   return s
@@ -133,28 +133,28 @@ class Utf7Encoder {
   }
 
   write (str) {
-    var n = str.length
-    var out = new Uint8Array(n * 5 + 10)
-    var p = 0
-    var i = 0
+    const n = str.length
+    const out = new Uint8Array(n * 5 + 10)
+    let p = 0
+    let i = 0
 
     while (i < n) {
       // Maximal run of direct chars -> copied verbatim. The run end is found with one native regex
       // scan; long runs go through TextEncoder in one native call, short ones are copied char by char.
-      var dStart = i
+      const dStart = i
       UTF7_NONDIRECT.lastIndex = i
-      var m = UTF7_NONDIRECT.exec(str)
+      const m = UTF7_NONDIRECT.exec(str)
       i = m ? m.index : n
       if (i - dStart >= DIRECT_BULK_MIN) {
         // Avoid an extra substring copy when the whole string is one direct run (common for ASCII).
-        var src = (dStart === 0 && i === n) ? str : str.slice(dStart, i)
+        const src = (dStart === 0 && i === n) ? str : str.slice(dStart, i)
         p += asciiEncoder.encodeInto(src, out.subarray(p)).written
       } else {
-        for (var j = dStart; j < i; j++) { out[p++] = str.charCodeAt(j) }
+        for (let j = dStart; j < i; j++) { out[p++] = str.charCodeAt(j) }
       }
       if (i >= n) { break }
 
-      var code = str.charCodeAt(i)
+      const code = str.charCodeAt(i)
       if (code === PLUS && (i + 1 >= n || utf7IsDirect(str.charCodeAt(i + 1)))) {
         // A lone "+" (not part of a longer non-direct run) is encoded as "+-".
         out[p++] = PLUS
@@ -165,9 +165,10 @@ class Utf7Encoder {
 
       // Maximal run of non-direct chars -> "+<base64>-".
       out[p++] = PLUS
-      var bits = 0; var nbits = 0
+      let bits = 0
+      let nbits = 0
       while (i < n) {
-        var c = str.charCodeAt(i)
+        const c = str.charCodeAt(i)
         if (utf7IsDirect(c)) { break }
         bits = (bits << 16) | c
         nbits += 16
@@ -202,11 +203,11 @@ class Utf7IMAPEncoder {
   }
 
   write (str) {
-    var out = new Uint8Array(str.length * 5 + 10)
-    var p = 0
+    const out = new Uint8Array(str.length * 5 + 10)
+    let p = 0
 
-    for (var i = 0; i < str.length; i++) {
-      var code = str.charCodeAt(i)
+    for (let i = 0; i < str.length; i++) {
+      const code = str.charCodeAt(i)
 
       if (code >= 0x20 && code <= 0x7e) { // Direct character or '&'.
         if (this.inBase64) {
@@ -240,8 +241,8 @@ class Utf7IMAPEncoder {
   }
 
   end () {
-    var out = new Uint8Array(2)
-    var p = 0
+    const out = new Uint8Array(2)
+    let p = 0
     if (this.inBase64) {
       if (this.nbits > 0) {
         out[p++] = BASE64_IMAP_BYTES[(this.bits << (6 - this.nbits)) & 0x3f]
@@ -280,30 +281,30 @@ class Utf7Decoder {
 
   // Decode one complete Base64 run (its chars) to a string, replacing ill-formed tails with U+FFFD.
   _decodeRun (b64) {
-    var len = b64.length
+    const len = b64.length
     if (len === 0) { return "" }
 
     // Validate the trailing bits without decoding them: a run of `len` Base64 chars carries 6*len
     // bits; the remainder mod 16 must be 0/2/4 zero-padding bits, else it's an incomplete or
     // non-zero-padded code unit.
-    var leftover = (6 * len) % 16
-    var bad = leftover > 4
+    const leftover = (6 * len) % 16
+    let bad = leftover > 4
     if (!bad && leftover > 0 && (this.inv[b64.charCodeAt(len - 1)] & ((1 << leftover) - 1)) !== 0) {
       bad = true
     }
 
-    var bytes
+    let bytes
     try {
       bytes = atob(this.imap ? b64.replace(/,/g, "/") : b64)
-    } catch (e) {
+    } catch {
       return "�" // Not valid Base64 (e.g. length % 4 === 1).
     }
 
-    var nUnits = bytes.length >> 1 // Pairs of bytes -> UTF-16BE code units.
-    var s = ""
+    const nUnits = bytes.length >> 1 // Pairs of bytes -> UTF-16BE code units.
+    let s = ""
     if (nUnits > 0) {
-      var units = new Uint16Array(nUnits)
-      for (var i = 0, j = 0; i < nUnits; i++, j += 2) {
+      const units = new Uint16Array(nUnits)
+      for (let i = 0, j = 0; i < nUnits; i++, j += 2) {
         units[i] = (bytes.charCodeAt(j) << 8) | bytes.charCodeAt(j + 1)
       }
       s = charsFromUnits(units, nUnits)
@@ -312,33 +313,32 @@ class Utf7Decoder {
   }
 
   write (buf) {
-    var s = latin1Decoder.decode(buf) // 1 char per input byte.
-    var len = s.length
-    var res = ""
-    var i = 0
+    const s = latin1Decoder.decode(buf) // 1 char per input byte.
+    const len = s.length
+    let res = ""
+    let i = 0
 
     while (i < len) {
       if (!this.inBase64) { // Direct mode: copy ASCII up to the next shift-in char.
-        var shift = s.indexOf(this.shiftIn, i)
-        var dEnd = shift === -1 ? len : shift
+        const shift = s.indexOf(this.shiftIn, i)
+        const dEnd = shift === -1 ? len : shift
         if (dEnd > i) {
-          var seg = s.slice(i, dEnd)
-          res += seg.replace(NON_ASCII, "�") // Non-ASCII bytes are ill-formed here.
+          res += s.slice(i, dEnd).replace(NON_ASCII, "�") // Non-ASCII bytes are ill-formed here.
         }
         if (shift === -1) { break }
         this.inBase64 = true
         i = shift + 1
       } else { // Base64 mode.
         this.runEnd.lastIndex = i
-        var m = this.runEnd.exec(s)
+        const m = this.runEnd.exec(s)
         if (!m) { // Run continues past this chunk.
           this.pending += s.slice(i)
           return res
         }
-        var end = m.index
-        var run = this.pending + s.slice(i, end)
+        const end = m.index
+        const run = this.pending + s.slice(i, end)
         this.pending = ""
-        var term = s.charCodeAt(end)
+        const term = s.charCodeAt(end)
         if (run.length === 0 && term === MINUS) { // "+-"/"&-" -> literal.
           res += this.literal
           i = end + 1
@@ -355,7 +355,7 @@ class Utf7Decoder {
 
   end () {
     // A stream may end mid-run (the trailing '-' is optional), so decode whatever is buffered.
-    var res = this.inBase64 ? this._decodeRun(this.pending) : ""
+    const res = this.inBase64 ? this._decodeRun(this.pending) : ""
     this.inBase64 = false
     this.pending = ""
     return res.length > 0 ? res : undefined
