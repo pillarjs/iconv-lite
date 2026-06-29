@@ -35,6 +35,16 @@ describe("EUC-JP codec #node-web", function () {
     assert.strictEqual(utils.hex(iconv.encode(OVERLINE, "eucjp")), "7e")
   })
 
+  it("prefers the 2-byte jis0208 form for dual-mapped characters (matches the WHATWG encoder)", function () {
+    // U+4E28 exists both in jis0208 (the 2-byte IBM-extension area) and in JIS X 0212 (3-byte). The
+    // WHATWG encoder emits the 2-byte jis0208 form; the old libiconv table emitted the 3-byte one.
+    const ch = String.fromCharCode(0x4e28)
+    assert.strictEqual(utils.hex(iconv.encode(ch, "eucjp")), "f9 ad")
+    // Both forms decode back to the same character, so it still round-trips.
+    assert.strictEqual(iconv.decode(utils.bytes([0xf9, 0xad]), "eucjp"), ch)
+    assert.strictEqual(iconv.decode(utils.bytes([0x8f, 0xb0, 0xa9]), "eucjp"), ch)
+  })
+
   it("encodes U+2212 (MINUS SIGN) like U+FF0D, per the WHATWG encoder (step 6)", function () {
     const minus = String.fromCharCode(0x2212)
     const fullwidthHyphenMinus = String.fromCharCode(0xff0d)
