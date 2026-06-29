@@ -27,6 +27,15 @@ const REPLACEMENT = 0xFFFD
 
 /** Max args for one String.fromCharCode.apply() before risking a call-stack overflow. */
 const CHARS_CHUNK = 8192
+/** Above this many UTF-16 code units, the native TextDecoder beats fromCharCode; below it the setup costs more. */
+const TEXT_DECODER_MIN_UNITS = 64
+/**
+ * Decodes the code-unit buffer to a string. The decoder only puts well-formed UTF-16 here (BMP units
+ * and proper surrogate pairs, never a lone surrogate), so this native decode is safe. Viewing the
+ * Uint16Array as little-endian bytes assumes a little-endian platform, which iconv-lite already does.
+ * @type {TextDecoder}
+ */
+const utf16leDecoder = new TextDecoder("utf-16le", { ignoreBOM: true })
 
 /** UTF-32LE codec. */
 class Utf32LECodec {
@@ -64,10 +73,12 @@ class Utf32Encoder {
    */
   write (str) {
     const length = str.length
-    // Worst case is 4 bytes per code unit, plus 4 for a high surrogate held over from a prior write().
+    // Worst case is one code point per code unit, plus one for a high surrogate held over from a
+    // prior write(). The Uint32Array view writes each code point in one store (native little-endian);
+    // BE output is byte-swapped afterwards.
     const out = new Uint8Array(length * 4 + 4)
-    const isLE = this.isLE
-    let pos = 0
+    const codepoints = new Uint32Array(out.buffer)
+    let pos = 0 // code-point count
 
     for (let index = 0; index < length; index++) {
       const code = str.charCodeAt(index)
@@ -75,32 +86,35 @@ class Utf32Encoder {
       if (this.highSurrogate !== 0) {
         if (code >= 0xDC00 && code <= 0xDFFF) {
           // Valid pair -> one astral code point.
-          pos = writeCodepoint(out, pos, (((this.highSurrogate - 0xD800) << 10) | (code - 0xDC00)) + 0x10000, isLE)
+          codepoints[pos++] = (((this.highSurrogate - 0xD800) << 10) | (code - 0xDC00)) + 0x10000
           this.highSurrogate = 0
           continue
         }
         // Unpaired high surrogate -> U+FFFD, then handle the current unit below.
-        pos = writeCodepoint(out, pos, REPLACEMENT, isLE)
+        codepoints[pos++] = REPLACEMENT
         this.highSurrogate = 0
       }
 
       if (code >= 0xD800 && code <= 0xDBFF) {
         this.highSurrogate = code // Hold for the next unit.
       } else if (code >= 0xDC00 && code <= 0xDFFF) {
-        pos = writeCodepoint(out, pos, REPLACEMENT, isLE) // Unpaired low surrogate.
+        codepoints[pos++] = REPLACEMENT // Unpaired low surrogate.
       } else {
-        pos = writeCodepoint(out, pos, code, isLE)
+        codepoints[pos++] = code
       }
     }
 
-    return this.backend.bytesToResult(out, pos)
+    const byteLength = pos * 4
+    if (!this.isLE) { swap32(out, byteLength) }
+    return this.backend.bytesToResult(out, byteLength)
   }
 
   /** @returns {Buffer|Uint8Array|undefined} U+FFFD for a high surrogate left unpaired at end of input. */
   end () {
     if (this.highSurrogate === 0) { return }
     const out = new Uint8Array(4)
-    writeCodepoint(out, 0, REPLACEMENT, this.isLE)
+    new Uint32Array(out.buffer)[0] = REPLACEMENT
+    if (!this.isLE) { swap32(out, 4) }
     this.highSurrogate = 0
     return this.backend.bytesToResult(out, 4)
   }
@@ -177,26 +191,19 @@ class Utf32Decoder {
 }
 
 /**
- * Writes a code point as 4 bytes in the given endianness.
+ * Reverses the byte order of each 4-byte group in `out[0, byteLength)` in place. The encoder builds
+ * code points as native little-endian (via a Uint32Array view); this turns them into big-endian.
  * @param {Uint8Array} out
- * @param {number} pos Current write position.
- * @param {number} codepoint A value in 0..0x10FFFF.
- * @param {boolean} isLE Little-endian when true.
- * @returns {number} The new write position.
+ * @param {number} byteLength A multiple of 4.
  */
-function writeCodepoint (out, pos, codepoint, isLE) {
-  if (isLE) {
-    out[pos++] = codepoint & 0xff
-    out[pos++] = (codepoint >> 8) & 0xff
-    out[pos++] = (codepoint >> 16) & 0xff
-    out[pos++] = (codepoint >> 24) & 0xff
-  } else {
-    out[pos++] = (codepoint >> 24) & 0xff
-    out[pos++] = (codepoint >> 16) & 0xff
-    out[pos++] = (codepoint >> 8) & 0xff
-    out[pos++] = codepoint & 0xff
+function swap32 (out, byteLength) {
+  for (let pos = 0; pos < byteLength; pos += 4) {
+    const b0 = out[pos]; const b1 = out[pos + 1]
+    out[pos] = out[pos + 3]
+    out[pos + 1] = out[pos + 2]
+    out[pos + 2] = b1
+    out[pos + 3] = b0
   }
-  return pos
 }
 
 /**
@@ -251,6 +258,9 @@ function pushCodepoint (units, pos, codepoint, badChar, fatal) {
  * @returns {string}
  */
 function stringFromUnits (units, length) {
+  if (length >= TEXT_DECODER_MIN_UNITS) {
+    return utf16leDecoder.decode(new Uint8Array(units.buffer, units.byteOffset, length * 2))
+  }
   let result = ""
   for (let offset = 0; offset < length; offset += CHARS_CHUNK) {
     result += String.fromCharCode.apply(null, units.subarray(offset, Math.min(offset + CHARS_CHUNK, length)))
