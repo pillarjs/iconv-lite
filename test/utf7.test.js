@@ -50,6 +50,12 @@ describe("UTF-7 codec #node-web", function () {
     assert.equal(enc("This is a long ASCII run.", "utf-7"), "This is a long ASCII run.")
     assert.equal(enc("This is a long ASCII run\u4E2D", "utf-7"), "This is a long ASCII run+Ti0-")
 
+    // A long non-ASCII run (>= the bulk-encode threshold) packs the Base64 with one native toBase64
+    // call (Node 25+/browsers) or the bit accumulator (elsewhere); both produce identical bytes.
+    const longRun = "\u4E2D".repeat(64)
+    assert.equal(enc(longRun, "utf-7"), "+" + "Ti1OLU4t".repeat(21) + "Ti0-")
+    assert.equal(iconv.decode(iconv.encode(longRun, "utf-7"), "utf-7"), longRun)
+
     // Whitespace (space, tab, CR, LF) is represented directly (RFC 2152, Rule 3).
     assert.equal(enc("a\tb\r\nc d", "utf-7"), "a\tb\r\nc d")
   })
