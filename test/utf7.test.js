@@ -121,6 +121,9 @@ describe("UTF-7 codec #node-web", function () {
     assert.equal(iconv.decode(utils.bytes([0x2b, 0x41, 0x4f, 0x51, 0x80]), "utf-7"), "\u00E4\uFFFD")
     // A long invalid Base64 run (length % 4 === 1) -> U+FFFD (the bulk decode rejects it too).
     assert.equal(iconv.decode(buf("+" + "A".repeat(345) + "-"), "utf-7"), "\uFFFD")
+    // A long well-formed-length run with non-zero trailing bits: the bulk path still yields the whole
+    // code units, and the run-level check appends U+FFFD (no silent truncation on the fast path).
+    assert.equal(iconv.decode(buf("+" + "A".repeat(348) + "-"), "utf-7"), "\u0000".repeat(130) + "\uFFFD")
   })
 
   it("handles edge cases", function () {
@@ -247,6 +250,11 @@ describe("UTF-7-IMAP codec #node-web", function () {
 
     // & sign around non-ASCII chars
     assert.equal(iconv.decode(buf("&AOQ-&-&AOQ-&-&AOQ-"), "utf-7-imap"), "\u00E4&\u00E4&\u00E4")
+
+    // A long run (>= the bulk-decode threshold) full of ',' round-trips, exercising the ','->'/'
+    // remap on the fast path. U+FFFF's bytes are all-ones, so every Base64 char is '/' (-> ',').
+    const longImap = "\uFFFF".repeat(200)
+    assert.equal(iconv.decode(iconv.encode(longImap, "utf-7-imap"), "utf-7-imap"), longImap)
   })
 
   it("decodes across streaming chunk boundaries", function () {
