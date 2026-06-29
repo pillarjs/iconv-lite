@@ -43,6 +43,11 @@ describe("UTF-7 codec #node-web", function () {
 
     // + sign around non-ASCII chars
     assert.equal(enc("\u00E4+\u00E4+\u00E4", "utf-7"), "+AOQAKwDkACsA5A-")
+
+    // A long direct run (>= 16 chars) goes through the bulk TextEncoder path -- both when it is the
+    // whole string and when it is only a slice of it (followed by a shifted run).
+    assert.equal(enc("This is a long ASCII run.", "utf-7"), "This is a long ASCII run.")
+    assert.equal(enc("This is a long ASCII run\u4E2D", "utf-7"), "This is a long ASCII run+Ti0-")
   })
 
   it("decodes correctly", function () {
@@ -129,6 +134,9 @@ describe("UTF-7 codec #node-web", function () {
 
     // A trailing lone '+' becomes "+-".
     assert.equal(enc("a+", "utf-7"), "a+-")
+
+    // A shift in immediately closed by a non-'-' char is an empty run, then a direct char.
+    assert.equal(iconv.decode(buf("+."), "utf-7"), ".")
   })
 
   it("decodes across streaming chunk boundaries", function () {
@@ -148,6 +156,17 @@ describe("UTF-7 codec #node-web", function () {
     assert.equal(decodeChunks(["abc+", "ZeVnLIqe"], "utf-7"), "abc\u65E5\u672C\u8A9E")
     // The "+-" -> "+" escape split across chunks.
     assert.equal(decodeChunks(["x+", "-y"], "utf-7"), "x+y")
+  })
+
+  it("decodes long runs and passes lone surrogates through", function () {
+    // A long contiguous non-ASCII run round-trips (exercises the chunked string assembly).
+    const long = "\u4E2D".repeat(100)
+    assert.equal(iconv.decode(iconv.encode(long, "utf-7"), "utf-7"), long)
+    // Per RFC 2152 the Base64 carries raw 16-bit units, so a lone surrogate passes through as its
+    // code unit (not U+FFFD) -- consistently, regardless of run length.
+    assert.equal(iconv.decode(buf("+2AA-"), "utf-7"), "\uD800")
+    const lone = "\u4E2D".repeat(70) + "\uD800"
+    assert.equal(iconv.decode(iconv.encode(lone, "utf-7"), "utf-7"), lone)
   })
 })
 

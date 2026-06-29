@@ -70,25 +70,21 @@ const latin1Decoder = new TextDecoder("latin1")
 // Matches any non-ASCII char (a byte >= 0x80): invalid while unshifted, so replaced with U+FFFD.
 const NON_ASCII = /[\u0080-\uffff]/g
 
-// Shared TextEncoder to bulk-copy long direct (ASCII) runs into the output in one native call.
-const asciiEncoder = new TextEncoder()
-// Below this length, a per-char copy is cheaper than the slice()+encodeInto() setup.
-const DIRECT_BULK_MIN = 16
-
-// Max args for a single String.fromCharCode.apply() (avoids blowing the call stack on huge runs).
+// Builds a string from the first `len` code units of a Uint16Array. Done in chunks because
+// String.fromCharCode.apply() blows the call stack on very large argument counts.
 const CHARS_CHUNK = 8192
-// Build a string from the first `len` code units of a Uint16Array, in bulk and stack-safe.
 function charsFromUnits (units, len) {
-  if (len === 0) { return "" }
-  if (len <= CHARS_CHUNK) {
-    return String.fromCharCode.apply(null, len === units.length ? units : units.subarray(0, len))
-  }
   let s = ""
   for (let i = 0; i < len; i += CHARS_CHUNK) {
     s += String.fromCharCode.apply(null, units.subarray(i, Math.min(i + CHARS_CHUNK, len)))
   }
   return s
 }
+
+// Shared TextEncoder to bulk-copy long direct (ASCII) runs into the output in one native call.
+const asciiEncoder = new TextEncoder()
+// Below this length, a per-char copy is cheaper than the slice()+encodeInto() setup.
+const DIRECT_BULK_MIN = 16
 
 // == UTF-7 codec ==============================================================
 
@@ -277,10 +273,12 @@ class Utf7Decoder {
 
     this.inBase64 = false
     this.pending = "" // Base64 chars of a run still open from a previous chunk.
-    this.units = new Uint16Array(0) // Reused across runs to avoid a per-run allocation; grows lazily.
+    this.units = new Uint16Array(0) // Decoded code units, reused across runs; grows lazily.
   }
 
-  // Decode one complete Base64 run (its chars) to a string, replacing ill-formed tails with U+FFFD.
+  // Decode one complete Base64 run (its chars) to a string. Per RFC 2152 the bytes are UTF-16BE
+  // code units, decoded verbatim (a lone surrogate passes through as its raw code unit). An
+  // ill-formed tail (incomplete code unit or non-zero padding) is replaced with U+FFFD.
   _decodeRun (b64) {
     const len = b64.length
     if (len === 0) { return "" }
