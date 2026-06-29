@@ -103,6 +103,18 @@ const utf16leDecoder = new TextDecoder("utf-16le", { ignoreBOM: true })
 /** Above this many code units the native TextDecoder beats fromCharCode; below it the per-call setup costs more. */
 const TEXT_DECODER_MIN_UNITS = 64
 
+/**
+ * Decodes UTF-16BE bytes (no surrogate normalization issues since the caller only routes
+ * surrogate-free runs here). Paired with Uint8Array.fromBase64 it does base64 -> bytes -> string
+ * entirely natively, with no per-code-unit JS loop.
+ * @type {TextDecoder}
+ */
+const utf16beDecoder = new TextDecoder("utf-16be", { ignoreBOM: true })
+/** Whether the runtime has Uint8Array.fromBase64 (Node 25+, modern browsers). */
+const HAS_FROM_BASE64 = typeof Uint8Array.fromBase64 === "function"
+/** Above this many code units the native fromBase64 + utf-16be path (no JS pairs loop) beats atob. */
+const FROM_BASE64_MIN_UNITS = 128
+
 /** Matches any non-ASCII char (a byte >= 0x80): invalid while unshifted, so replaced with U+FFFD. @type {RegExp} */
 const NON_ASCII = /[\u0080-\uffff]/g
 
@@ -431,13 +443,43 @@ class Utf7Decoder {
    * @returns {string}
    */
   _decodeBase64 (base64) {
+    const std = this.imap ? base64.replace(/,/g, "/") : base64
+
+    // Fast path (Node 25+/modern browsers): for long runs, decode base64 -> bytes -> string entirely
+    // natively. A surrogate (high byte 0xD8-0xDF) must pass through verbatim, which TextDecoder won't
+    // do, so scan for one and pair the bytes by hand only when present.
+    if (HAS_FROM_BASE64 && ((std.length * 3) >> 3) >= FROM_BASE64_MIN_UNITS) {
+      let bytes
+      try {
+        bytes = Uint8Array.fromBase64(std, { lastChunkHandling: "loose" })
+      } catch {
+        return ""
+      }
+      const unitCount = bytes.length >> 1
+      let hasSurrogate = false
+      for (let bytePos = 0; bytePos < unitCount * 2; bytePos += 2) {
+        if (bytes[bytePos] >= 0xd8 && bytes[bytePos] <= 0xdf) { hasSurrogate = true; break }
+      }
+      if (!hasSurrogate) {
+        return utf16beDecoder.decode(bytes.length === unitCount * 2 ? bytes : bytes.subarray(0, unitCount * 2))
+      }
+      if (this.units.length < unitCount) { this.units = new Uint16Array(unitCount) }
+      const units = this.units
+      for (let unitPos = 0, bytePos = 0; unitPos < unitCount; unitPos++, bytePos += 2) {
+        units[unitPos] = (bytes[bytePos] << 8) | bytes[bytePos + 1]
+      }
+      return charsFromUnits(units, unitCount)
+    }
+
+    // Fallback (Node < 25, and shorter runs): atob() yields a binary string, paired by hand. For a
+    // long surrogate-free run, the bulk TextDecoder("utf-16le") step still beats fromCharCode.
     let bytes
     try {
-      bytes = atob(this.imap ? base64.replace(/,/g, "/") : base64)
+      bytes = atob(std)
     } catch {
       return ""
     }
-    const unitCount = bytes.length >> 1 // Pairs of bytes -> UTF-16BE code units.
+    const unitCount = bytes.length >> 1
     if (unitCount === 0) { return "" }
     if (this.units.length < unitCount) { this.units = new Uint16Array(unitCount) }
     const units = this.units
@@ -447,9 +489,6 @@ class Utf7Decoder {
       if (unit >= 0xd800 && unit <= 0xdfff) { hasSurrogate = true }
       units[unitPos] = unit
     }
-    // With no surrogate, TextDecoder over the native-LE Uint16Array buffer is exact and much faster
-    // for long runs. With a surrogate present, fall back to fromCharCode so lone surrogates pass
-    // through verbatim (TextDecoder would turn them into U+FFFD).
     if (!hasSurrogate && unitCount >= TEXT_DECODER_MIN_UNITS) {
       return utf16leDecoder.decode(new Uint8Array(units.buffer, units.byteOffset, unitCount * 2))
     }

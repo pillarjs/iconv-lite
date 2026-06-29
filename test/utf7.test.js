@@ -119,6 +119,8 @@ describe("UTF-7 codec #node-web", function () {
     assert.equal(iconv.decode(utils.bytes([0x41, 0x80, 0x42]), "utf-7"), "A\uFFFDB")
     // A non-ASCII byte ends the Base64 run (it's not Base64), then is re-read as ill-formed direct.
     assert.equal(iconv.decode(utils.bytes([0x2b, 0x41, 0x4f, 0x51, 0x80]), "utf-7"), "\u00E4\uFFFD")
+    // A long invalid Base64 run (length % 4 === 1) -> U+FFFD (the bulk decode rejects it too).
+    assert.equal(iconv.decode(buf("+" + "A".repeat(345) + "-"), "utf-7"), "\uFFFD")
   })
 
   it("handles edge cases", function () {
@@ -167,6 +169,9 @@ describe("UTF-7 codec #node-web", function () {
   })
 
   it("decodes long runs and passes lone surrogates through", function () {
+    // A medium BMP run (~100 units) uses the atob + bulk utf-16le step.
+    const medium = "\u4E2D".repeat(100)
+    assert.equal(iconv.decode(iconv.encode(medium, "utf-7"), "utf-7"), medium)
     // A long BMP run (no surrogates) round-trips via the bulk TextDecoder path.
     const long = "\u4E2D".repeat(600)
     assert.equal(iconv.decode(iconv.encode(long, "utf-7"), "utf-7"), long)
