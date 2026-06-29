@@ -22,7 +22,7 @@
 
 - Make the UTF-32 codecs strict and browser-native - by [@bjohansebas](https://github.com/bjohansebas) in [#407](https://github.com/pillarjs/iconv-lite/pull/407)
 
-    UTF-32LE/BE and the auto-detecting `utf-32` codec now decode strictly per the Unicode Standard: a code unit that is a surrogate code point (U+D800–U+DFFF), is above U+10FFFF, or is a truncated trailing code unit is replaced with U+FFFD instead of being passed through. Encoding likewise replaces a lone (unpaired) surrogate with U+FFFD. The opt-in `{ fatal: true }` decoding option makes ill-formed input throw instead. The codecs no longer use the Node `Buffer` internally, so they also work on the Web backend (browsers), like UTF-16.
+    UTF-32LE/BE and the auto-detecting `utf-32` codec now decode strictly per the Unicode Standard: a code unit that is a surrogate code point (U+D800–U+DFFF), is above U+10FFFF, or is a truncated trailing code unit is replaced with U+FFFD instead of being passed through. Encoding likewise replaces a lone (unpaired) surrogate with U+FFFD. The opt-in `{ fatal: true }` decoding option makes ill-formed input throw instead. The codecs no longer use the Node `Buffer` internally, so they also work on the Web backend (browsers), like UTF-16. The internal `_utf32` codec name (a private, undocumented implementation detail of the old codec-options indirection) was removed.
 
 ### 🚀 Improvements
 
