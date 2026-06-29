@@ -461,7 +461,9 @@ class Utf7Decoder {
         if (bytes[bytePos] >= 0xd8 && bytes[bytePos] <= 0xdf) { hasSurrogate = true; break }
       }
       if (!hasSurrogate) {
-        return utf16beDecoder.decode(bytes.length === unitCount * 2 ? bytes : bytes.subarray(0, unitCount * 2))
+        // subarray drops a dangling half-unit byte (incomplete final unit) and is a zero-copy view
+        // when the byte count is already even, so this also covers the common aligned case.
+        return utf16beDecoder.decode(bytes.subarray(0, unitCount * 2))
       }
       if (this.units.length < unitCount) { this.units = new Uint16Array(unitCount) }
       const units = this.units
