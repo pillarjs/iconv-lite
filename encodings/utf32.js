@@ -52,9 +52,14 @@ class Utf32BECodec {
 }
 
 /**
- * UTF-32 encoder. Combines surrogate pairs into code points and writes each as 4 bytes. A lone
- * (unpaired) surrogate is replaced with U+FFFD so the output is always well-formed UTF-32. Stateful
- * across writes: a high surrogate at the end of one write() is held for the next.
+ * UTF-32 encoder. Applies the UTF-32 encoding form (Unicode Standard, Section 3.9, definition D90:
+ * each Unicode scalar value -> one 32-bit code unit). The input is UTF-16, so per code unit:
+ *  1. A high surrogate followed by a low surrogate is combined into its supplementary scalar value.
+ *  2. A lone (unpaired) surrogate is not a scalar value (definition D76), so it is replaced with
+ *     U+FFFD, keeping the output well-formed UTF-32.
+ *  3. Any other code unit is already a scalar value and is written unchanged.
+ * Each scalar value is written as one 32-bit code unit (little-endian; big-endian is byte-swapped at
+ * the end). Stateful across writes: a high surrogate at the end of one write() is held for the next.
  */
 class Utf32Encoder {
   /**
@@ -85,22 +90,22 @@ class Utf32Encoder {
 
       if (this.highSurrogate !== 0) {
         if (code >= 0xDC00 && code <= 0xDFFF) {
-          // Valid pair -> one astral code point.
+          // Step 1: combine the high + low surrogate into its supplementary scalar value.
           codepoints[pos++] = (((this.highSurrogate - 0xD800) << 10) | (code - 0xDC00)) + 0x10000
           this.highSurrogate = 0
           continue
         }
-        // Unpaired high surrogate -> U+FFFD, then handle the current unit below.
+        // Step 2: the held high surrogate is unpaired -> U+FFFD, then handle the current unit below.
         codepoints[pos++] = REPLACEMENT
         this.highSurrogate = 0
       }
 
       if (code >= 0xD800 && code <= 0xDBFF) {
-        this.highSurrogate = code // Hold for the next unit.
+        this.highSurrogate = code // High surrogate: hold for the next unit (its low half, step 1).
       } else if (code >= 0xDC00 && code <= 0xDFFF) {
-        codepoints[pos++] = REPLACEMENT // Unpaired low surrogate.
+        codepoints[pos++] = REPLACEMENT // Step 2: unpaired low surrogate.
       } else {
-        codepoints[pos++] = code
+        codepoints[pos++] = code // Step 3: a BMP scalar value, written as-is.
       }
     }
 
@@ -121,10 +126,16 @@ class Utf32Encoder {
 }
 
 /**
- * UTF-32 decoder. Reads 4-byte code points and emits the corresponding UTF-16. Ill-formed input (a
- * surrogate code point, a value above 0x10FFFF, or a truncated trailing code unit) is replaced with
- * the bad-char, or throws when `fatal`. Streaming: a code point split across a chunk boundary is
- * buffered (`overflow`) and finished on the next write.
+ * UTF-32 decoder. Inverts the UTF-32 encoding form (Unicode Standard, Section 3.9, definition D90).
+ * Per 32-bit code unit:
+ *  1. Read its numeric value.
+ *  2. Validate it is a Unicode scalar value (definition D76: 0..D7FF or E000..10FFFF). A surrogate
+ *     code point (D800..DFFF) or a value above 0x10FFFF is ill-formed -> replaced with the bad-char
+ *     (U+FFFD by default), or throws when `fatal`. A code unit truncated at end of input is treated
+ *     the same way.
+ *  3. Emit the scalar value as UTF-16 (a surrogate pair for supplementary code points).
+ * Streaming: a code unit split across a chunk boundary is buffered (`overflow`) and finished on the
+ * next write.
  */
 class Utf32Decoder {
   /**
@@ -229,9 +240,10 @@ function readCodepoint (src, pos, isLE) {
 }
 
 /**
- * Appends one decoded code point to the code-unit buffer, validating it as a Unicode scalar value.
- * A surrogate code point or a value above 0x10FFFF is ill-formed: it becomes `badChar`, or throws
- * when `fatal`. (Code points are read unsigned, so a value with the high bit set is just > 0x10FFFF.)
+ * Decode steps 2 and 3: validate one code point as a Unicode scalar value (definition D76) and append
+ * its UTF-16 form. A surrogate code point (D800..DFFF) or a value above 0x10FFFF is not a scalar value,
+ * so it becomes `badChar`, or throws when `fatal`. (Code points are read unsigned, so a value with the
+ * high bit set is just > 0x10FFFF.)
  * @param {Uint16Array} units
  * @param {number} pos Current code-unit write position.
  * @param {number} codepoint An unsigned value in 0..0xFFFFFFFF.
@@ -240,14 +252,16 @@ function readCodepoint (src, pos, isLE) {
  * @returns {number} The new code-unit write position.
  */
 function pushCodepoint (units, pos, codepoint, badChar, fatal) {
+  // Step 2: reject non-scalar values (surrogate code points and values past U+10FFFF).
   if (codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
     if (fatal) { throw new Error("Invalid UTF-32 code unit: 0x" + codepoint.toString(16)) }
     units[pos++] = badChar
     return pos
   }
 
+  // Step 3: emit the scalar value as UTF-16.
   if (codepoint > 0xFFFF) {
-    // Astral plane: split into a surrogate pair.
+    // Supplementary code point -> surrogate pair.
     const offset = codepoint - 0x10000
     units[pos++] = 0xD800 | (offset >> 10)
     units[pos++] = 0xDC00 | (offset & 0x3FF)

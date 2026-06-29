@@ -47,6 +47,16 @@ describe("UTF-32LE codec #node-web", function () {
     assert.equal(iconv.decode(utils.bytes("00 00 00 80"), "utf-32le"), "\uFFFD")
   })
 
+  it("validates the Unicode scalar-value boundaries (D76)", function () {
+    // Valid scalar values: 0..D7FF and E000..10FFFF.
+    assert.equal(iconv.decode(utils.bytes("ff d7 00 00"), "utf-32le"), "\uD7FF") // last before surrogates
+    assert.equal(iconv.decode(utils.bytes("00 e0 00 00"), "utf-32le"), "\uE000") // first after surrogates
+    assert.equal(iconv.decode(utils.bytes("ff ff 10 00"), "utf-32le"), "\uDBFF\uDFFF") // U+10FFFF, the maximum
+    // Not scalar values: surrogate code points (D800..DFFF) and anything above U+10FFFF.
+    assert.equal(iconv.decode(utils.bytes("ff df 00 00"), "utf-32le"), "\uFFFD") // U+DFFF, last surrogate
+    assert.equal(iconv.decode(utils.bytes("00 00 11 00"), "utf-32le"), "\uFFFD") // U+110000, just past the maximum
+  })
+
   it("replaces lone surrogates with U+FFFD when encoding", function () {
     assert.equal(escape(iconv.decode(iconv.encode(testStr2, "UTF32-LE"), "UTF32-LE")), escape(testStr2Fixed))
   })
