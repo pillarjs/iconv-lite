@@ -82,6 +82,14 @@ describe("UTF-32LE codec", function () {
     assert.equal(res, "ab")
   })
 
+  it("decodes correctly when split at every byte boundary", function () {
+    for (var at = 1; at < utf32leBuf.length; at++) {
+      var decoder = iconv.getDecoder("utf-32le")
+      var res = decoder.write(utf32leBuf.slice(0, at)) + decoder.write(utf32leBuf.slice(at)) + (decoder.end() || "")
+      assert.equal(res, testStr, "split at byte " + at)
+    }
+  })
+
   it("handles invalid surrogates gracefully", function () {
     var encoded = iconv.encode(testStr2, "UTF32-LE")
     assert.equal(escape(iconv.decode(encoded, "UTF32-LE")), escape(testStr2))
@@ -139,6 +147,14 @@ describe("UTF-32BE codec", function () {
     res += decoder.write(Buffer.from([0x00, 0x61, 0x00, 0x00, 0x00, 0x62])) // completes 'a', then 'b'
     res += decoder.end() || ""
     assert.equal(res, "ab")
+  })
+
+  it("decodes correctly when split at every byte boundary", function () {
+    for (var at = 1; at < utf32beBuf.length; at++) {
+      var decoder = iconv.getDecoder("utf-32be")
+      var res = decoder.write(utf32beBuf.slice(0, at)) + decoder.write(utf32beBuf.slice(at)) + (decoder.end() || "")
+      assert.equal(res, testStr, "split at byte " + at)
+    }
   })
 
   it("flushes a trailing unpaired high surrogate on end()", function () {

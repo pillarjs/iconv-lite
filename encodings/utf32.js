@@ -1,29 +1,33 @@
 "use strict"
 
-const Buffer = require("buffer").Buffer
-
 /**
  * UTF-32LE / UTF-32BE / UTF-32 (auto) codecs.
  *
- * NOTE: this step only restructures the previous implementation into the class-based codec interface
- * (createEncoder/createDecoder/bomAware) used by the other codecs; the conversion still goes through
- * the Node Buffer and the behavior is unchanged (lenient: surrogate code points pass through, trailing
- * incomplete bytes are dropped). Browser-native byte I/O, performance and strict conformance come in
- * later steps.
+ * Browser-native: the conversion uses only plain Uint8Array byte I/O, never the Node Buffer (the
+ * backend is touched only for the encoder's final "bytes -> result" step, so encoding keeps returning
+ * a Buffer in Node, like the utf16 codec). The decoder builds the output string with String.fromCharCode
+ * so a lone surrogate still passes through unchanged.
+ *
+ * NOTE: the behavior is still lenient (surrogate code points pass through, out-of-range code points
+ * become the bad-char, trailing incomplete bytes are dropped). Performance and strict conformance come
+ * in later steps.
  *
  * @see https://en.wikipedia.org/wiki/UTF-32
  */
 
+/** Max args for one String.fromCharCode.apply() before risking a call-stack overflow. */
+const CHARS_CHUNK = 8192
+
 /** UTF-32LE codec. */
 class Utf32LECodec {
-  createEncoder (options, iconv) { return new Utf32Encoder(true) }
+  createEncoder (options, iconv) { return new Utf32Encoder(iconv.backend, true) }
   createDecoder (options, iconv) { return new Utf32Decoder(true, iconv.defaultCharUnicode.charCodeAt(0)) }
   get bomAware () { return true }
 }
 
 /** UTF-32BE codec. */
 class Utf32BECodec {
-  createEncoder (options, iconv) { return new Utf32Encoder(false) }
+  createEncoder (options, iconv) { return new Utf32Encoder(iconv.backend, false) }
   createDecoder (options, iconv) { return new Utf32Decoder(false, iconv.defaultCharUnicode.charCodeAt(0)) }
   get bomAware () { return true }
 }
@@ -35,24 +39,29 @@ class Utf32BECodec {
  * held for the next.
  */
 class Utf32Encoder {
-  /** @param {boolean} isLE Little-endian when true. */
-  constructor (isLE) {
+  /**
+   * @param {object} backend The iconv-lite backend (bytesToResult turns bytes into a Buffer/Uint8Array).
+   * @param {boolean} isLE Little-endian when true.
+   */
+  constructor (backend, isLE) {
+    this.backend = backend
     this.isLE = isLE
     this.highSurrogate = 0
   }
 
   /**
    * @param {string} str
-   * @returns {Buffer}
+   * @returns {Buffer|Uint8Array}
    */
   write (str) {
-    const src = Buffer.from(str, "ucs2")
-    let dst = Buffer.alloc(src.length * 2)
+    const length = str.length
+    // Worst case is 4 bytes per code unit, plus 4 for a high surrogate held over from a prior write().
+    const out = new Uint8Array(length * 4 + 4)
     const isLE = this.isLE
-    let offset = 0
+    let pos = 0
 
-    for (let i = 0; i < src.length; i += 2) {
-      const code = src.readUInt16LE(i)
+    for (let index = 0; index < length; index++) {
+      const code = str.charCodeAt(index)
       const isHighSurrogate = code >= 0xD800 && code < 0xDC00
       const isLowSurrogate = code >= 0xDC00 && code < 0xE000
 
@@ -60,13 +69,10 @@ class Utf32Encoder {
         if (isHighSurrogate || !isLowSurrogate) {
           // Two high surrogates in a row, or a high surrogate not followed by a low one: keep the
           // pending high surrogate as a stand-alone (semi-invalid) character.
-          if (isLE) { dst.writeUInt32LE(this.highSurrogate, offset) } else { dst.writeUInt32BE(this.highSurrogate, offset) }
-          offset += 4
+          pos = writeCodepoint(out, pos, this.highSurrogate, isLE)
         } else {
           // Combine the high and low surrogate into a single 32-bit code point.
-          const codepoint = (((this.highSurrogate - 0xD800) << 10) | (code - 0xDC00)) + 0x10000
-          if (isLE) { dst.writeUInt32LE(codepoint, offset) } else { dst.writeUInt32BE(codepoint, offset) }
-          offset += 4
+          pos = writeCodepoint(out, pos, (((this.highSurrogate - 0xD800) << 10) | (code - 0xDC00)) + 0x10000, isLE)
           this.highSurrogate = 0
           continue
         }
@@ -76,23 +82,21 @@ class Utf32Encoder {
         this.highSurrogate = code
       } else {
         // A low surrogate with no preceding high surrogate is also kept as a stand-alone character.
-        if (isLE) { dst.writeUInt32LE(code, offset) } else { dst.writeUInt32BE(code, offset) }
-        offset += 4
+        pos = writeCodepoint(out, pos, code, isLE)
         this.highSurrogate = 0
       }
     }
 
-    if (offset < dst.length) { dst = dst.slice(0, offset) }
-    return dst
+    return this.backend.bytesToResult(out, pos)
   }
 
-  /** @returns {Buffer|undefined} A leftover unpaired high surrogate, as a stand-alone character. */
+  /** @returns {Buffer|Uint8Array|undefined} A leftover unpaired high surrogate, as a stand-alone character. */
   end () {
     if (!this.highSurrogate) { return }
-    const buf = Buffer.alloc(4)
-    if (this.isLE) { buf.writeUInt32LE(this.highSurrogate, 0) } else { buf.writeUInt32BE(this.highSurrogate, 0) }
+    const out = new Uint8Array(4)
+    writeCodepoint(out, 0, this.highSurrogate, this.isLE)
     this.highSurrogate = 0
-    return buf
+    return this.backend.bytesToResult(out, 4)
   }
 }
 
@@ -111,6 +115,7 @@ class Utf32Decoder {
     this.isLE = isLE
     this.badChar = badChar
     this.overflow = []
+    this.units = new Uint16Array(0) // Decoded code units, reused across writes; grows lazily.
   }
 
   /**
@@ -123,8 +128,11 @@ class Utf32Decoder {
     const isLE = this.isLE
     const overflow = this.overflow
     const badChar = this.badChar
-    const dst = Buffer.alloc(src.length + 4)
-    let offset = 0
+    // Each code point yields at most 2 UTF-16 units; +2 of slack covers rounding and a finished overflow.
+    const maxUnits = (((overflow.length + src.length) >> 2) + 1) * 2
+    if (this.units.length < maxUnits) { this.units = new Uint16Array(maxUnits) }
+    const units = this.units
+    let pos = 0
     let codepoint = 0
     let i = 0
 
@@ -132,30 +140,22 @@ class Utf32Decoder {
     if (overflow.length > 0) {
       for (; i < src.length && overflow.length < 4; i++) { overflow.push(src[i]) }
       if (overflow.length === 4) {
-        if (isLE) {
-          codepoint = overflow[0] | (overflow[1] << 8) | (overflow[2] << 16) | (overflow[3] << 24)
-        } else {
-          codepoint = overflow[3] | (overflow[2] << 8) | (overflow[1] << 16) | (overflow[0] << 24)
-        }
+        codepoint = readCodepoint(overflow, 0, isLE)
         overflow.length = 0
-        offset = writeCodepoint(dst, offset, codepoint, badChar)
+        pos = pushCodepoint(units, pos, codepoint, badChar)
       }
     }
 
     // Main loop.
     for (; i < src.length - 3; i += 4) {
-      if (isLE) {
-        codepoint = src[i] | (src[i + 1] << 8) | (src[i + 2] << 16) | (src[i + 3] << 24)
-      } else {
-        codepoint = src[i + 3] | (src[i + 2] << 8) | (src[i + 1] << 16) | (src[i] << 24)
-      }
-      offset = writeCodepoint(dst, offset, codepoint, badChar)
+      codepoint = readCodepoint(src, i, isLE)
+      pos = pushCodepoint(units, pos, codepoint, badChar)
     }
 
     // Keep the trailing bytes that don't complete a code point for the next chunk.
     for (; i < src.length; i++) { overflow.push(src[i]) }
 
-    return dst.slice(0, offset).toString("ucs2")
+    return stringFromUnits(units, pos)
   }
 
   /** @returns {void} Trailing incomplete bytes are dropped. */
@@ -165,30 +165,79 @@ class Utf32Decoder {
 }
 
 /**
- * Writes a code point as UTF-16LE bytes into `dst`, replacing out-of-range values with `badChar`.
- * NOTE: codepoint is read as a signed int32 (from `<< 24`) so it can be negative; that's intentional
- * and handled by the range check.
- * @param {Buffer} dst
- * @param {number} offset
+ * Writes a code point as 4 bytes in the given endianness.
+ * @param {Uint8Array} out
+ * @param {number} pos Current write position.
+ * @param {number} codepoint A value in 0..0x10FFFF.
+ * @param {boolean} isLE Little-endian when true.
+ * @returns {number} The new write position.
+ */
+function writeCodepoint (out, pos, codepoint, isLE) {
+  if (isLE) {
+    out[pos++] = codepoint & 0xff
+    out[pos++] = (codepoint >> 8) & 0xff
+    out[pos++] = (codepoint >> 16) & 0xff
+    out[pos++] = (codepoint >> 24) & 0xff
+  } else {
+    out[pos++] = (codepoint >> 24) & 0xff
+    out[pos++] = (codepoint >> 16) & 0xff
+    out[pos++] = (codepoint >> 8) & 0xff
+    out[pos++] = codepoint & 0xff
+  }
+  return pos
+}
+
+/**
+ * Reads a 4-byte code point from a byte source in the given endianness.
+ * NOTE: the high byte uses `<< 24`, so the result is read as a signed int32 and can be negative; the
+ * range check in pushCodepoint() treats negatives as out of range.
+ * @param {Uint8Array|number[]} src
+ * @param {number} pos
+ * @param {boolean} isLE
+ * @returns {number}
+ */
+function readCodepoint (src, pos, isLE) {
+  if (isLE) {
+    return src[pos] | (src[pos + 1] << 8) | (src[pos + 2] << 16) | (src[pos + 3] << 24)
+  }
+  return src[pos + 3] | (src[pos + 2] << 8) | (src[pos + 1] << 16) | (src[pos] << 24)
+}
+
+/**
+ * Appends one decoded code point to the code-unit buffer, replacing out-of-range values with `badChar`.
+ * @param {Uint16Array} units
+ * @param {number} pos Current code-unit write position.
  * @param {number} codepoint
  * @param {number} badChar
- * @returns {number} The new write offset.
+ * @returns {number} The new code-unit write position.
  */
-function writeCodepoint (dst, offset, codepoint, badChar) {
+function pushCodepoint (units, pos, codepoint, badChar) {
   if (codepoint < 0 || codepoint > 0x10FFFF) { codepoint = badChar }
 
-  if (codepoint >= 0x10000) {
-    // Astral plane: write the high surrogate, then fall through to write the low surrogate.
-    codepoint -= 0x10000
-    const high = 0xD800 | (codepoint >> 10)
-    dst[offset++] = high & 0xff
-    dst[offset++] = high >> 8
-    codepoint = 0xDC00 | (codepoint & 0x3FF)
+  if (codepoint > 0xFFFF) {
+    // Astral plane: split into a surrogate pair.
+    const offset = codepoint - 0x10000
+    units[pos++] = 0xD800 | (offset >> 10)
+    units[pos++] = 0xDC00 | (offset & 0x3FF)
+  } else {
+    units[pos++] = codepoint
   }
+  return pos
+}
 
-  dst[offset++] = codepoint & 0xff
-  dst[offset++] = codepoint >> 8
-  return offset
+/**
+ * Builds a string from the first `length` UTF-16 code units of a Uint16Array. Uses String.fromCharCode
+ * (not TextDecoder) so a lone surrogate passes through as its own code unit.
+ * @param {Uint16Array} units
+ * @param {number} length Number of valid code units in `units`.
+ * @returns {string}
+ */
+function stringFromUnits (units, length) {
+  let result = ""
+  for (let offset = 0; offset < length; offset += CHARS_CHUNK) {
+    result += String.fromCharCode.apply(null, units.subarray(offset, Math.min(offset + CHARS_CHUNK, length)))
+  }
+  return result
 }
 
 /**
