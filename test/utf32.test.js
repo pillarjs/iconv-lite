@@ -138,6 +138,28 @@ describe("UTF-32BE codec #node-web", function () {
 })
 
 describe("UTF-32 general codec #node-web", function () {
+  it("matches the example from The Unicode Standard, Section 3.9", function () {
+    // The standard's encoding-forms example: U+004D U+0430 U+4E8C U+10302. Per definition D90, each
+    // scalar value maps to a 32-bit code unit with the same numeric value.
+    const example = "M\u0430\u4E8C\uD800\uDF02"
+    assert.equal(hex(iconv.encode(example, "utf-32le")), hex(utils.bytes("4d 00 00 00 30 04 00 00 8c 4e 00 00 02 03 01 00")))
+    assert.equal(hex(iconv.encode(example, "utf-32be")), hex(utils.bytes("00 00 00 4d 00 00 04 30 00 00 4e 8c 00 01 03 02")))
+    assert.equal(iconv.decode(utils.bytes("4d 00 00 00 30 04 00 00 8c 4e 00 00 02 03 01 00"), "utf-32le"), example)
+    assert.equal(iconv.decode(utils.bytes("00 00 00 4d 00 00 04 30 00 00 4e 8c 00 01 03 02"), "utf-32be"), example)
+  })
+
+  it("uses the Section 3.10 byte order mark signatures", function () {
+    // The BOM (U+FEFF) serializes to FF FE 00 00 (LE) and 00 00 FE FF (BE).
+    assert.equal(hex(iconv.encode("\uFEFF", "utf-32le")), hex(utils.bytes("ff fe 00 00")))
+    assert.equal(hex(iconv.encode("\uFEFF", "utf-32be")), hex(utils.bytes("00 00 fe ff")))
+  })
+
+  it("treats a non-leading U+FEFF as content (ZERO WIDTH NO-BREAK SPACE)", function () {
+    // Only a leading BOM is a signature (stripped by default); elsewhere U+FEFF is kept.
+    assert.equal(iconv.decode(utils.bytes("ff fe 00 00 41 00 00 00"), "utf-32le"), "A")
+    assert.equal(iconv.decode(utils.bytes("41 00 00 00 ff fe 00 00"), "utf-32le"), "A\uFEFF")
+  })
+
   it("adds a BOM when encoding, defaulting to UTF-32LE", function () {
     assert.equal(hex(iconv.encode(testStr, "utf-32")), hex(utf32leBufWithBOM))
   })

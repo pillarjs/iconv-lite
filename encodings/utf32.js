@@ -8,17 +8,18 @@
  * a Buffer in Node, like the utf16 codec). There is no TextDecoder for UTF-32 (the WHATWG Encoding
  * Standard dropped it), so the code unit <-> UTF-16 conversion is done by hand here.
  *
- * Unlike UTF-8 (RFC 3629) and UTF-16 (RFC 2781), UTF-32 has no dedicated IETF RFC; it is defined by
- * The Unicode Standard, Section 3.9 "Unicode Encoding Forms" (definition D90), and ISO/IEC 10646
- * (UCS-4). Conformance: a UTF-32 code unit must be a Unicode scalar value (definition D76), i.e.
- * 0..0x10FFFF EXCLUDING the surrogate range 0xD800..0xDFFF (surrogate code points are not scalar
+ * Unlike UTF-8 (RFC 3629) and UTF-16 (RFC 2781), UTF-32 has no dedicated IETF RFC. It is defined by
+ * The Unicode Standard, Chapter 3: the encoding form in Section 3.9 (definition D90, each Unicode
+ * scalar value <-> one 32-bit code unit) and the byte-order serialization in Section 3.10 (D99 UTF-32,
+ * D100 UTF-32BE, D101 UTF-32LE); also ISO/IEC 10646 (UCS-4). (The former UAX #19 has been retired into
+ * the core standard.) Conformance: a UTF-32 code unit must be a Unicode scalar value (definition D76),
+ * i.e. 0..0x10FFFF EXCLUDING the surrogate range 0xD800..0xDFFF (surrogate code points are not scalar
  * values, so they cannot appear in UTF-32). On decode, any other value - a surrogate code point, a
  * value above 0x10FFFF, or a truncated trailing code unit - is replaced with the bad-char (U+FFFD by
  * default), or throws with { fatal: true }. On encode, a lone (unpaired) surrogate in the input is
  * replaced with U+FFFD so the output is always well-formed UTF-32.
  *
- * @see https://www.unicode.org/versions/latest/ (The Unicode Standard, Section 3.9)
- * @see https://www.unicode.org/reports/tr19/ (UAX #19: UTF-32, now folded into the core standard)
+ * @see https://www.unicode.org/versions/latest/core-spec/chapter-3/ (The Unicode Standard, ch. 3: Sections 3.9 and 3.10)
  * @see https://unicode.org/faq/utf_bom#utf32-7
  */
 
