@@ -30,7 +30,7 @@ jobs:
       matrix:
         node: [22, 24] # from v22 to the latest LTS
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -49,7 +49,7 @@ jobs:
         run: cat "section-${{ matrix.node }}.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload section
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wpt-section-${{ matrix.node }}
           path: section-${{ matrix.node }}.md
@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download sections
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: wpt-section-*
           merge-multiple: true
@@ -80,7 +80,7 @@ jobs:
           } > wpt-report.md
 
       - name: Create or update tracking issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
