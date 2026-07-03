@@ -126,6 +126,12 @@ describe("UTF-32BE codec", function () {
     assert.equal(iconv.encode(testStr, "UTF32-BE").toString("hex"), utf32beBuf.toString("hex"))
   })
 
+  it("encodes a lone high surrogate held over into the next chunk", function () {
+    var encoder = iconv.getEncoder("utf-32be")
+    var res = Buffer.concat([encoder.write(String.fromCharCode(0xD800)), encoder.write("A"), encoder.end() || Buffer.alloc(0)])
+    assert.equal(res.toString("hex"), "0000d80000000041")
+  })
+
   it("decodes basic buffers correctly", function () {
     assert.equal(iconv.decode(utf32beBuf, "ucs4be"), testStr)
   })

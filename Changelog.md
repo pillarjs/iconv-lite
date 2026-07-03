@@ -6,9 +6,9 @@
 
 ### 🐞 Bug fixes
 
-* Fix UTF-32 stream decoding of code units split or truncated across chunks - by [@spokodev](https://github.com/spokodev) and [@bjohansebas](https://github.com/bjohansebas) in [#393](https://github.com/pillarjs/iconv-lite/pull/393)
+* Fix UTF-32 streaming across chunk boundaries - by [@spokodev](https://github.com/spokodev) and [@bjohansebas](https://github.com/bjohansebas) in [#393](https://github.com/pillarjs/iconv-lite/pull/393)
 
-    When decoding a UTF-32 stream, a 4-byte code unit split across a chunk boundary was decoded incorrectly (whole-buffer `decode` was unaffected). A truncated trailing unit at the end of the input is now replaced with U+FFFD instead of being silently dropped.
+    When decoding a UTF-32 stream, a 4-byte code unit split across a chunk boundary was decoded incorrectly, and a truncated trailing unit is now replaced with U+FFFD instead of being dropped. When encoding, a surrogate held over between chunks no longer throws. Whole-buffer `decode`/`encode` were unaffected.
 
 ## 0.7.2
 
