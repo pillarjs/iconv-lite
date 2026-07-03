@@ -60,11 +60,11 @@
         "iconv": "^3.0.1",
         "mocha": "^10.8.2",
         "neostandard": "^0.12.0",
-        "unorm": "^1.6.0",
         "typescript": "~5.9.3",
+        "unorm": "^1.6.0",
+        "vitest": "^4.1.9",
         "wpt-runner": "^7.0.0"
     },
-    "dependencies": {},
     "workspaces": [
         "generation"
     ],

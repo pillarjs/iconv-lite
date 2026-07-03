@@ -551,7 +551,6 @@ function strToHex (str) {
 iconv.encode("", "utf8") // Load all encodings.
 
 describe("Full DBCS encoding tests", function () {
-  this.timeout(10000) // These tests are pretty slow.
 
   var Iconv
   try {
@@ -562,9 +561,9 @@ describe("Full DBCS encoding tests", function () {
     if (iconv.encodings[enc].type === "_dbcs") {
       (function (enc) {
       // Create tests for this encoding.
-        it("Decode DBCS encoding '" + enc + "'", function () {
+        it("Decode DBCS encoding '" + enc + "'", function (ctx) {
           if (!Iconv) {
-            this.skip() // Skip if Iconv is available
+            ctx.skip() // Skip if Iconv is available
           }
 
           var iconvChgs = iconvChanges[enc] || {}
@@ -630,9 +629,9 @@ describe("Full DBCS encoding tests", function () {
           }
         })
 
-        it("Encode DBCS encoding '" + enc + "'", function () {
+        it("Encode DBCS encoding '" + enc + "'", function (ctx) {
           if (!Iconv) {
-            this.skip() // Skip if Iconv is available
+            ctx.skip() // Skip if Iconv is available
           }
 
           var iconvChgs = iconvChanges[enc] || {}
