@@ -5,6 +5,13 @@ import { defineConfig } from "vitest/config"
 // runner are untouched in this phase.
 export default defineConfig({
   test: {
+    // Coverage is aggregated across all projects (Node + Web backends), replacing the two merged c8
+    // runs the mocha scripts used.
+    coverage: {
+      provider: "v8",
+      include: ["encodings/**/*.js", "lib/**/*.js", "backends/**/*.js"],
+      reporter: ["text", "html", "lcov"]
+    },
     projects: [
       {
         // Node backend, mirrors `npm test`: every test file with the default (Node) backend.

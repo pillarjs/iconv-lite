@@ -36,7 +36,6 @@ const iconvEquivChars = {
 iconv.encode("", "utf8") // Load all encodings.
 
 describe("Full SBCS encoding tests #node-web", function () {
-
   for (const enc in iconv.encodings) {
     if (iconv.encodings[enc].type === "_sbcs") {
       (function (enc) {

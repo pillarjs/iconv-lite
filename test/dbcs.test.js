@@ -551,7 +551,6 @@ function strToHex (str) {
 iconv.encode("", "utf8") // Load all encodings.
 
 describe("Full DBCS encoding tests", function () {
-
   var Iconv
   try {
     Iconv = require("iconv").Iconv
