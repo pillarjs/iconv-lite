@@ -169,7 +169,12 @@ function _writeCodepoint (dst, offset, codepoint, badChar) {
 };
 
 Utf32Decoder.prototype.end = function () {
+  if (this.overflow.length === 0) { return }
+
+  // A leftover, incomplete 4-byte code unit at the end of the input is ill-formed. Substitute a
+  // single U+FFFD (Unicode Standard conformance clause C10) instead of silently dropping the bytes.
   this.overflow.length = 0
+  return String.fromCharCode(this.badChar)
 }
 
 // == UTF-32 Auto codec =============================================================

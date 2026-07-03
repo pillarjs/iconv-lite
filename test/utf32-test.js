@@ -59,8 +59,12 @@ describe("UTF-32LE codec", function () {
     assert.equal(iconv.decode(utf32leBuf, "ucs4le"), testStr)
   })
 
-  it("decodes uneven length buffers with no error", function () {
-    assert.equal(iconv.decode(Buffer.from([0x61, 0, 0, 0, 0]), "UTF32-LE"), "a")
+  it("substitutes U+FFFD for a truncated trailing code unit", function () {
+    // 5 bytes: one complete unit ('a') plus a 1-byte incomplete unit at the end.
+    assert.equal(iconv.decode(Buffer.from([0x61, 0, 0, 0, 0]), "UTF32-LE"), "a�")
+    // Also when the incomplete unit lands at the end of a stream.
+    var decoder = iconv.getDecoder("utf-32le")
+    assert.equal(decoder.write(Buffer.from([0x61, 0, 0, 0, 0x62])) + (decoder.end() || ""), "a�")
   })
 
   it("decodes correctly when codepoints are split across stream chunks", function () {
@@ -118,8 +122,10 @@ describe("UTF-32BE codec", function () {
     assert.equal(iconv.decode(utf32beBuf, "ucs4be"), testStr)
   })
 
-  it("decodes uneven length buffers with no error", function () {
-    assert.equal(iconv.decode(Buffer.from([0, 0, 0, 0x61, 0]), "UTF32-BE"), "a")
+  it("substitutes U+FFFD for a truncated trailing code unit", function () {
+    assert.equal(iconv.decode(Buffer.from([0, 0, 0, 0x61, 0]), "UTF32-BE"), "a�")
+    var decoder = iconv.getDecoder("utf-32be")
+    assert.equal(decoder.write(Buffer.from([0, 0, 0, 0x61, 0])) + (decoder.end() || ""), "a�")
   })
 
   it("decodes correctly when codepoints are split across stream chunks", function () {
