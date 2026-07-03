@@ -4,6 +4,12 @@
 
 * Add `iso-8859-8-i` and `iso-8859-8-e` charset aliases - by [@baptistejamin](https://github.com/baptistejamin) in [#394](https://github.com/pillarjs/iconv-lite/pull/394)
 
+### 🐞 Bug fixes
+
+* Fix UTF-32 stream decoding of code units split or truncated across chunks - by [@spokodev](https://github.com/spokodev) and [@bjohansebas](https://github.com/bjohansebas) in [#393](https://github.com/pillarjs/iconv-lite/pull/393)
+
+    When decoding a UTF-32 stream, a 4-byte code unit split across a chunk boundary was decoded incorrectly (whole-buffer `decode` was unaffected). A truncated trailing unit at the end of the input is now replaced with U+FFFD instead of being silently dropped.
+
 ## 0.7.2
 
 ### 🐞 Bug fixes
