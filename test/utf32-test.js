@@ -55,6 +55,14 @@ describe("UTF-32LE codec", function () {
     assert.equal(iconv.encode(testStr, "UTF32-LE").toString("hex"), utf32leBuf.toString("hex"))
   })
 
+  it("encodes a lone high surrogate held over into the next chunk", function () {
+    // A high surrogate buffered at a chunk boundary is flushed when the next chunk arrives; the
+    // output buffer must have room for it alongside the new chunk (regression: this used to throw).
+    var encoder = iconv.getEncoder("utf-32le")
+    var res = Buffer.concat([encoder.write(String.fromCharCode(0xD800)), encoder.write("A"), encoder.end() || Buffer.alloc(0)])
+    assert.equal(res.toString("hex"), "00d8000041000000")
+  })
+
   it("decodes basic buffers correctly", function () {
     assert.equal(iconv.decode(utf32leBuf, "ucs4le"), testStr)
   })

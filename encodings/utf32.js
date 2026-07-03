@@ -31,7 +31,9 @@ function Utf32Encoder (options, codec) {
 
 Utf32Encoder.prototype.write = function (str) {
   var src = Buffer.from(str, "ucs2")
-  var dst = Buffer.alloc(src.length * 2)
+  // src.length * 2 covers this chunk's code units (4 bytes each); the extra 4 bytes leave room for a
+  // high surrogate held over from a previous chunk, which is flushed ahead of this chunk's units.
+  var dst = Buffer.alloc(src.length * 2 + 4)
   var write32 = this.isLE ? dst.writeUInt32LE : dst.writeUInt32BE
   var offset = 0
 
