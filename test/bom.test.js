@@ -16,6 +16,11 @@ describe("BOM Handling", function () {
     assert.equal(iconv.decode(body, "utf8"), sampleStr)
   })
 
+  it("strips only one UTF-8 BOM, keeping a following U+FEFF", function () {
+    var body = Buffer.concat([utf8BOM, Buffer.from(strBOM + sampleStr)])
+    assert.equal(iconv.decode(body, "utf8"), strBOM + sampleStr)
+  })
+
   it("strips UTF-16 BOM", function () {
     var body = Buffer.concat([utf16leBOM, iconv.encode(sampleStr, "utf16le")])
     assert.equal(iconv.decode(body, "utf16"), sampleStr)
