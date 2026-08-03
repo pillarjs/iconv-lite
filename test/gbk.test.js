@@ -20,11 +20,11 @@ describe("GBK tests", function () {
     assert.strictEqual(iconv.decode(testStringGBKBuffer, "GB2312"), testString)
   })
 
-  it("GBK file read decoded,compare with iconv result", function () {
+  it("GBK file read decoded,compare with iconv result", function (ctx) {
     try {
       require("iconv")
     } catch (_e) {
-      this.skip()
+      ctx.skip()
     }
     var contentBuffer = fs.readFileSync(join(__dirname, "fixtures", "gbkFile.txt"))
     var str = iconv.decode(contentBuffer, "GBK")

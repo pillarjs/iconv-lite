@@ -256,29 +256,29 @@ describe("UTF-32 full code point round-trip", function () {
     return cache
   }
 
-  it("handles encoding all valid code points (LE)", function () {
-    if (!Iconv) { this.skip() }
+  it("handles encoding all valid code points (LE)", function (ctx) {
+    if (!Iconv) { ctx.skip() }
     const { str, leBuf } = buildAll()
     assert.deepEqual(iconv.encode(str, "utf-32le"), leBuf)
     assert.deepEqual(new Iconv("UTF-8", "UTF-32LE").convert(str), leBuf)
   })
 
-  it("handles decoding all valid code points (LE)", function () {
-    if (!Iconv) { this.skip() }
+  it("handles decoding all valid code points (LE)", function (ctx) {
+    if (!Iconv) { ctx.skip() }
     const { str, leBuf } = buildAll()
     assert.equal(iconv.decode(leBuf, "utf-32le"), str)
     assert.equal(new Iconv("UTF-32LE", "UTF-8").convert(leBuf).toString("utf8"), str)
   })
 
-  it("handles encoding all valid code points (BE)", function () {
-    if (!Iconv) { this.skip() }
+  it("handles encoding all valid code points (BE)", function (ctx) {
+    if (!Iconv) { ctx.skip() }
     const { str, beBuf } = buildAll()
     assert.deepEqual(iconv.encode(str, "utf-32be"), beBuf)
     assert.deepEqual(new Iconv("UTF-8", "UTF-32BE").convert(str), beBuf)
   })
 
-  it("handles decoding all valid code points (BE)", function () {
-    if (!Iconv) { this.skip() }
+  it("handles decoding all valid code points (BE)", function (ctx) {
+    if (!Iconv) { ctx.skip() }
     const { str, beBuf } = buildAll()
     assert.equal(iconv.decode(beBuf, "utf-32be"), str)
     assert.equal(new Iconv("UTF-32BE", "UTF-8").convert(beBuf).toString("utf8"), str)

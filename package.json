@@ -21,8 +21,8 @@
     "homepage": "https://github.com/pillarjs/iconv-lite",
     "bugs": "https://github.com/pillarjs/iconv-lite/issues",
     "funding": {
-      "type": "opencollective",
-      "url": "https://opencollective.com/express"
+        "type": "opencollective",
+        "url": "https://opencollective.com/express"
     },
     "repository": {
         "type": "git",
@@ -35,10 +35,10 @@
         "lint": "eslint",
         "lint:fix": "eslint --fix",
         "generate": "npm run generate --workspaces --if-present",
-        "test": "mocha --reporter spec --check-leaks",
-        "test:ci": "c8 --check-coverage=false --reporter=none mocha --check-leaks --forbid-only && c8 --no-clean --reporter=lcovonly --reporter=text mocha --require ./test/env/web-backend.js --forbid-only --grep '#node-web'",
-        "test:cov": "c8 --check-coverage=false --reporter=none mocha --check-leaks && c8 --no-clean --reporter=html --reporter=text mocha --require ./test/env/web-backend.js --grep '#node-web'",
-        "test:node-web": "mocha --require ./test/env/web-backend.js --grep '#node-web'",
+        "test": "vitest run",
+        "test:ci": "vitest run --coverage --allowOnly=false",
+        "test:cov": "vitest run --coverage",
+        "test:node-web": "vitest run --project node-web",
         "test:performance": "node --allow-natives-syntax performance/index.js",
         "test:typescript": "tsc && attw --pack",
         "test:webpack": "npm pack && mv iconv-lite-*.tgz test/webpack/iconv-lite.tgz && cd test/webpack && npm install && npm run test && rm iconv-lite.tgz && rm -r node_modules",
@@ -54,6 +54,7 @@
         "@stylistic/eslint-plugin": "^5.1.0",
         "@stylistic/eslint-plugin-js": "^4.1.0",
         "@types/node": "^24.10.3",
+        "@vitest/coverage-v8": "^4.1.9",
         "bench-node": "^0.10.0",
         "c8": "^11.0.0",
         "eslint": "^9.0.0",
@@ -61,11 +62,11 @@
         "iconv": "^3.0.1",
         "mocha": "^10.8.2",
         "neostandard": "^0.12.0",
-        "unorm": "^1.6.0",
         "typescript": "~5.9.3",
+        "unorm": "^1.6.0",
+        "vitest": "^4.1.9",
         "wpt-runner": "^7.0.0"
     },
-    "dependencies": {},
     "workspaces": [
         "generation"
     ]
