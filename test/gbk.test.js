@@ -126,4 +126,79 @@ describe("GBK tests", function () {
     assert.strictEqual(iconv.decode(gbkChars, "GB18030"), chars)
     assert.strictEqual(iconv.encode(chars, "GB18030").toString("hex"), gbkChars.toString("hex"))
   })
+
+  // Boundaries of the four pointer regions of https://encoding.spec.whatwg.org/#index-gb18030-ranges-code-point.
+  // Byte sequences and expectations are taken from the vendored upstream WPT file
+  // test/wpt/upstream/encoding/legacy-mb-schinese/gb18030/gb18030-decoder.any.js.
+  var pointerBoundaries = [
+    [39419, [0x84, 0x31, 0xA4, 0x39], "￿"],            // last assigned BMP pointer
+    [39420, [0x84, 0x31, 0xA5, 0x30], "�"],            // first pointer of the unassigned gap
+    [188999, [0x8F, 0x39, 0xFE, 0x39], "�"],           // last pointer of the unassigned gap
+    [189000, [0x90, 0x30, 0x81, 0x30], "𐀀"],     // first supplementary pointer, U+10000
+    [1237575, [0xE3, 0x32, 0x9A, 0x35], "􏿿"],    // last assigned pointer, U+10FFFF
+    [1237576, [0xE3, 0x32, 0x9A, 0x36], "�"],          // first pointer past the end
+    [1587599, [0xFE, 0x39, 0xFE, 0x39], "�"]           // highest 4-byte sequence
+  ]
+
+  it("GB18030 replaces 4 byte sequences whose pointer is unassigned", function () {
+    for (var i = 0; i < pointerBoundaries.length; i++) {
+      var buf = Buffer.from(pointerBoundaries[i][1])
+      assert.strictEqual(strToHex(iconv.decode(buf, "GB18030")), strToHex(pointerBoundaries[i][2]),
+        "pointer " + pointerBoundaries[i][0])
+    }
+  })
+
+  it("GB18030 never decodes a 4 byte sequence to an unpaired surrogate", function () {
+    this.timeout(30000)
+    var wellFormed = /^(?:[^\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])*$/
+    var buf = Buffer.alloc(4)
+    for (var b1 = 0x81; b1 <= 0xFE; b1++) {
+      buf[0] = b1
+      for (var b2 = 0x30; b2 <= 0x39; b2++) {
+        buf[1] = b2
+        for (var b3 = 0x81; b3 <= 0xFE; b3++) {
+          buf[2] = b3
+          for (var b4 = 0x30; b4 <= 0x39; b4++) {
+            buf[3] = b4
+            var str = iconv.decode(buf, "GB18030")
+            if (!wellFormed.test(str)) { assert.fail(buf.toString("hex") + " decoded to ill-formed UTF-16 " + strToHex(str)) }
+          }
+        }
+      }
+    }
+  })
+
+  it("GB18030 decodes every 4 byte sequence like the platform decoder", function () {
+    this.timeout(30000)
+    if (typeof TextDecoder !== "function") { this.skip() }
+    var native
+    try { native = new TextDecoder("gb18030") } catch (_e) { return this.skip() }
+
+    // A small-icu build resolves the label but decodes as windows-1252, so check the
+    // reference answers before trusting it.
+    for (var i = 0; i < pointerBoundaries.length; i++) {
+      if (native.decode(Uint8Array.from(pointerBoundaries[i][1])) !== pointerBoundaries[i][2]) { return this.skip() }
+    }
+
+    var buf = Buffer.alloc(4)
+    var checked = 0
+    for (var b1 = 0x81; b1 <= 0xFE; b1++) {
+      buf[0] = b1
+      for (var b2 = 0x30; b2 <= 0x39; b2++) {
+        buf[1] = b2
+        for (var b3 = 0x81; b3 <= 0xFE; b3++) {
+          buf[2] = b3
+          for (var b4 = 0x30; b4 <= 0x39; b4++) {
+            buf[3] = b4
+            var expected = native.decode(buf)
+            if (iconv.decode(buf, "GB18030") !== expected) {
+              assert.fail(buf.toString("hex") + ": got " + strToHex(iconv.decode(buf, "GB18030")) + ", expected " + strToHex(expected))
+            }
+            checked++
+          }
+        }
+      }
+    }
+    assert.strictEqual(checked, 126 * 10 * 126 * 10)
+  })
 })

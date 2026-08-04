@@ -701,3 +701,57 @@ describe("Full DBCS encoding tests", function () {
       })(enc) }
   }
 })
+
+describe("DBCS chunk boundaries", function () {
+  this.timeout(30000)
+
+  function decodeSplit (enc, bytes, at) {
+    var decoder = iconv.getDecoder(enc)
+    var str = decoder.write(Buffer.from(bytes.slice(0, at))) + decoder.write(Buffer.from(bytes.slice(at)))
+    return str + (decoder.end() || "")
+  }
+
+  // A sequence whose last byte arrives in a new chunk still emits every code unit it
+  // decodes to, so splitting the input must not change the result.
+  var encodings = []
+  for (var enc in iconv.encodings) {
+    if (iconv.encodings[enc].type === "_dbcs") encodings.push(enc)
+  }
+
+  encodings.forEach(function (enc) {
+    it("'" + enc + "' decodes 2 byte sequences the same when split", function () {
+      for (var b1 = 0x81; b1 <= 0xFE; b1++) {
+        for (var b2 = 0x21; b2 <= 0xFE; b2++) {
+          var bytes = [b1, b2]
+          var whole = iconv.decode(Buffer.from(bytes), enc)
+          var split = decodeSplit(enc, bytes, 1)
+          if (split !== whole) {
+            assert.fail(Buffer.from(bytes).toString("hex") + ": whole " + strToHex(whole) + ", split " + strToHex(split))
+          }
+        }
+      }
+    })
+  })
+
+  it("GB18030 decodes supplementary 4 byte sequences the same at every split", function () {
+    // Stride keeps this quick; the boundaries of the supplementary pointer range are always hit.
+    var pointers = [189000, 189001, 1237574, 1237575]
+    for (var p = 189000; p <= 1237575; p += 97) pointers.push(p)
+
+    for (var i = 0; i < pointers.length; i++) {
+      var ptr = pointers[i]
+      var bytes = [
+        Math.floor(ptr / 12600) + 0x81,
+        Math.floor((ptr % 12600) / 1260) + 0x30,
+        Math.floor((ptr % 1260) / 10) + 0x81,
+        (ptr % 10) + 0x30
+      ]
+      var whole = iconv.decode(Buffer.from(bytes), "gb18030")
+      assert.strictEqual(whole.length, 2, "pointer " + ptr + " should be a surrogate pair")
+      for (var at = 1; at <= 3; at++) {
+        assert.strictEqual(strToHex(decodeSplit("gb18030", bytes, at)), strToHex(whole),
+          "pointer " + ptr + " split after byte " + at)
+      }
+    }
+  })
+})
