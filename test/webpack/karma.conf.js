@@ -38,12 +38,18 @@ module.exports = function (config) {
       mode: "development",
       target: ["web"],
       resolve: {
+        alias: {
+          // The native `iconv` binding is used only by the Node-only libiconv cross-checks. Force it
+          // to an empty module in the browser bundle (exact match, so `iconv-lite` is unaffected).
+          // `resolve.fallback` does not work here because `iconv` IS installed, so webpack would
+          // otherwise resolve it and fail trying to bundle its .node binary.
+          iconv$: false
+        },
         fallback: {
           stream: require.resolve("stream-browserify"),
           assert: require.resolve("assert/"),
           util: require.resolve("util/"),
-          buffer: require.resolve("buffer"), // This should't be needed, need work in remove this.
-          iconv: false // Native binding used only by Node-only libiconv cross-checks; absent in the browser.
+          buffer: require.resolve("buffer") // This should't be needed, need work in remove this.
         }
       },
       node: {

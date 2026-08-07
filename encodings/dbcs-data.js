@@ -55,11 +55,8 @@ module.exports = {
   932: "shiftjis",
   cp932: "shiftjis",
 
-  eucjp: {
-    type: "_dbcs",
-    table: function () { return require("./tables/eucjp.json") },
-    encodeAdd: { "\u00a5": 0x5C, "\u203E": 0x7E }
-  },
+  // EUC-JP is implemented in encodings/eucjp.js (WHATWG TextDecoder + a derived encoder), so it is
+  // not a table-backed _dbcs codec here.
 
   // TODO: KDDI extension to Shift_JIS
   // TODO: IBM CCSID 942 = CP932, but F0-F9 custom chars and other char changes.

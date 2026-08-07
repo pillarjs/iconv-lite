@@ -24,6 +24,16 @@
 
     UTF-32LE/BE and the auto-detecting `utf-32` codec now decode strictly per the Unicode Standard: a code unit that is a surrogate code point (U+D800–U+DFFF), is above U+10FFFF, or is a truncated trailing code unit is replaced with U+FFFD instead of being passed through. Encoding likewise replaces a lone (unpaired) surrogate with U+FFFD. The opt-in `{ fatal: true }` decoding option makes ill-formed input throw instead. The codecs no longer use the Node `Buffer` internally, so they also work on the Web backend (browsers), like UTF-16. The internal `_utf32` codec name (a private, undocumented implementation detail of the old codec-options indirection) was removed.
 
+- Decode EUC-JP through the standard `TextDecoder` - by [@bjohansebas](https://github.com/bjohansebas) in [#XXX](https://github.com/pillarjs/iconv-lite/pull/XXX)
+
+    The `eucjp` codec now decodes through the WHATWG-standard `TextDecoder` and encodes via a reverse map derived from the same index, so the baked `eucjp.json` table is no longer shipped (the gzipped package shrinks by about 27 KB) and the Node and Web backends behave identically. The opt-in `{ fatal: true }` decoding option is supported.
+
+    What changes compared with the previous libiconv-derived table:
+
+    - **Valid text is unaffected.** Every valid byte sequence (ASCII, half-width katakana, JIS X 0208 and JIS X 0212) decodes to exactly the same character as before.
+    - **Malformed input follows the Encoding Standard's error handling** instead of libiconv's. Invalid bytes are still replaced with U+FFFD, but the count and position of the replacements can differ. For example, the unused C1 bytes 0x80 to 0x9F are each replaced with a single U+FFFD (the old table did the same, but Node's raw `TextDecoder` would otherwise leak them as U+0080 to U+009F, so the codec corrects that to stay spec-compliant).
+    - **Encoding.** A few hundred characters that have both a JIS X 0212 (three-byte) form and an IBM-extension (two-byte) form now emit the two-byte form. The bytes differ from before but always decode back to the same character. U+2212 (MINUS SIGN) now encodes (to the same bytes as U+FF0D) instead of being rejected, matching the Encoding Standard's encoder.
+
 ### 🚀 Improvements
 
 - Speed up the UTF-32 codecs - by [@bjohansebas](https://github.com/bjohansebas) in [#407](https://github.com/pillarjs/iconv-lite/pull/407)
