@@ -20,7 +20,7 @@ describe("Encoding Existence - Prototype Properties", function () {
   })
 
   it("should detect all available encodings", function () {
-    assert.strictEqual(Object.keys(iconv.encodings).length, 451)
+    assert.strictEqual(Object.keys(iconv.encodings).length, 450)
   })
 })
 
@@ -56,6 +56,29 @@ describe("Generic UTF8-UCS2 tests", function () {
     assert.strictEqual(iconv.decode(Buffer.from(testString, "binary"), "hex"), testStringHex)
   })
 
+  it("Hex encoding handles chunks split at an odd digit", function () {
+    var encoder = iconv.getEncoder("hex")
+    var parts = [encoder.write("48656"), encoder.write("c6c6f"), encoder.end()].filter(Boolean)
+    assert.strictEqual(Buffer.concat(parts).toString("binary"), "Hello")
+  })
+
+  it("Byte-string decoders emit output incrementally", function () {
+    ["binary", "base64", "hex"].forEach(function (enc) {
+      var whole = iconv.decode(Buffer.from(testString, "binary"), enc)
+      var decoder = iconv.getDecoder(enc)
+      var res = ""
+      var incremental = false
+      for (var i = 0; i < testString.length; i++) {
+        var chunk = decoder.write(Buffer.from(testString[i], "binary"))
+        if (i < testString.length - 1 && chunk.length > 0) { incremental = true }
+        res += chunk
+      }
+      res += decoder.end() || ""
+      assert.strictEqual(res, whole, enc + " chunked output differs from whole-input output")
+      assert.ok(incremental, enc + " should not buffer the whole input")
+    })
+  })
+
   it("Latin1 correctly encoded/decoded", function () {
     assert.strictEqual(iconv.encode(testStringLatin1, "latin1").toString("binary"), testStringLatin1)
     assert.strictEqual(iconv.decode(Buffer.from(testStringLatin1, "binary"), "latin1"), testStringLatin1)
@@ -77,6 +100,23 @@ describe("Generic UTF8-UCS2 tests", function () {
     assert.throws(function () { iconv.decode(invalid, "utf8", { fatal: true }) })
     assert.strictEqual(iconv.decode(Buffer.from("abc"), "utf8", { fatal: true }), "abc")
     assert.strictEqual(iconv.decode(invalid, "utf8"), "���") // default: replacement, no throw.
+  })
+
+  it("Encodes a lone surrogate as U+FFFD, so the output is well-formed UTF-8", function () {
+    assert.strictEqual(iconv.encode("a\ud800b", "utf8").toString("hex"), "61efbfbd62")
+    assert.strictEqual(iconv.encode("\udc00", "utf8").toString("hex"), "efbfbd")
+  })
+
+  it("Encodes a surrogate pair split across writes", function () {
+    var encoder = iconv.getEncoder("utf8")
+    var res = Buffer.concat([encoder.write("a\ud83d"), encoder.write("\ude00b"), encoder.end() || Buffer.alloc(0)])
+    assert.strictEqual(res.toString("utf8"), "a😀b")
+  })
+
+  it("Encodes a high surrogate left unpaired at end() as U+FFFD", function () {
+    var encoder = iconv.getEncoder("utf8")
+    assert.strictEqual(encoder.write("\ud83d").length, 0) // Held back: could pair with the next chunk.
+    assert.strictEqual(encoder.end().toString("hex"), "efbfbd")
   })
 
   it("Convert non-strings and non-buffers", function () {
