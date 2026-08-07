@@ -67,7 +67,10 @@ function InternalDecoder (options, codec) {
     }
   } else {
     this.decoder = new TextDecoder(codec.enc, {
-      ignoreBOM: options?.stripBOM === false || typeof options?.stripBOM === "function",
+      // BOM stripping is handled by iconv-lite's StripBOM wrapper (bomAware codecs, unless
+      // stripBOM===false), so keep the BOM here; otherwise both would strip it and a leading U+FEFF
+      // in the content would be lost.
+      ignoreBOM: true,
       fatal: !!options?.fatal
     })
   }
