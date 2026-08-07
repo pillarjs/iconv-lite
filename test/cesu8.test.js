@@ -23,4 +23,11 @@ describe("CESU-8 codec", function () {
     assert.equal(iconv.decode(Buffer.from("eda081edb080", "hex"), "cesu8"), "𐐀")
     assert.equal(iconv.decode(Buffer.from("eda0bdedb8b1", "hex"), "cesu8"), "😱")
   })
+  it("decodes a truncated sequence to a single replacement char", function () {
+    // A stream cut mid multi-byte sequence must decode to U+FFFD only, with no
+    // spurious leading character.
+    assert.equal(iconv.decode(Buffer.from("e0a0", "hex"), "cesu8"), "\uFFFD")
+    assert.equal(iconv.decode(Buffer.from("c2", "hex"), "cesu8"), "\uFFFD")
+    assert.equal(iconv.decode(Buffer.from("41e0a0", "hex"), "cesu8"), "A\uFFFD")
+  })
 })
