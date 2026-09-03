@@ -204,7 +204,7 @@ InternalDecoderCesu8.prototype.write = function (buf) {
 }
 
 InternalDecoderCesu8.prototype.end = function () {
-  var res = 0
+  var res = ""
   if (this.contBytes > 0) { res += this.defaultCharUnicode }
   return res
 }

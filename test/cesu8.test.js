@@ -23,4 +23,8 @@ describe("CESU-8 codec", function () {
     assert.equal(iconv.decode(Buffer.from("eda081edb080", "hex"), "cesu8"), "𐐀")
     assert.equal(iconv.decode(Buffer.from("eda0bdedb8b1", "hex"), "cesu8"), "😱")
   })
+  it("replaces a truncated trailing sequence with the replacement char", function () {
+    assert.equal(iconv.decode(Buffer.from("58e697", "hex"), "cesu8"), "X�")
+    assert.equal(iconv.decode(Buffer.from("58c3", "hex"), "cesu8"), "X�")
+  })
 })
