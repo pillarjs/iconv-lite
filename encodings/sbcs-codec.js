@@ -34,7 +34,12 @@ exports._sbcs = class SBCSCodec {
     const encodeBuf = iconv.backend.allocBytes(65536, iconv.defaultCharSingleByte.charCodeAt(0))
 
     for (let i = 0; i < codecOptions.chars.length; i++) {
-      encodeBuf[codecOptions.chars.charCodeAt(i)] = i
+      const code = codecOptions.chars.charCodeAt(i)
+      // Decode tables use U+FFFD for unassigned bytes. Encoding that
+      // replacement back to those bytes produces output TextDecoder
+      // rejects in fatal mode; keep the default "?" instead.
+      if (code === 0xFFFD) continue
+      encodeBuf[code] = i
     }
 
     this.encodeBuf = encodeBuf
