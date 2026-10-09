@@ -41,6 +41,7 @@ function collectAllEncodings() {
   processEncodingObject(getEncodingData("sbcs-data-generated.js"));
   processEncodingObject(getEncodingData("dbcs-codec.js"));
   processEncodingObject(getEncodingData("dbcs-data.js"));
+  processEncodingObject(getEncodingData("iso2022jp.js"));
 
   // Add the canonicalized (lowercase, alphanumeric, no appended year) versions
   const finalNames = new Set();

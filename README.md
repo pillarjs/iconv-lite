@@ -66,7 +66,7 @@ http.createServer(function(req, res) {
  *  All widespread singlebyte encodings: Windows 125x family, ISO-8859 family, 
     IBM/DOS codepages, Macintosh family, KOI8 family, all others supported by iconv library. 
     Aliases like 'latin1', 'us-ascii' also supported.
- *  All widespread multibyte encodings: CP932, CP936, CP949, CP950, GB2312, GBK, GB18030, Big5, Shift_JIS, EUC-JP.
+ *  All widespread multibyte encodings: CP932, CP936, CP949, CP950, GB2312, GBK, GB18030, Big5, Shift_JIS, EUC-JP, ISO-2022-JP.
 
 See [all supported encodings on wiki](https://github.com/ashtuchkin/iconv-lite/wiki/Supported-Encodings).
 
@@ -119,6 +119,19 @@ This library supports UTF-7 (RFC 2152) and UTF-7-IMAP / Modified UTF-7 (RFC 3501
 
 UTF-7 is designed for short, 7-bit-safe strings (mail headers, IMAP mailbox names) and is best used that way.
 It is not recommended for large or bulk text, where the native `utf8`/`utf16` encodings are faster.
+
+## ISO-2022-JP
+
+ISO-2022-JP (RFC 1468) is the stateful 7-bit Japanese encoding common in email. It follows the
+[WHATWG Encoding Standard](https://encoding.spec.whatwg.org/#iso-2022-jp), so it decodes like browsers do.
+ * Decoding supports ASCII, JIS X 0201 Roman and Katakana, and JIS X 0208 (`ESC $ @` and `ESC $ B`). Escape sequences
+   and characters may be split across stream chunks. Ill-formed input is replaced with �, including two escape
+   sequences in a row with nothing between them (a WHATWG rule that prevents hiding content).
+ * Encoding uses ASCII, JIS X 0201 Roman (for ¥ and ‾) and JIS X 0208, and always ends in ASCII. Unlike WHATWG, it
+   also switches back to ASCII before every line break, as RFC 1468 requires. Halfwidth katakana are encoded as
+   fullwidth, and characters with no mapping become `?`.
+ * Character mappings are the same as the `EUC-JP` codec (and browsers). They differ from the JIS mappings used by
+   GNU iconv and Python for 6 characters: for example, 0x2141 decodes to U+FF5E (～), not U+301C (〜).
 
 ## Other notes
 

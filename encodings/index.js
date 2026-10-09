@@ -12,6 +12,7 @@ const modules = [
   require("./sbcs-data-generated"),
   require("./dbcs-codec"),
   require("./dbcs-data"),
+  require("./iso2022jp"),
   require("./whatwg-aliases")
 ]
 
