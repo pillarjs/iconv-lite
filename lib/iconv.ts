@@ -13,7 +13,7 @@ export type Encoding = BuiltinEncoding | (string & {}) | number
 export interface DecodeOptions {
   /**
    * Throw a TypeError on invalid input instead of inserting U+FFFD. @default false
-   * Supported by UTF-8, UTF-16, UTF-32 and table-based single-byte codecs.
+   * Supported by UTF-8, UTF-16, UTF-32, ISO-2022-JP and table-based single-byte codecs.
    */
   fatal?: boolean;
   /**
@@ -24,7 +24,7 @@ export interface DecodeOptions {
   /** Override the default endianness for `UTF-16` and `UTF-32` decodings. */
   defaultEncoding?: Encoding;
   /**
-   * Literal replacement text for decoding errors in SBCS, DBCS, CESU-8 and UTF-32.
+   * Literal replacement text for decoding errors in SBCS, DBCS, ISO-2022-JP, CESU-8 and UTF-32.
    * May be empty. @default "�"
    * Fatal decoding still throws where supported.
    */
@@ -42,6 +42,7 @@ export interface EncodeOptions {
   /**
    * Replacement byte for unrepresentable characters in table-based single-byte and multibyte encodings.
    * Must be an integer in 0x00–0xFF. @default 0x3F
+   * ISO-2022-JP accepts only ASCII bytes other than ESC, SO and SI.
    */
   defaultCharByte?: number;
   /**

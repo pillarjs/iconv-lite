@@ -23,7 +23,7 @@ describe("Encoding Existence - Prototype Properties", function () {
   })
 
   it("should detect all available encodings", function () {
-    expect(Object.keys(iconv.encodings!).length).toBe(465)
+    expect(Object.keys(iconv.encodings!).length).toBe(467)
   })
 })
 

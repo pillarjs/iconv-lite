@@ -5,6 +5,7 @@ import internal from "./internal.js"
 import * as utf32 from "./utf32.js"
 import * as utf16 from "./utf16.js"
 import * as utf7 from "./utf7.js"
+import * as iso2022jp from "./iso2022jp.js"
 import * as sbcsCodec from "./sbcs-codec.js"
 import sbcsData from "./sbcs-data.js"
 import sbcsDataGenerated from "./sbcs-data-generated.js"
@@ -14,10 +15,10 @@ import windowsCodepages from "./windows-codepages.js"
 import whatwgAliases from "./whatwg-aliases.js"
 
 const modules: [
-  typeof internal, typeof utf32, typeof utf16, typeof utf7, typeof sbcsCodec,
+  typeof internal, typeof utf32, typeof utf16, typeof utf7, typeof iso2022jp, typeof sbcsCodec,
   typeof sbcsData, typeof sbcsDataGenerated, typeof dbcsCodec, typeof dbcsData,
   typeof windowsCodepages, typeof whatwgAliases
-] = [internal, utf32, utf16, utf7, sbcsCodec, sbcsData, sbcsDataGenerated, dbcsCodec, dbcsData, windowsCodepages, whatwgAliases]
+] = [internal, utf32, utf16, utf7, iso2022jp, sbcsCodec, sbcsData, sbcsDataGenerated, dbcsCodec, dbcsData, windowsCodepages, whatwgAliases]
 
 type EncodingKeys<T> = T extends unknown ? keyof T : never
 
