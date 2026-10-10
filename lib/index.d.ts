@@ -31,10 +31,20 @@ declare namespace iconv {
     addBOM?: boolean;
     /** Override the default endianness for `UTF-32` encoding. */
     defaultEncoding?: "utf32be";
+    /**
+     * Called when encoding a character that cannot be represented in the target encoding.
+      * Return `true` to stop encoding early and make `iconv.encode()` return `null`,
+     *
+     * Currently used by single-byte encoders only.
+     *
+     * @param char - The unencodable character.
+     * @param index - The position of the character in the input string.
+     */
+    invalidCharHandler?: (char: string, index: number) => boolean | void;
   }
 
   export interface EncoderStream {
-    write(str: string): Buffer;
+    write(str: string): Buffer | null;
     end(): Buffer | undefined;
   }
 
@@ -51,7 +61,7 @@ declare namespace iconv {
   }
 
   /** Encodes a `string` into a `Buffer`, using the provided `encoding`. */
-  export function encode (content: string, encoding: Encoding, options?: EncodeOptions): Buffer
+  export function encode (content: string, encoding: Encoding, options?: EncodeOptions): Buffer | null
 
   /** Decodes a `Buffer` into a `string`, using the provided `encoding`. */
   export function decode (buffer: Buffer | Uint8Array, encoding: Encoding, options?: DecodeOptions): string
