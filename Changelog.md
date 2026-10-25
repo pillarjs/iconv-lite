@@ -1,3 +1,23 @@
+## Unreleased
+
+### ⚠️ Breaking changes
+
+- Extend custom backend requirements for internal codecs - by [@bjohansebas](https://github.com/bjohansebas) in [#429](https://github.com/pillarjs/iconv-lite/pull/429)
+
+    Custom backends must implement `encodeString`, `decodeBytes` and `copyBytes`. The built-in Node and Web backends provide these methods.
+
+### 🚀 Improvements
+
+- Refactor internal codecs for Node and browsers - by [@bjohansebas](https://github.com/bjohansebas) in [#429](https://github.com/pillarjs/iconv-lite/pull/429)
+
+    UTF-8, CESU-8, binary, hex and Base64 now use classes and backend conversions. Node retains native Buffer conversions, while Web encoders return Uint8Array without requiring a Buffer polyfill. Binary, hex and Base64 decoding avoids input copies for complete inputs, and Web conversions use native hex/Base64 methods where available and beneficial.
+
+### 🐞 Bug fixes
+
+- Correct UTF-8 BOM handling and CESU-8 finalization - by [@bjohansebas](https://github.com/bjohansebas) in [#429](https://github.com/pillarjs/iconv-lite/pull/429)
+
+    UTF-8 decoding strips only one leading BOM and calls `stripBOM` callbacks once. Incomplete CESU-8 sequences emit one replacement character on final flush, without a spurious `0` or repeated output on subsequent flushes.
+
 ## 1.0.0-alpha.2
 
 ### ⚠️ Breaking changes
