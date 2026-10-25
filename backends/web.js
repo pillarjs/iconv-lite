@@ -6,7 +6,7 @@
 //   Not too worried as it seems like an edge case mostly concerning utf-16/utf-32/cesu8 codecs, but something to be aware of.
 
 const utf8Encoder = new TextEncoder()
-const binaryDecoder = new TextDecoder("utf-16le", { ignoreBOM: true })
+const utf16Decoder = new TextDecoder("utf-16le", { ignoreBOM: true })
 const HEX_BYTES = Array.from({ length: 256 }, (_, byte) => byte.toString(16).padStart(2, "0"))
 const BASE64_VALUES = new Int16Array(256).fill(-1)
 const BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
@@ -76,9 +76,10 @@ module.exports = {
     return new Uint16Array(new ArrayBuffer(numChars * Uint16Array.BYTES_PER_ELEMENT))
   },
   rawCharsToResult (rawChars, finalLen) {
+    if (finalLen === 0) return ""
     rawChars = rawChars.subarray(0, finalLen)
     // NOTE: TextDecoder will convert all invalid surrogates to '�'-s.
-    const res = new TextDecoder("utf-16", { ignoreBOM: true }).decode(rawChars)
+    const res = utf16Decoder.decode(rawChars)
     if (res.length !== finalLen) { throw new Error("TextDecoder returned different length string on array " + rawChars) }
     return res
   }
@@ -92,7 +93,7 @@ function bytesToBinaryString (bytes) {
     // Widen bytes to UTF-16 code units before native decoding. Unlike a "latin1"
     // TextDecoder (Windows-1252), this preserves 0x80..0x9f. As in utf32.js, the
     // Uint16Array view uses the little-endian platforms supported by the codecs.
-    return binaryDecoder.decode(new Uint16Array(bytes))
+    return utf16Decoder.decode(new Uint16Array(bytes))
   }
   // Emit one flat string for short chunks, with a bounded argument count.
   if (bytes.length >= 16) return String.fromCharCode.apply(null, bytes)

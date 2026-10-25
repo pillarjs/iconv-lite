@@ -17,9 +17,8 @@ module.exports = {
   // Encoder string input: use str directly, .length, .charCodeAt(i).
   // Encoder bytes output: allocBytes() -> use Uint8Array -> bytesToResult().
   allocBytes (numBytes, fill) {
-    // NOTE: We could do a 'new ArrayBuffer' here, but Buffer.alloc gives us pooling, which makes small chunks faster.
-    const buf = Buffer.alloc(numBytes, fill)
-    return new Uint8Array(buf.buffer, buf.byteOffset, numBytes)
+    // Buffer is also a Uint8Array, so callers can write into it directly.
+    return Buffer.alloc(numBytes, fill)
   },
   bytesToResult (bytes, finalLen) {
     // Do not retain the backing allocation when no bytes were produced.
@@ -41,8 +40,7 @@ module.exports = {
     if (finalLen === 0) {
       return ""
     }
-    return Buffer.from(rawChars.buffer)
-      .slice(rawChars.byteOffset, rawChars.byteOffset + finalLen * Uint16Array.BYTES_PER_ELEMENT)
+    return Buffer.from(rawChars.buffer, rawChars.byteOffset, finalLen * Uint16Array.BYTES_PER_ELEMENT)
       .toString("ucs2")
   }
 
