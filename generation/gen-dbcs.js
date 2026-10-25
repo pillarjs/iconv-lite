@@ -5,26 +5,31 @@ const utils = require("./utils"),
     async = require("async");
 
 async.parallel({
-    $big5: utils.getFile.bind(null, "http://encoding.spec.whatwg.org/index-big5.txt"), // Encodings with $ are not saved. They are used to calculate other encs.
-    $gbk:  utils.getFile.bind(null, "http://encoding.spec.whatwg.org/index-gb18030.txt"),
-    $gbRanges: utils.getFile.bind(null, "http://encoding.spec.whatwg.org/index-gb18030-ranges.txt"),
-    $eucKr: utils.getFile.bind(null, "http://encoding.spec.whatwg.org/index-euc-kr.txt"),
-    $jis0208: utils.getFile.bind(null, "http://encoding.spec.whatwg.org/index-jis0208.txt"),
-    $jis0212: utils.getFile.bind(null, "http://encoding.spec.whatwg.org/index-jis0212.txt"),
-    $cp932: utils.getFile.bind(null, "http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP932.TXT"),
-    cp936: utils.getFile.bind(null, "http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP936.TXT"),
-    cp949: utils.getFile.bind(null, "http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP949.TXT"),
-    cp950: utils.getFile.bind(null, "http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP950.TXT"),
-}, errTo(console.log, function(data) {
+    $big5: utils.getFile.bind(null, "https://encoding.spec.whatwg.org/index-big5.txt"), // Encodings with $ are not saved. They are used to calculate other encs.
+    $gbk:  utils.getFile.bind(null, "https://encoding.spec.whatwg.org/index-gb18030.txt"),
+    $gbRanges: utils.getFile.bind(null, "https://encoding.spec.whatwg.org/index-gb18030-ranges.txt"),
+    $eucKr: utils.getFile.bind(null, "https://encoding.spec.whatwg.org/index-euc-kr.txt"),
+    $jis0208: utils.getFile.bind(null, "https://encoding.spec.whatwg.org/index-jis0208.txt"),
+    $jis0212: utils.getFile.bind(null, "https://encoding.spec.whatwg.org/index-jis0212.txt"),
+    $cp932: utils.getFile.bind(null, "https://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP932.TXT"),
+    cp936: utils.getFile.bind(null, "https://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP936.TXT"),
+    cp949: utils.getFile.bind(null, "https://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP949.TXT"),
+    cp950: utils.getFile.bind(null, "https://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP950.TXT"),
+}, errTo(function(err) {
+    console.error(err);
+    process.exitCode = 1;
+}, function(data) {
     // First, parse all files.
     for (var enc in data) {
         var dbcs = {};
         utils.parseText(data[enc]).map(function(a) {
             var dbcsCode = parseInt(a[0]);
             var unicode = parseInt(a[1]);
-            if (!isNaN(unicode))
+            if (!isNaN(dbcsCode) && !isNaN(unicode))
                 dbcs[dbcsCode] = unicode;
         });
+        if (Object.keys(dbcs).length === 0)
+            throw new Error("No character mappings found for " + enc);
         data[enc] = dbcs;
     }
 

@@ -14,6 +14,8 @@ exports.getFile = function(url, cb) {
         if (!err) return cb(null, text);
         if (err.code != "ENOENT") return cb(err);
         request(url, errTo(cb, function(res, buf) {
+            if (res.statusCode !== 200)
+                return cb(new Error("GET " + url + " returned HTTP " + res.statusCode));
             fs.mkdir(sourceDataFolder, function(err) {
                 if (err && err.code != "EEXIST") return cb(err);
                 fs.writeFile(fullpath, buf, errTo(cb, function() {
