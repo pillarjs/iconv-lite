@@ -14,9 +14,13 @@
 
 ### 🐞 Bug fixes
 
-- Correct UTF-8 BOM handling and CESU-8 finalization - by [@bjohansebas](https://github.com/bjohansebas) in [#429](https://github.com/pillarjs/iconv-lite/pull/429)
+- Correct UTF-8 BOM handling - by [@bjohansebas](https://github.com/bjohansebas) in [#429](https://github.com/pillarjs/iconv-lite/pull/429)
 
-    UTF-8 decoding strips only one leading BOM and calls `stripBOM` callbacks once. Incomplete CESU-8 sequences emit one replacement character on final flush, without a spurious `0` or repeated output on subsequent flushes.
+    UTF-8 decoding strips only one leading BOM and calls `stripBOM` callbacks once.
+
+- Correct CESU-8 finalization - by [@spokodev](https://github.com/spokodev) and [@bjohansebas](https://github.com/bjohansebas) in [#421](https://github.com/pillarjs/iconv-lite/pull/421) and [#429](https://github.com/pillarjs/iconv-lite/pull/429)
+
+    Incomplete CESU-8 sequences emit one replacement character on final flush, without a spurious `0` or repeated output on subsequent flushes.
 
 ## 1.0.0-alpha.2
 

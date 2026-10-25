@@ -80,6 +80,8 @@ describe("Internal codecs #node-web", function () {
     assert.strictEqual(iconv.decode(utils.bytes("c0 80"), "cesu8"), "\0")
     assert.strictEqual(iconv.decode(utils.bytes("e0 80 80"), "cesu8"), "�")
     assert.strictEqual(iconv.decode(utils.bytes("ed a0"), "cesu8"), "�")
+    assert.strictEqual(iconv.decode(utils.bytes("58 e6 97"), "cesu8"), "X�")
+    assert.strictEqual(iconv.decode(utils.bytes("58 c3"), "cesu8"), "X�")
     const decoder = iconv.getDecoder("cesu8")
     assert.strictEqual(decoder.write(utils.bytes("ed")), "")
     assert.strictEqual(decoder.end(), "�")
