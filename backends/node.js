@@ -1,7 +1,6 @@
-"use strict"
 // NOTE: This backend uses Buffer APIs that are only available in Node v4.5+ and v5.10+.
 
-module.exports = {
+export default {
   // Keep the internal encodings on Node's native conversion paths.
   encodeString (str, encoding) {
     return Buffer.from(str, encoding)

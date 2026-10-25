@@ -2,6 +2,10 @@
 
 ### ⚠️ Breaking changes
 
+- Migrate to native ES modules.
+
+    Use `import iconv from "iconv-lite"` or dynamic `import()` from CommonJS. Direct `require()` is no longer supported. Node.js 22 remains the minimum version. Browser consumers can use `iconv-lite/web` or `lib/index-web.js`. Encoding modules now load at import time; DBCS table data and codecs are still initialized on demand. Mutable settings remain on the default export.
+
 - Extend custom backend requirements for internal codecs - by [@bjohansebas](https://github.com/bjohansebas) in [#429](https://github.com/pillarjs/iconv-lite/pull/429)
 
     Custom backends must implement `encodeString`, `decodeBytes` and `copyBytes`. The built-in Node and Web backends provide these methods.

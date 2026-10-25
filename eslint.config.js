@@ -1,10 +1,10 @@
-"use strict"
-const neostandard = require("neostandard")
+import neostandard from "neostandard"
 
-module.exports = [
+export default [
   ...neostandard({
     env: ["mocha"],
     ignores: [
+      "encodings/tables/*.js", // Generated lazy table factories
       "encodings/sbcs-data-generated.js", // This a generate file
       "test/wpt/upstream", // Vendored upstream Web Platform Tests
       // We need work on this
@@ -13,6 +13,7 @@ module.exports = [
     ts: true
   }),
   {
+    languageOptions: { ecmaVersion: "latest" },
     rules: {
       "object-shorthand": ["off"], // Compatibility with older code
       "@stylistic/quotes": [2, "double"], // Prevent many change of code

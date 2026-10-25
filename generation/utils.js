@@ -1,14 +1,15 @@
-"use strict";
-
-var request = require("request"),
-    fs = require("fs"),
-    path = require("path"),
-    errTo = require("errto");
+import request from "request";
+import fs from "fs";
+import path from "path";
+import errTo from "errto";
 
 // Common utilities used in scripts.
 
-exports.getFile = function(url, cb) {
-    var sourceDataFolder = path.join(__dirname, "source-data");
+const utils = {};
+export default utils;
+
+utils.getFile = function(url, cb) {
+    var sourceDataFolder = path.join(import.meta.dirname, "source-data");
     var fullpath = path.join(sourceDataFolder, path.basename(url));
     fs.readFile(fullpath, "utf8", function(err, text) {
         if (!err) return cb(null, text);
@@ -27,7 +28,7 @@ exports.getFile = function(url, cb) {
 }
 
 // Returns array of arrays.
-exports.parseText = function(text, splitChar) {
+utils.parseText = function(text, splitChar) {
     return text.split("\n").map(function(line) {
         return line.split("#")[0].trim(); 
     }).filter(Boolean).map(function(line) {
@@ -67,7 +68,7 @@ function arrToStr(arr) {
 // [0] = address of start of the chunk, hex string.
 // <str> - characters of the chunk.
 // <num> - increasing sequence of the length num, starting with prev character.
-exports.generateTable = function(dbcs, maxBytes) {
+utils.generateTable = function(dbcs, maxBytes) {
     var minSeqLen = 4;
     var table = [], range, block, seqLen;
     var max = 1 << ((maxBytes || 2) * 8);
@@ -108,11 +109,13 @@ exports.generateTable = function(dbcs, maxBytes) {
 }
 
 
-exports.writeTable = function(name, table) {
+utils.writeTable = function(name, table) {
     this.writeFile(name, "[\n" + table.map(function(a) {return JSON.stringify(a);}).join(",\n") + "\n]\n");
 }
 
-exports.writeFile = function(name, body) {
-    fs.writeFileSync(path.join(__dirname, "../encodings/tables", name + ".json"), body);
+utils.writeFile = function(name, body) {
+    fs.writeFileSync(path.join(import.meta.dirname, "../encodings/tables", name + ".js"),
+        "// Generated encoding table. Allocate and cache its data on first use.\nlet table\n\n" +
+        "export default function getTable () {\n  return table ||= " + body.trimEnd() + "\n}\n");
 }
 

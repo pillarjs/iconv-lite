@@ -1,9 +1,7 @@
-"use strict";
-
-var fs = require("fs");
-var path = require("path");
-var Iconv = require("iconv").Iconv;
-var Buffer = require("buffer").Buffer;
+import fs from "fs";
+import path from "path";
+import { Iconv } from "iconv";
+import { Buffer } from "buffer";
 
 // Generate encoding families using original iconv.
 var destFileName = "encodings/sbcs-data-generated.js";
@@ -81,9 +79,9 @@ encodingFamilies.forEach(function(family){
 });
 
 // Write encodings.
-fs.writeFileSync(path.join(__dirname, "..", destFileName), 
-    "\"use strict\";\n\n// Generated data for sbcs codec. Don't edit manually. Regenerate using generation/gen-sbcs.js script.\n"+
-    "module.exports = "+JSON.stringify(encodings, undefined, "  "));
+fs.writeFileSync(path.join(import.meta.dirname, "..", destFileName),
+    "// Generated data for sbcs codec. Don't edit manually. Regenerate using generation/gen-sbcs.js script.\n"+
+    "export default "+JSON.stringify(encodings, undefined, "  "));
 
 
 function generateCharsString(encoding) {

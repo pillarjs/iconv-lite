@@ -21,8 +21,8 @@
     "homepage": "https://github.com/pillarjs/iconv-lite",
     "bugs": "https://github.com/pillarjs/iconv-lite/issues",
     "funding": {
-      "type": "opencollective",
-      "url": "https://opencollective.com/express"
+        "type": "opencollective",
+        "url": "https://opencollective.com/express"
     },
     "repository": {
         "type": "git",
@@ -40,14 +40,13 @@
         "test:cov": "c8 --check-coverage=false --reporter=none mocha --check-leaks && c8 --no-clean --reporter=html --reporter=text mocha --require ./test/env/web-backend.js --grep '#node-web'",
         "test:node-web": "mocha --require ./test/env/web-backend.js --grep '#node-web'",
         "test:performance": "node --allow-natives-syntax performance/index.js",
-        "test:typescript": "tsc && attw --pack",
+        "test:typescript": "tsc && attw --pack --profile esm-only",
         "test:webpack": "npm pack && mv iconv-lite-*.tgz test/webpack/iconv-lite.tgz && cd test/webpack && npm install && npm run test && rm iconv-lite.tgz && rm -r node_modules",
         "test:wpt": "node test/wpt/run.js",
         "typegen": "node generation/gen-typings.js"
     },
     "browser": {
-        "./lib/index-node.js": "./lib/index-web.js",
-        "stream": false
+        "./lib/index-node.js": "./lib/index-web.js"
     },
     "devDependencies": {
         "@arethetypeswrong/cli": "^0.18.2",
@@ -68,5 +67,22 @@
     "dependencies": {},
     "workspaces": [
         "generation"
-    ]
+    ],
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./lib/index.d.ts",
+            "browser": "./lib/index-web.js",
+            "node": "./lib/index-node.js",
+            "default": "./lib/index-web.js"
+        },
+        "./web": {
+            "types": "./lib/index-web.d.ts",
+            "default": "./lib/index-web.js"
+        },
+        "./backends/*.js": "./backends/*.js",
+        "./encodings/*.js": "./encodings/*.js",
+        "./lib/*.js": "./lib/*.js",
+        "./package.json": "./package.json"
+    }
 }

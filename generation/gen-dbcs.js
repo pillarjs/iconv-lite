@@ -1,8 +1,6 @@
-"use strict";
-
-const utils = require("./utils"),
-    errTo = require("errto"),
-    async = require("async");
+import utils from "./utils.js";
+import errTo from "errto";
+import async from "async";
 
 async.parallel({
     $big5: utils.getFile.bind(null, "https://encoding.spec.whatwg.org/index-big5.txt"), // Encodings with $ are not saved. They are used to calculate other encs.

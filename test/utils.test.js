@@ -1,7 +1,5 @@
-"use strict"
-
-const assert = require("assert")
-const utils = require("./helpers/utils")
+import assert from "assert"
+import utils from "./helpers/utils.js"
 
 describe("Test utils RLE Encoding #node-web", function () {
   function assertRountrip (input) {

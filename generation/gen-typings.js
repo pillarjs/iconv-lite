@@ -1,15 +1,7 @@
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
 
-function getEncodingData(fileName) {
-  try {
-    const encodingsDir = path.join(__dirname, "..", "encodings");
-    return require(path.join(encodingsDir, fileName));
-  } catch (e) {
-    console.error(`Error reading ${fileName}:`, e);
-    return {};
-  }
-}
+import getEncodings from "../encodings/index.js";
 
 function collectAllEncodings() {
   const allNames = new Set();
@@ -31,16 +23,7 @@ function collectAllEncodings() {
     }
   };
 
-  // Process all relevant files
-  processEncodingObject(getEncodingData("internal.js"));
-  processEncodingObject(getEncodingData("utf32.js"));
-  processEncodingObject(getEncodingData("utf16.js"));
-  processEncodingObject(getEncodingData("utf7.js"));
-  processEncodingObject(getEncodingData("sbcs-codec.js"));
-  processEncodingObject(getEncodingData("sbcs-data.js"));
-  processEncodingObject(getEncodingData("sbcs-data-generated.js"));
-  processEncodingObject(getEncodingData("dbcs-codec.js"));
-  processEncodingObject(getEncodingData("dbcs-data.js"));
+  processEncodingObject(getEncodings());
 
   // Add the canonicalized (lowercase, alphanumeric, no appended year) versions
   const finalNames = new Set();
@@ -72,7 +55,7 @@ function generateTypingsFile() {
 export type Encoding =\n${supportedEncodingType}\n  | (string & {})
 `;
 
-  const outputPath = path.join(__dirname, "..", "types", "encodings.d.ts");
+  const outputPath = path.join(import.meta.dirname, "..", "types", "encodings.d.ts");
   fs.writeFileSync(outputPath, fileContent, "utf8");
 }
 

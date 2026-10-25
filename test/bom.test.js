@@ -1,8 +1,6 @@
-"use strict"
-
-const assert = require("assert")
-const Buffer = require("buffer").Buffer
-const iconv = require("../")
+import assert from "assert"
+import { Buffer } from "buffer"
+import iconv from "../lib/index-node.js"
 
 var sampleStr = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<俄语>данные</俄语>"
 var strBOM = "\ufeff"

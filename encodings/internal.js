@@ -1,4 +1,3 @@
-"use strict"
 // Keep streaming state here and delegate platform-specific conversions to the
 // backend: native Buffer operations in Node, Web APIs and typed arrays in browsers.
 
@@ -250,7 +249,7 @@ class InternalEncoderUtf8 {
 
 // Export the internal encodings shared by Node and browsers.
 
-module.exports = {
+export default {
   // Encodings
   utf8: { type: "_internal", bomAware: true },
   cesu8: { type: "_internal", bomAware: true },

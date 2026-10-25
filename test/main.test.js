@@ -1,8 +1,7 @@
-"use strict"
-
-var assert = require("assert")
-var Buffer = require("buffer").Buffer
-var iconv = require("../")
+import whatwgAliases from "../encodings/whatwg-aliases.js"
+import assert from "assert"
+import { Buffer } from "buffer"
+import iconv from "../lib/index-node.js"
 
 var testString = "Hello123!"
 var testStringLatin1 = "Hello123!£Å÷×çþÿ¿®"
@@ -162,8 +161,6 @@ describe("Canonicalize encoding function", function () {
 })
 
 describe("WHATWG label aliases", function () {
-  var whatwgAliases = require("../encodings/whatwg-aliases")
-
   it("recognizes every WHATWG alias", function () {
     Object.keys(whatwgAliases).forEach(function (alias) {
       assert.ok(iconv.encodingExists(alias), alias + " should be a known encoding")

@@ -1,18 +1,16 @@
-"use strict"
+import mocha from "mocha"
+import assert from "assert"
+import { Buffer } from "buffer"
+import iconv from "../lib/index-node.js"
 
-var mocha = require("mocha")
+import { Readable } from "stream"
 var describeMocha = mocha.describe
-var assert = require("assert")
-var Buffer = require("buffer").Buffer
-var iconv = require("../")
 
 var describe = describeMocha
 
 if (!iconv.supportsStreams) {
   describe = describe.skip
 };
-
-var Readable = require("stream").Readable
 
 // Create a source stream that feeds given array of chunks.
 function feeder (chunks) {

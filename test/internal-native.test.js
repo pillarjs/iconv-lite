@@ -1,16 +1,15 @@
-"use strict"
+import assert from "assert"
+import fs from "fs"
+import vm from "vm"
 
-const assert = require("assert")
-const fs = require("fs")
-const vm = require("vm")
-
+// These script contexts exercise byte-method fallbacks; esm.test.js checks the native module graph.
 describe("Internal codecs without Node globals", function () {
   for (const nativeByteMethods of [true, false]) {
     it(`loads the codecs and web backend without Node globals (native byte methods: ${nativeByteMethods})`, function () {
-      const context = { module: { exports: {} }, TextEncoder, TextDecoder, btoa }
-      vm.runInNewContext(fs.readFileSync(require.resolve("../encodings/internal"), "utf8"), context)
-      const encodings = context.module.exports
-      const backendContext = { module: { exports: {} }, TextEncoder, TextDecoder, btoa }
+      const context = { TextEncoder, TextDecoder, btoa }
+      vm.runInNewContext(fs.readFileSync(new URL("../encodings/internal.js", import.meta.url), "utf8").replace("export default", "globalThis.exports ="), context)
+      const encodings = context.exports
+      const backendContext = { TextEncoder, TextDecoder, btoa }
       if (!nativeByteMethods) {
         vm.runInNewContext(`
           Uint8Array.fromHex = undefined;
@@ -19,8 +18,8 @@ describe("Internal codecs without Node globals", function () {
           Uint8Array.prototype.toBase64 = undefined;
         `, backendContext)
       }
-      vm.runInNewContext(fs.readFileSync(require.resolve("../backends/web"), "utf8"), backendContext)
-      const backend = backendContext.module.exports
+      vm.runInNewContext(fs.readFileSync(new URL("../backends/web.js", import.meta.url), "utf8").replace("export default", "globalThis.exports ="), backendContext)
+      const backend = backendContext.exports
       const Bytes = vm.runInNewContext("Uint8Array", backendContext)
       for (const [encoding, text, bytes] of [
         ["utf8", "😱", [0xf0, 0x9f, 0x98, 0xb1]],

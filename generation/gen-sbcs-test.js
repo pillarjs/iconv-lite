@@ -1,11 +1,11 @@
 /* eslint no-console: "off" */
 "use strict";
 
-const Iconv = require("iconv").Iconv,
-    testUtils = require("../test/utils"),
-    fs = require("fs"),
-    path = require("path"),
-    assert = require("assert");
+import { Iconv } from "iconv";
+import testUtils from "../test/helpers/utils.js";
+import fs from "fs";
+import path from "path";
+import assert from "assert";
 
 const skipEncodings = {
     maccenteuro: true,
@@ -167,7 +167,7 @@ const res = Object.fromEntries(
 assert.deepEqual(skipEncodings, {}, "Some skipped encodings are not found in 'encodings' array.");
 
 // Write results.
-const resFile = path.join(__dirname, "../test/tables/sbcs-data.json");
+const resFile = path.join(import.meta.dirname, "../test/tables/sbcs-data.json");
 
 fs.mkdirSync(path.dirname(resFile), { recursive: true });
 fs.writeFileSync(resFile, JSON.stringify(res, null, 2));

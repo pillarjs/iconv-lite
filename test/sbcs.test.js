@@ -1,9 +1,7 @@
-"use strict"
-
-const assert = require("assert")
-const unorm = require("unorm")
-const utils = require("./helpers/utils")
-const sbcsData = require("./tables/sbcs-data.json")
+import assert from "assert"
+import unorm from "unorm"
+import utils from "./helpers/utils.js"
+import sbcsData from "./tables/sbcs-data.json" with { type: "json" }
 const iconv = utils.requireIconv()
 
 const aliases = {

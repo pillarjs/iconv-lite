@@ -1,5 +1,3 @@
-"use strict"
-
 // Runs the vendored Web Platform Tests (test/wpt/encoding/*.any.js) against
 // iconv-lite using wpt-runner (jsdom) with the TextDecoder/TextEncoder shim from
 // ./shim.js. The WPT files are unmodified upstream copies (see ./README.md).
@@ -8,17 +6,17 @@
 //   node test/wpt/run.js textdecoder-fatal   # filter by filename substring
 //   node test/wpt/run.js "" --strict         # exit non-zero on any failure
 
-const path = require("path")
-const wptRunner = require("wpt-runner")
-const setup = require("./shim")
-const { WINDOW_TESTS, isWindowTest, runWindowTest } = require("./run-window")
-const { runDecodeCompare } = require("./decode-compare")
+import path from "path"
+import wptRunner from "wpt-runner"
+import setup from "./shim.js"
+import { WINDOW_TESTS, isWindowTest, runWindowTest } from "./run-window.js"
+import { runDecodeCompare } from "./decode-compare.js"
 
 const args = process.argv.slice(2)
 const strict = args.includes("--strict")
 const target = args.find((a) => !a.startsWith("--")) || ""
 
-const wptRoot = path.join(__dirname, "upstream")
+const wptRoot = path.join(import.meta.dirname, "upstream")
 
 // vm-based window tests (Node.js-style runner) that jsdom can't run.
 let extraFailures = 0

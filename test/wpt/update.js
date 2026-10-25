@@ -1,15 +1,13 @@
-"use strict"
-
 // Refreshes the vendored Web Platform Tests under test/wpt/upstream/ from
 // upstream. Run by .github/workflows/wpt-update.yml on a schedule, which opens a
 // PR when the files drift. To add/remove coverage, edit FILES below.
 //
 //   node test/wpt/update.js
 
-const { execFileSync } = require("child_process")
-const fs = require("fs")
-const os = require("os")
-const path = require("path")
+import { execFileSync } from "child_process"
+import fs from "fs"
+import os from "os"
+import path from "path"
 
 const WPT_REPO = "https://github.com/web-platform-tests/wpt.git"
 
@@ -45,7 +43,7 @@ const FILES = [
 
 const SPARSE = ["encoding", "common"]
 
-const upstream = path.join(__dirname, "upstream")
+const upstream = path.join(import.meta.dirname, "upstream")
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wpt-"))
 
 try {
@@ -61,7 +59,7 @@ try {
     fs.copyFileSync(path.join(tmp, file), dest)
   }
 
-  fs.writeFileSync(path.join(__dirname, "UPSTREAM"), `${WPT_REPO}\n${commit}\n`)
+  fs.writeFileSync(path.join(import.meta.dirname, "UPSTREAM"), `${WPT_REPO}\n${commit}\n`)
   console.log(`Updated ${FILES.length} files from web-platform-tests@${commit}`)
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true })

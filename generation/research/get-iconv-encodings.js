@@ -3,9 +3,9 @@
 // Usage:
 // > iconv --list | node get-iconv-encodings.js > iconv-data.json
 
-var iconv = require('iconv'),
-    crypto = require('crypto');
-var Buffer = require("buffer").Buffer;
+import iconv from "iconv";
+import crypto from "crypto";
+import { Buffer } from "buffer";
 
 
 var skipEncodings = {};

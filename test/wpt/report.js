@@ -1,29 +1,29 @@
-"use strict"
-
+import { execFileSync } from "node:child_process"
 // Runs the vendored WPT encoding tests against iconv-lite and emits a Markdown
 // conformance report (per-file pass/fail + sample failing tests). Consumed by
 // .github/workflows/wpt-conformance.yml to open/update a tracking issue.
 //
 //   node test/wpt/report.js
 
-const path = require("path")
-const wptRunner = require("wpt-runner")
-const setup = require("./shim")
-const { WINDOW_TESTS, isWindowTest, runWindowTest } = require("./run-window")
-const { runDecodeCompare } = require("./decode-compare")
-const { version } = require("../../package.json")
+import path from "path"
+import wptRunner from "wpt-runner"
+import setup from "./shim.js"
+import { WINDOW_TESTS, isWindowTest, runWindowTest } from "./run-window.js"
+import { runDecodeCompare } from "./decode-compare.js"
+import pkg from "../../package.json" with { type: "json" }
+const { version } = pkg
 
 // iconv-lite commit the report was generated against (for traceability).
 function iconvCommit () {
   if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA
   try {
-    return require("child_process").execFileSync("git", ["rev-parse", "HEAD"], { cwd: __dirname }).toString().trim()
+    return execFileSync("git", ["rev-parse", "HEAD"], { cwd: import.meta.dirname }).toString().trim()
   } catch {
     return "unknown"
   }
 }
 
-const wptRoot = path.join(__dirname, "upstream")
+const wptRoot = path.join(import.meta.dirname, "upstream")
 const MAX_LISTED = 15 // cap failing-test names listed per file
 
 // Test names can contain control chars / line separators (e.g. api-invalid-label

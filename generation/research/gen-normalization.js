@@ -1,9 +1,9 @@
 
 // This script generates unicode normalization data.
 
-var utils = require("../utils"),
-    errTo = require("errto"),
-    async = require("async");
+import utils from "../utils.js";
+import errTo from "errto";
+import async from "async";
 
 var baseUrl = "http://www.unicode.org/Public/6.3.0/ucd/";
 
@@ -101,7 +101,7 @@ async.parallel({
     //           ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\x7f';
 
 
-    // var encodings = require("../../encodings/sbcs-data-generated");
+    // import encodings from "../../encodings/sbcs-data-generated.js";
     // for (var encName in encodings) {
     //     var enc = encodings[encName];
     //     if (enc.chars) {

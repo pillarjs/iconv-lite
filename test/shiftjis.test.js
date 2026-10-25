@@ -1,8 +1,6 @@
-"use strict"
-
-var assert = require("assert")
-var Buffer = require("buffer").Buffer
-var iconv = require("../")
+import assert from "assert"
+import { Buffer } from "buffer"
+import iconv from "../lib/index-node.js"
 
 describe("ShiftJIS tests", function () {
   it("ShiftJIS correctly encoded/decoded", function () {

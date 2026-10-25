@@ -1,5 +1,3 @@
-"use strict"
-
 // Vendors the WHATWG multi-byte index tables needed by decode-compare.js, from
 // the canonical source the spec (and WPT) derive from:
 //   https://encoding.spec.whatwg.org/indexes.json
@@ -10,12 +8,12 @@
 //
 //   node test/wpt/gen-indexes.js
 
-const fs = require("fs")
-const path = require("path")
+import fs from "fs"
+import path from "path"
 
 const URL = "https://encoding.spec.whatwg.org/indexes.json"
 const KEYS = ["jis0208", "jis0212", "big5", "euc-kr"]
-const dest = path.join(__dirname, "data", "whatwg-multibyte-indexes.json")
+const dest = path.join(import.meta.dirname, "data", "whatwg-multibyte-indexes.json")
 
 async function main () {
   const res = await fetch(URL)

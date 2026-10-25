@@ -1,10 +1,11 @@
-"use strict"
-
-const iconv = require("iconv")
-const path = require("path")
-const iconvPath = path.resolve(process.argv[2] || path.join(__dirname, ".."))
-const iconvLite = require(iconvPath)
-const { Suite } = require("bench-node")
+import iconv from "iconv"
+import path from "node:path"
+import { pathToFileURL } from "node:url"
+import { readFileSync } from "node:fs"
+import { Suite } from "bench-node"
+const iconvPath = path.resolve(process.argv[2] || path.join(import.meta.dirname, ".."))
+const pkg = JSON.parse(readFileSync(path.join(iconvPath, "package.json"), "utf8"))
+const { default: iconvLite } = await import(pathToFileURL(path.resolve(iconvPath, pkg.main || "index.js")))
 
 const encodingStrings = {
   "windows-1251": "This is a test string 32 chars..",
@@ -39,7 +40,8 @@ const sizes = { small: 1, large: 100 }
 
 async function main () {
   for (const backend of ["node", "web"]) {
-    iconvLite.setBackend(require(path.join(iconvPath, "backends", backend)))
+    const { default: implementation } = await import(pathToFileURL(path.join(iconvPath, "backends", backend + ".js")))
+    iconvLite.setBackend(implementation)
     console.log(`\nBackend: ${backend}`)
     const suite = new Suite({
       pretty: true,

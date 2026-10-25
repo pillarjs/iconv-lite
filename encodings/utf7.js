@@ -1,5 +1,3 @@
-"use strict"
-
 /**
  * UTF-7 (RFC 2152) and UTF-7-IMAP / Modified UTF-7 (RFC 3501) codecs.
  *
@@ -643,7 +641,7 @@ class Utf7Decoder {
   }
 }
 
-exports.utf7 = Utf7Codec
-exports.unicode11utf7 = "utf7" // Alias UNICODE-1-1-UTF-7.
+export const utf7 = Utf7Codec
+export const unicode11utf7 = "utf7" // Alias UNICODE-1-1-UTF-7.
 
-exports.utf7imap = Utf7IMAPCodec
+export const utf7imap = Utf7IMAPCodec

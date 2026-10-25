@@ -1,5 +1,3 @@
-"use strict"
-
 // == UTF16-LE / UTF16-BE codecs ===============================================
 //
 // Decoding uses the WHATWG-standard TextDecoder (available in both Node and browsers), so it
@@ -209,16 +207,16 @@ function detectEncoding (bufs, defaultEncoding) {
 
 // == Exports ==================================================================
 
-exports.utf16le = Utf16LECodec
+export const utf16le = Utf16LECodec
 // Aliases that the WHATWG Encoding Standard maps to UTF-16LE (keys are canonicalized labels).
-exports.ucs2 = "utf16le"
-exports.unicode = "utf16le"
-exports.csunicode = "utf16le"
-exports.iso10646ucs2 = "utf16le"
-exports.unicodefeff = "utf16le"
+export const ucs2 = "utf16le"
+export const unicode = "utf16le"
+export const csunicode = "utf16le"
+export const iso10646ucs2 = "utf16le"
+export const unicodefeff = "utf16le"
 
-exports.utf16be = Utf16BECodec
+export const utf16be = Utf16BECodec
 // Alias that the WHATWG Encoding Standard maps to UTF-16BE.
-exports.unicodefffe = "utf16be"
+export const unicodefffe = "utf16be"
 
-exports.utf16 = Utf16Codec
+export const utf16 = Utf16Codec

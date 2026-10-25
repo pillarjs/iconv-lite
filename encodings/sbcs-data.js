@@ -1,8 +1,6 @@
-"use strict"
-
 // Manually added data to be used by sbcs codec in addition to generated one.
 
-module.exports = {
+export default {
   // Not supported by iconv, not sure why.
   10029: "maccenteuro",
   maccenteuro: {

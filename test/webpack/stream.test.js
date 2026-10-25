@@ -1,12 +1,10 @@
-"use strict"
-
-var assert = require("assert").strict
+import { strict as assert } from "assert"
+import iconv from "iconv-lite"
+import * as stream from "stream"
 
 describe("iconv-lite with streams", function () {
-  var iconv = require("iconv-lite")
-
   it("supports streams when explicitly enabled", function () {
-    iconv.enableStreamingAPI(require("stream"))
+    iconv.enableStreamingAPI(stream)
     assert(iconv.supportsStreams)
   })
 

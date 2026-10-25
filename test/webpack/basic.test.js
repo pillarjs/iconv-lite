@@ -1,16 +1,13 @@
-"use strict"
-
-var assert = require("assert").strict
+import { strict as assert } from "assert"
+import iconv from "iconv-lite"
 
 describe("iconv-lite", function () {
-  var iconv
-
-  it("can be require-d successfully", function () {
+  it("can be imported successfully", function () {
     // Emulate more complex environments that are both web- and node.js-compatible (e.g. Electron renderer process).
     // See https://github.com/ashtuchkin/iconv-lite/issues/204 for details.
     process.versions.node = "12.0.0"
 
-    iconv = require("iconv-lite")
+    assert.equal(typeof iconv.encode, "function")
   })
 
   it("does not support streams by default", function () {
@@ -57,12 +54,5 @@ describe("iconv-lite", function () {
         var actual = iconv.decode(uint8Array, encoding)
         assert.equal(actual, expected, encoding)
       })
-  })
-})
-
-describe("stream module", function () {
-  it("is not included in the bundle", function () {
-    var streamModuleName = "stream"
-    assert.throws(function () { return require(streamModuleName) }, /Cannot find module 'stream'/)
   })
 })

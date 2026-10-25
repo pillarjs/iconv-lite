@@ -1,4 +1,3 @@
-"use strict"
 // NOTE: This backend uses TextDecoder class.
 // NOTE: Web backend differs from Node in handling invalid surrogates when decoding to strings in rawCharsToResult() function.
 //   Node passes them through unchanged, web backend (actually TextDecoder) replaces them with '�'. I haven't found a
@@ -16,7 +15,7 @@ for (let i = 0; i < BASE64_CHARS.length; i++) {
 BASE64_VALUES[0x2d] = 62 // Accept the URL-safe alphabet too.
 BASE64_VALUES[0x5f] = 63
 
-module.exports = {
+export default {
   encodeString (str, encoding) {
     if (encoding === "utf8") return utf8Encoder.encode(str)
     if (encoding === "hex") return hexToBytes(str)

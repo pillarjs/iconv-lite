@@ -1,5 +1,4 @@
-"use strict"
-
+import { pathToFileURL } from "node:url"
 // Runs WPT mapping tests that need a specific query variant — they ship
 // multiple `// META: variant=` blocks (TextDecoder / XMLHttpRequest / document)
 // and the non-TextDecoder ones need a server. Following Node.js's WPTRunner
@@ -7,12 +6,12 @@
 // the iconv-lite-backed TextDecoder/TextEncoder, and `location.search` pinned to
 // the chosen variant — so only the TextDecoder branch runs.
 
-const vm = require("vm")
-const fs = require("fs")
-const path = require("path")
-const setup = require("./shim")
+import vm from "vm"
+import fs from "fs"
+import path from "path"
+import setup from "./shim.js"
 
-const upstream = path.join(__dirname, "upstream")
+const upstream = path.join(import.meta.dirname, "upstream")
 
 // Which window tests to run, and the variant to pin (skips browser-only variants).
 const WINDOW_TESTS = [
@@ -69,9 +68,9 @@ function runWindowTest ({ file, variant }) {
   return result
 }
 
-module.exports = { WINDOW_TESTS, isWindowTest, runWindowTest }
+export { WINDOW_TESTS, isWindowTest, runWindowTest }
 
-if (require.main === module) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   for (const t of WINDOW_TESTS) {
     const r = runWindowTest(t)
     console.log(`${r.file} (${t.variant}) — ${r.pass} pass, ${r.fail} fail`)

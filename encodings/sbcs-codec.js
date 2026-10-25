@@ -1,9 +1,7 @@
-"use strict"
-
 // Single-byte codec. Needs a 'chars' string parameter that contains 256 or 128 chars that
 // correspond to encoded bytes (if 128 - then lower half is ASCII).
 
-exports._sbcs = class SBCSCodec {
+export const _sbcs = class SBCSCodec {
   constructor (codecOptions, iconv) {
     if (!codecOptions) {
       throw new Error("SBCS codec is called without the data.")

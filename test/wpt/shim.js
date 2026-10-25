@@ -1,19 +1,17 @@
-"use strict"
-
 // Installs iconv-lite-backed TextDecoder / TextEncoder globals so that the
 // upstream Web Platform Tests (encoding/*.any.js) run unmodified against
 // iconv-lite instead of the engine's native implementation.
 
-const fs = require("fs")
-const path = require("path")
-const vm = require("vm")
-const iconv = require("../..")
+import fs from "fs"
+import path from "path"
+import vm from "vm"
+import iconv from "../../lib/index-node.js"
 
 // Build the WHATWG label -> canonical-name map from the same encodings table the
 // tests use, so `decoder.encoding` reports the spec's canonical name. The map is
 // only consulted for naming; whether a label is *accepted* is decided by iconv.
 function loadWhatwgLabels () {
-  const src = fs.readFileSync(path.join(__dirname, "upstream", "encoding", "resources", "encodings.js"), "utf8")
+  const src = fs.readFileSync(path.join(import.meta.dirname, "upstream", "encoding", "resources", "encodings.js"), "utf8")
   const ctx = { location: { search: "" } }
   vm.createContext(ctx)
   vm.runInContext(src, ctx)
@@ -82,7 +80,7 @@ class IconvTextEncoder {
   encode (str = "") { return new Uint8Array(iconv.encode(String(str), "utf-8")) }
 }
 
-module.exports = function setup (window) {
+export default function setup (window) {
   RealmRangeError = window.RangeError || RangeError
   RealmTypeError = window.TypeError || TypeError
   window.TextDecoder = IconvTextDecoder

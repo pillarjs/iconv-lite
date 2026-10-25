@@ -1,11 +1,9 @@
-"use strict"
-
 // Additional encoding-label aliases from the WHATWG Encoding Standard (https://encoding.spec.whatwg.org/).
 // Keys are canonicalized labels (lowercase, separators stripped); values are existing iconv-lite
 // encoding names. Labels whose target encoding iconv-lite does not implement (e.g. iso-2022-jp,
 // x-user-defined) are intentionally omitted.
 
-module.exports = {
+export default {
   // windows-1250 .. windows-1258
   xcp1250: "windows1250",
   xcp1251: "windows1251",

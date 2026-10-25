@@ -1,21 +1,15 @@
-"use strict"
+// Keep imports explicit so this registry also works in browsers.
+import internal from "./internal.js"
+import * as utf32 from "./utf32.js"
+import * as utf16 from "./utf16.js"
+import * as utf7 from "./utf7.js"
+import * as sbcsCodec from "./sbcs-codec.js"
+import sbcsData from "./sbcs-data.js"
+import sbcsDataGenerated from "./sbcs-data-generated.js"
+import * as dbcsCodec from "./dbcs-codec.js"
+import dbcsData from "./dbcs-data.js"
+import whatwgAliases from "./whatwg-aliases.js"
 
-// Update this array if you add/rename/remove files in this directory.
-// We support Browserify by skipping automatic module discovery and requiring modules directly.
-const modules = [
-  require("./internal"),
-  require("./utf32"),
-  require("./utf16"),
-  require("./utf7"),
-  require("./sbcs-codec"),
-  require("./sbcs-data"),
-  require("./sbcs-data-generated"),
-  require("./dbcs-codec"),
-  require("./dbcs-data"),
-  require("./whatwg-aliases")
-]
-
-// Put all encoding/alias/codec definitions to single object and export it.
-for (const module of modules) {
-  Object.assign(exports, module)
+export default function getEncodings () {
+  return Object.assign({ __proto__: null }, internal, utf32, utf16, utf7, sbcsCodec, sbcsData, sbcsDataGenerated, dbcsCodec, dbcsData, whatwgAliases)
 }

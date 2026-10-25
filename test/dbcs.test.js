@@ -1,8 +1,8 @@
-"use strict"
-
-var assert = require("assert")
-var Buffer = require("buffer").Buffer
-var iconv = require("../")
+import { createRequire } from "node:module"
+import assert from "assert"
+import { Buffer } from "buffer"
+import iconv from "../lib/index-node.js"
+const require = createRequire(import.meta.url)
 
 // Make all valid input combinations for a given encoding and call fn with it.
 // fn(valid, input, output)

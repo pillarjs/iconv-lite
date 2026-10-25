@@ -1,4 +1,8 @@
-[
+// Generated encoding table. Allocate and cache its data on first use.
+let table
+
+export default function getTable () {
+  return table ||= [
 ["a140","",62],
 ["a180","",32],
 ["a240","",62],
@@ -54,3 +58,4 @@
 ["fe80","䜣䜩䝼䞍⻊䥇䥺䥽䦂䦃䦅䦆䦟䦛䦷䦶龺䲣䲟䲠䲡䱷䲢䴓",6,"䶮龻",93],
 ["8135f437",""]
 ]
+}

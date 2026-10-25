@@ -1,7 +1,7 @@
-"use strict"
-
-const assert = require("assert")
-const utils = require("./helpers/utils")
+import nativeIconv from "iconv"
+import { Buffer } from "buffer"
+import assert from "assert"
+import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
 const hex = utils.hex
 
@@ -265,13 +265,11 @@ describe("UTF-32 general codec #node-web", function () {
 // Not tagged #node-web (uses Buffer + the optional `iconv` binding), which the web/webpack build maps
 // to an empty module, so these are skipped there.
 describe("UTF-32 full code point round-trip", function () {
-  let Iconv
-  try { Iconv = require("iconv").Iconv } catch (_e) {}
+  const { Iconv } = nativeIconv
 
   let cache
   function buildAll () {
     if (cache) { return cache }
-    const Buffer = require("buffer").Buffer
     let str = ""
     const leBuf = Buffer.alloc(0x10F800 * 4)
     const beBuf = Buffer.alloc(0x10F800 * 4)

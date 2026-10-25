@@ -10,26 +10,51 @@
   [Grunt](http://gruntjs.com/), [Nodemailer](http://www.nodemailer.com/), [Yeoman](http://yeoman.io/) and others.
 * Faster than [node-iconv](https://github.com/bnoordhuis/node-iconv) (see below for performance comparison).
 * Intuitive encode/decode API, including Streaming support.
-* In-browser usage via [browserify](https://github.com/substack/node-browserify) or [webpack](https://webpack.js.org/) (~180kb gzip compressed with Buffer shim included).
+* Native ES modules for Node.js and browsers, with automatic backend selection in compatible bundlers.
 * Typescript [type definition file](https://github.com/ashtuchkin/iconv-lite/blob/master/lib/index.d.ts) included.
 * React Native is supported (need to install `stream` module to enable Streaming API).
 
 ## Usage
 
+This package uses ES modules and requires Node.js 22 or later. CommonJS callers
+can use `const { default: iconv } = await import('iconv-lite')` inside an async
+function. Direct `require('iconv-lite')` is no longer a supported entry point.
+Encoding and decoding remain synchronous once the module has loaded.
+
+Use the default export to change settings such as `defaultCharUnicode`. Functions
+are also available as named exports, for example `import { encode, decode } from
+'iconv-lite'`.
+
 ### Basic API
 
 ```javascript
-var iconv = require('iconv-lite');
+import iconv from 'iconv-lite';
 
 // Convert from an encoded buffer to a js string.
-str = iconv.decode(Buffer.from([0x68, 0x65, 0x6c, 0x6c, 0x6f]), 'win1251');
+const str = iconv.decode(Buffer.from([0x68, 0x65, 0x6c, 0x6c, 0x6f]), 'win1251');
 
 // Convert from a js string to an encoded buffer.
-buf = iconv.encode("Sample input string", 'win1251');
+const buf = iconv.encode("Sample input string", 'win1251');
 
 // Check if encoding is supported
 iconv.encodingExists("us-ascii")
 ```
+
+### Browsers
+
+Bundlers select the Web backend automatically. You can also select it explicitly:
+
+```javascript
+import iconv from 'iconv-lite/web';
+const bytes = iconv.encode('Hello', 'utf8'); // Uint8Array, without a Buffer polyfill.
+```
+
+For native browser modules, import `lib/index-web.js` from a served copy of the
+package. Streams are disabled by default; enable them with
+`iconv.enableStreamingAPI(stream)` if your application provides a stream implementation.
+
+DBCS table modules are imported with the library, but their arrays and codec
+lookup tables are initialized and cached only when the corresponding encoding is used.
 
 ### Streaming API
 

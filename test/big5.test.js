@@ -1,8 +1,8 @@
-"use strict"
-
-var assert = require("assert")
-var Buffer = require("buffer").Buffer
-var iconv = require("../")
+import { createRequire } from "node:module"
+import assert from "assert"
+import { Buffer } from "buffer"
+import iconv from "../lib/index-node.js"
+const require = createRequire(import.meta.url)
 
 var testString = "中文abc" // unicode contains Big5-code and ascii
 var testStringBig5Buffer = Buffer.from([0xa4, 0xa4, 0xa4, 0xe5, 0x61, 0x62, 0x63])

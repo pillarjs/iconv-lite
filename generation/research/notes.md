@@ -98,5 +98,5 @@ Encoding =
 /encodings/index.js - loads all needed files to fill iconv.encodings.
 /encodings/sbcs-codec.js, dbcs-codec.js - code to convert.
 /encodings/sbcs-data.js, .. - aliases/tables to use.
-/encodings/tables/cp950.json - (generally large) tables to be used with dbcs.
+/encodings/tables/cp950.js - generated DBCS table factory; initializes and caches its data on first use.
 

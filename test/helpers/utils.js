@@ -1,8 +1,7 @@
-"use strict"
+import assert from "assert"
+import iconv from "iconv-lite"
 
-const assert = require("assert")
-
-const utils = (module.exports = {
+const utils = {
   setIconvLite (iconv) {
     utils.iconv = iconv
     utils.backend = iconv.backend
@@ -11,12 +10,6 @@ const utils = (module.exports = {
 
   requireIconv () {
     if (!utils.iconv) {
-      const iconvPath = "../../" // Don't ship this module in the browser environment.
-      const iconv = require(iconvPath)
-      if (process.env.ICONV_BACKEND) {
-        const backendPath = `../../backends/${process.env.ICONV_BACKEND}`
-        iconv.setBackend(require(backendPath))
-      }
       utils.setIconvLite(iconv)
     }
     return utils.iconv
@@ -254,4 +247,6 @@ const utils = (module.exports = {
     }
     assert.equal(i, str.length)
   }
-})
+}
+
+export default utils

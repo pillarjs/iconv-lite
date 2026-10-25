@@ -1,5 +1,4 @@
-"use strict"
-
+import { pathToFileURL } from "node:url"
 // Conformance check for the legacy multi-byte decoders that ship no TextDecoder
 // `.any.js` test upstream (shift_jis / euc-jp / euc-kr / big5 — only iframe/XHR
 // tests exist). Following how TextDecoder polyfills are compared in practice, it
@@ -9,8 +8,8 @@
 // against the iconv-lite-backed shim. gbk/gb18030 are already covered by the
 // vendored `*-decoder.any.js` tests.
 
-const installShim = require("./shim")
-const indexes = require("./data/whatwg-multibyte-indexes.json")
+import installShim from "./shim.js"
+import indexes from "./data/whatwg-multibyte-indexes.json" with { type: "json" }
 
 // Pointers whose big5 decode yields two code points (special-cased; skipped here).
 const BIG5_DUAL = new Set([1133, 1135, 1164, 1166])
@@ -83,9 +82,9 @@ function runDecodeCompare () {
   })
 }
 
-module.exports = { runDecodeCompare }
+export { runDecodeCompare }
 
-if (require.main === module) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   for (const r of runDecodeCompare()) {
     console.log(`${r.enc}: ${r.pass} pass, ${r.fail} fail`)
     for (const f of r.failures) console.log(`  × ${f}`)

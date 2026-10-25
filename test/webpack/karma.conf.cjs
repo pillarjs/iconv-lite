@@ -1,6 +1,7 @@
 "use strict"
 
 const webpack = require("webpack")
+const path = require("node:path")
 
 // Karma configuration
 // Generated on Sat May 23 2020 18:02:48 GMT-0400 (Eastern Daylight Time)
@@ -39,6 +40,7 @@ module.exports = function (config) {
       target: ["web"],
       resolve: {
         alias: {
+          "iconv-lite": path.dirname(require.resolve("iconv-lite/package.json")),
           iconv: false // Native binding used only by Node-only libiconv cross-checks.
         },
         fallback: {

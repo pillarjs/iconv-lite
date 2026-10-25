@@ -1,7 +1,5 @@
-"use strict";
-
 // Generated data for sbcs codec. Don't edit manually. Regenerate using generation/gen-sbcs.js script.
-module.exports = {
+export default {
   "437": "cp437",
   "737": "cp737",
   "775": "cp775",

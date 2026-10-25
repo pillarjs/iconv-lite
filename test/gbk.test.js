@@ -1,10 +1,10 @@
-"use strict"
-
-var fs = require("fs")
-var assert = require("assert")
-var Buffer = require("buffer").Buffer
-var join = require("path").join
-var iconv = require("../")
+import { createRequire } from "node:module"
+import fs from "fs"
+import assert from "assert"
+import { Buffer } from "buffer"
+import { join } from "path"
+import iconv from "../lib/index-node.js"
+const require = createRequire(import.meta.url)
 
 var testString = "中国abc" // unicode contains GBK-code and ascii
 var testStringGBKBuffer = Buffer.from([0xd6, 0xd0, 0xb9, 0xfa, 0x61, 0x62, 0x63])
@@ -26,7 +26,7 @@ describe("GBK tests", function () {
     } catch (_e) {
       this.skip()
     }
-    var contentBuffer = fs.readFileSync(join(__dirname, "fixtures", "gbkFile.txt"))
+    var contentBuffer = fs.readFileSync(join(import.meta.dirname, "fixtures", "gbkFile.txt"))
     var str = iconv.decode(contentBuffer, "GBK")
     var iconvc = new (require("iconv").Iconv)("GBK", "utf8")
     assert.strictEqual(iconvc.convert(contentBuffer).toString(), str)

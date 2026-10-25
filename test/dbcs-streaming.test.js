@@ -1,7 +1,5 @@
-"use strict"
-
-const assert = require("assert")
-const utils = require("./helpers/utils")
+import assert from "assert"
+import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
 
 describe("DBCS streaming #node-web", function () {

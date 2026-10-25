@@ -1,8 +1,6 @@
-"use strict"
-
-const assert = require("assert")
-const Buffer = require("buffer").Buffer
-const iconv = require("../")
+import assert from "assert"
+import { Buffer } from "buffer"
+import iconv from "../lib/index-node.js"
 
 describe("CESU-8 codec", function () {
   it("encodes correctly", function () {
