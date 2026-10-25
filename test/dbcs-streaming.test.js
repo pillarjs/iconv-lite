@@ -41,6 +41,20 @@ describe("DBCS streaming #node-web", function () {
   ]
 
   for (const [encoding, hex, expected] of decodeCases) {
+    it(`decodes ${hex} as ${encoding} while the caller reuses its input buffer`, function () {
+      const decoder = iconv.getDecoder(encoding)
+      const chunk = new Uint8Array(1)
+      let actual = ""
+      for (const byte of utils.bytes(hex)) {
+        chunk[0] = byte
+        actual += decoder.write(chunk)
+        chunk[0] = 0xff
+        assert.strictEqual(decoder.write(new Uint8Array(0)), "")
+      }
+      assert.strictEqual(actual + decoder.end(), expected)
+      assert.strictEqual(decoder.end(), "")
+    })
+
     it(`decodes ${hex} as ${encoding} at every chunk boundary`, function () {
       const input = utils.bytes(hex)
       for (let split = 0; split <= input.length; split++) {

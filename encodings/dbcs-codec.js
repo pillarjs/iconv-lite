@@ -439,6 +439,7 @@ class DBCSDecoder {
   }
 
   write (buf) {
+    if (buf.length === 0) return ""
     // Buffered bytes can complete a surrogate pair/sequence or need reprocessing.
     var newBuf = this.backend.allocRawChars(buf.length + this.prevBytes.length)
     var nodeIdx = this.nodeIdx
@@ -500,9 +501,16 @@ class DBCSDecoder {
     }
 
     this.nodeIdx = nodeIdx
-    this.prevBytes = (seqStart >= 0)
-      ? Array.prototype.slice.call(buf, seqStart)
-      : prevBytes.slice(seqStart + prevOffset).concat(Array.prototype.slice.call(buf))
+    // Keep only the unfinished sequence, reusing the small pending-byte array.
+    if (seqStart >= 0) {
+      prevBytes.length = buf.length - seqStart
+      for (var i = seqStart; i < buf.length; i++) prevBytes[i - seqStart] = buf[i]
+    } else {
+      var retained = 0
+      for (var i = seqStart + prevOffset; i < prevOffset; i++) prevBytes[retained++] = prevBytes[i]
+      for (var i = 0; i < buf.length; i++) prevBytes[retained++] = buf[i]
+      prevBytes.length = retained
+    }
 
     if (preserveSurrogates) {
       let result = ""
@@ -515,6 +523,7 @@ class DBCSDecoder {
   }
 
   end () {
+    if (this.prevBytes.length === 0) return ""
     var ret = ""
 
     // Try to parse all remaining chars.
@@ -524,12 +533,12 @@ class DBCSDecoder {
       var bytesArr = this.prevBytes.slice(1)
 
       // Parse remaining as usual.
-      this.prevBytes = []
+      this.prevBytes.length = 0
       this.nodeIdx = 0
       if (bytesArr.length > 0) { ret += this.write(bytesArr) }
     }
 
-    this.prevBytes = []
+    this.prevBytes.length = 0
     this.nodeIdx = 0
     return ret
   }

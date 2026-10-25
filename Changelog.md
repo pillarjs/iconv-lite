@@ -10,7 +10,7 @@
 
 - Refactor DBCS codecs for Node and browsers - by [@bjohansebas](https://github.com/bjohansebas)
 
-    DBCS codecs, including GBK/GB18030, Big5, Shift_JIS, EUC-JP and EUC-KR, now use classes and backend allocations and conversions. Node encoders retain Buffer results, while Web encoders return Uint8Array without requiring a Buffer polyfill.
+    DBCS codecs, including GBK/GB18030, Big5, Shift_JIS, EUC-JP and EUC-KR, now use classes and backend allocations and conversions. Node encoders retain Buffer results, while Web encoders return Uint8Array without requiring a Buffer polyfill. Conversions reuse the Web UTF-16 decoder and DBCS pending-byte storage, and avoid redundant Node buffer views.
 
 - Refactor internal codecs for Node and browsers - by [@bjohansebas](https://github.com/bjohansebas) in [#429](https://github.com/pillarjs/iconv-lite/pull/429)
 
