@@ -18,7 +18,7 @@
 
     UTF-8 decoding strips only one leading BOM and calls `stripBOM` callbacks once.
 
-- Correct CESU-8 finalization - by [@spokodev](https://github.com/spokodev) and [@bjohansebas](https://github.com/bjohansebas) in [#421](https://github.com/pillarjs/iconv-lite/pull/421) and [#429](https://github.com/pillarjs/iconv-lite/pull/429)
+- Correct CESU-8 finalization - by [@spokodev](https://github.com/spokodev) and [@bjohansebas](https://github.com/bjohansebas) in [#416](https://github.com/pillarjs/iconv-lite/pull/416), [#421](https://github.com/pillarjs/iconv-lite/pull/421) and [#429](https://github.com/pillarjs/iconv-lite/pull/429)
 
     Incomplete CESU-8 sequences emit one replacement character on final flush, without a spurious `0` or repeated output on subsequent flushes.
 
