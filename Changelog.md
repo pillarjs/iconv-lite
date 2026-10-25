@@ -8,11 +8,19 @@
 
 ### 🚀 Improvements
 
+- Refactor DBCS codecs for Node and browsers - by [@bjohansebas](https://github.com/bjohansebas)
+
+    DBCS codecs, including GBK/GB18030, Big5, Shift_JIS, EUC-JP and EUC-KR, now use classes and backend allocations and conversions. Node encoders retain Buffer results, while Web encoders return Uint8Array without requiring a Buffer polyfill.
+
 - Refactor internal codecs for Node and browsers - by [@bjohansebas](https://github.com/bjohansebas) in [#429](https://github.com/pillarjs/iconv-lite/pull/429)
 
     UTF-8, CESU-8, binary, hex and Base64 now use classes and backend conversions. Node retains native Buffer conversions, while Web encoders return Uint8Array without requiring a Buffer polyfill. Binary, hex and Base64 decoding avoids input copies for complete inputs, and Web conversions use native hex/Base64 methods where available and beneficial.
 
 ### 🐞 Bug fixes
+
+- Preserve DBCS output across chunk boundaries - by [@bjohansebas](https://github.com/bjohansebas)
+
+    Streaming encoders and decoders reserve space for pending input as well as the new chunk. This prevents truncated output when completing surrogate pairs, Big5 combining sequences, or reprocessing malformed multibyte input.
 
 - Use the default byte when encoding U+FFFD in SBCS - by [@mamicicekel](https://github.com/mamicicekel) in [#424](https://github.com/pillarjs/iconv-lite/pull/424)
 
