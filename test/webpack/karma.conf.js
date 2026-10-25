@@ -38,12 +38,14 @@ module.exports = function (config) {
       mode: "development",
       target: ["web"],
       resolve: {
+        alias: {
+          iconv: false // Native binding used only by Node-only libiconv cross-checks.
+        },
         fallback: {
           stream: require.resolve("stream-browserify"),
           assert: require.resolve("assert/"),
           util: require.resolve("util/"),
-          buffer: require.resolve("buffer"), // This should't be needed, need work in remove this.
-          iconv: false // Native binding used only by Node-only libiconv cross-checks; absent in the browser.
+          buffer: require.resolve("buffer") // This should't be needed, need work in remove this.
         }
       },
       node: {

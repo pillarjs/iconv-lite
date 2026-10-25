@@ -2,6 +2,18 @@
 // NOTE: This backend uses Buffer APIs that are only available in Node v4.5+ and v5.10+.
 
 module.exports = {
+  // Keep the internal encodings on Node's native conversion paths.
+  encodeString (str, encoding) {
+    return Buffer.from(str, encoding)
+  },
+  decodeBytes (bytes, encoding) {
+    const buf = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    return buf.toString(encoding)
+  },
+  copyBytes (bytes) {
+    return Buffer.from(bytes)
+  },
+
   // Encoder string input: use str directly, .length, .charCodeAt(i).
   // Encoder bytes output: allocBytes() -> use Uint8Array -> bytesToResult().
   allocBytes (numBytes, fill) {
