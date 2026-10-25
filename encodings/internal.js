@@ -58,6 +58,11 @@ class InternalDecoderBytes {
     this.chunks = []
   }
 
+  // A complete input can be converted directly without retaining a copy.
+  decode (buf) {
+    return this.backend.decodeBytes(buf, this.enc)
+  }
+
   write (buf) {
     if (buf.length > 0) {
       // Copy so callers can reuse or mutate their input after write().

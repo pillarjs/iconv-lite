@@ -37,7 +37,7 @@ module.exports = {
     return encoding === "base64" ? btoa(binary) : binary
   },
   copyBytes (bytes) {
-    return Uint8Array.from(bytes)
+    return new Uint8Array(bytes)
   },
 
   // Encoder string input: use str directly, .length, .charCodeAt(i).
@@ -94,6 +94,8 @@ function bytesToBinaryString (bytes) {
     // Uint16Array view uses the little-endian platforms supported by the codecs.
     return binaryDecoder.decode(new Uint16Array(bytes))
   }
+  // Emit one flat string for short chunks, with a bounded argument count.
+  if (bytes.length >= 16) return String.fromCharCode.apply(null, bytes)
   let result = ""
   for (let i = 0; i < bytes.length; i++) result += String.fromCharCode(bytes[i])
   return result
@@ -107,6 +109,11 @@ function hexValue (code) {
 }
 
 function hexToBytes (str) {
+  // Native parsing pays off on larger inputs and requires valid pairs.
+  // Keep the forgiving path for short strings and malformed input.
+  if (str.length >= 128 && typeof Uint8Array.fromHex === "function" && str.length % 2 === 0 && !/[^0-9a-f]/i.test(str)) {
+    return Uint8Array.fromHex(str)
+  }
   const bytes = new Uint8Array(Math.floor(str.length / 2))
   let length = 0
   for (let i = 0; i + 1 < str.length; i += 2) {
@@ -116,10 +123,15 @@ function hexToBytes (str) {
     if (high < 0 || low < 0) break
     bytes[length++] = (high << 4) | low
   }
-  return bytes.subarray(0, length)
+  return length === bytes.length ? bytes : bytes.subarray(0, length)
 }
 
 function base64ToBytes (str) {
+  // Avoid native-call and validation overhead on short strings. Larger, complete
+  // standard-alphabet quads can use the native decoder; keep the forgiving fallback.
+  if (str.length >= 1024 && typeof Uint8Array.fromBase64 === "function" && str.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(str)) {
+    return Uint8Array.fromBase64(str)
+  }
   // Match the forgiving Buffer decoder: accept both alphabets, skip invalid
   // characters, stop at padding and ignore any incomplete final sextet.
   const bytes = new Uint8Array(Math.floor(str.length * 3 / 4))
@@ -138,5 +150,5 @@ function base64ToBytes (str) {
       bytes[length++] = (acc >>> bits) & 0xff
     }
   }
-  return bytes.subarray(0, length)
+  return length === bytes.length ? bytes : bytes.subarray(0, length)
 }

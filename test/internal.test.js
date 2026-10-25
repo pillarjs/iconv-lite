@@ -117,7 +117,7 @@ describe("Internal codecs #node-web", function () {
     }
   })
 
-  it("buffers independent copies of binary, hex and Base64 input", function () {
+  it("preserves binary, hex and Base64 input after callers mutate it", function () {
     for (const [encoding, expected] of [["binary", "\0\x80\xff"], ["hex", "0080ff"], ["base64", "AID/"]]) {
       const input = new Uint8Array([0, 0x80, 0xff])
       const decoder = iconv.getDecoder(encoding)
@@ -125,6 +125,26 @@ describe("Internal codecs #node-web", function () {
       input.fill(0)
       assert.strictEqual(decoder.end(), expected)
       assert.strictEqual(decoder.end(), "")
+    }
+  })
+
+  it("combines many binary, hex and Base64 chunks before returning the result", function () {
+    const input = new Uint8Array(257).fill(0x80)
+    for (const [encoding, expected] of [["binary", "\x80".repeat(257)], ["hex", "80".repeat(257)], ["base64", "gICA".repeat(85) + "gIA="]]) {
+      for (const size of [1, 2, 3, 7, 16, 32, 63, 64]) {
+        const decoder = iconv.getDecoder(encoding)
+        const chunk = new Uint8Array(size)
+        for (let offset = 0; offset < input.length; offset += size) {
+          const length = Math.min(size, input.length - offset)
+          chunk.fill(0x80)
+          assert.strictEqual(decoder.write(chunk.subarray(0, length)), "")
+          chunk.fill(0)
+        }
+        assert.strictEqual(decoder.end(), expected)
+        assert.strictEqual(decoder.end(), "")
+        assert.strictEqual(decoder.write(input), "")
+        assert.strictEqual(decoder.end(), expected)
+      }
     }
   })
 

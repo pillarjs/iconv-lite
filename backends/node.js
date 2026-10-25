@@ -22,14 +22,9 @@ module.exports = {
     return new Uint8Array(buf.buffer, buf.byteOffset, numBytes)
   },
   bytesToResult (bytes, finalLen) {
-    // In Node 5.10.0-6.3.0, Buffer.from() raises error if fed with zero-length buffer, so we check for it explicitly.
-    if (finalLen === 0) {
-      return Buffer.alloc(0)
-    }
-
-    // In Node 4.5.0-5.10.0, Buffer.from() does not support (arrayBuffer, byteOffset, length) signature, only (arrayBuffer),
-    // so we emulate it with .slice().
-    return Buffer.from(bytes.buffer).slice(bytes.byteOffset, bytes.byteOffset + finalLen)
+    // Do not retain the backing allocation when no bytes were produced.
+    if (finalLen === 0) return Buffer.alloc(0)
+    return Buffer.from(bytes.buffer, bytes.byteOffset, finalLen)
   },
   concatByteResults (bufs) {
     return Buffer.concat(bufs)
@@ -43,7 +38,6 @@ module.exports = {
     return new Uint16Array(buf.buffer, buf.byteOffset, numChars)
   },
   rawCharsToResult (rawChars, finalLen) {
-    // See comments in bytesToResult about old Node versions support.
     if (finalLen === 0) {
       return ""
     }
