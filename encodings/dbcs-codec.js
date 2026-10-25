@@ -1,5 +1,4 @@
 "use strict"
-var Buffer = require("buffer").Buffer
 
 // Multibyte codec. In this scheme, a character is represented by 1 or more bytes.
 // Our codec supports UTF-16 surrogates, extensions for GB18030 and unicode sequences.
@@ -126,8 +125,8 @@ class DBCSCodec {
     if (this.defCharSB === UNASSIGNED) this.defCharSB = "?".charCodeAt(0)
   }
 
-  get encoder () { return DBCSEncoder }
-  get decoder () { return DBCSDecoder }
+  createEncoder (options, iconv) { return new DBCSEncoder(this, iconv.backend) }
+  createDecoder (options, iconv) { return new DBCSDecoder(this, iconv.backend) }
 
   // Decoder helpers
   _getDecodeTrieNode (addr) {
@@ -261,7 +260,8 @@ class DBCSCodec {
 // == Encoder ==================================================================
 
 class DBCSEncoder {
-  constructor (options, codec) {
+  constructor (codec, backend) {
+    this.backend = backend
     // Encoder state
     this.leadSurrogate = -1
     this.seqObj = undefined
@@ -276,7 +276,7 @@ class DBCSEncoder {
   write (str) {
     // A pending surrogate or sequence may emit output before the new input.
     const pendingChars = (this.leadSurrogate === -1 ? 0 : 1) + (this.seqObj === undefined ? 0 : 1)
-    var newBuf = Buffer.alloc((str.length + pendingChars) * (this.gb18030 ? 4 : 3))
+    var newBuf = this.backend.allocBytes((str.length + pendingChars) * (this.gb18030 ? 4 : 3))
     var leadSurrogate = this.leadSurrogate
     var seqObj = this.seqObj
     var nextChar = -1
@@ -386,13 +386,13 @@ class DBCSEncoder {
 
     this.seqObj = seqObj
     this.leadSurrogate = leadSurrogate
-    return newBuf.slice(0, j)
+    return this.backend.bytesToResult(newBuf, j)
   }
 
   end () {
     if (this.leadSurrogate === -1 && this.seqObj === undefined) { return } // All clean. Most often case.
 
-    var newBuf = Buffer.alloc(10); var j = 0
+    var newBuf = this.backend.allocBytes(10); var j = 0
 
     if (this.seqObj) { // We're in the sequence.
       var dbcsCode = this.seqObj[DEF_CHAR]
@@ -415,7 +415,7 @@ class DBCSEncoder {
       this.leadSurrogate = -1
     }
 
-    return newBuf.slice(0, j)
+    return this.backend.bytesToResult(newBuf, j)
   }
 
   // Export for testing
@@ -425,7 +425,8 @@ class DBCSEncoder {
 // == Decoder ==================================================================
 
 class DBCSDecoder {
-  constructor (options, codec) {
+  constructor (codec, backend) {
+    this.backend = backend
     // Decoder state
     this.nodeIdx = 0
     this.prevBytes = []
@@ -439,11 +440,12 @@ class DBCSDecoder {
 
   write (buf) {
     // Buffered bytes can complete a surrogate pair/sequence or need reprocessing.
-    var newBuf = Buffer.alloc((buf.length + this.prevBytes.length) * 2)
+    var newBuf = this.backend.allocRawChars(buf.length + this.prevBytes.length)
     var nodeIdx = this.nodeIdx
     var prevBytes = this.prevBytes; var prevOffset = this.prevBytes.length
     var seqStart = -this.prevBytes.length // idx of the start of current parsed sequence.
     var uCode
+    var preserveSurrogates = false
 
     for (var i = 0, j = 0; i < buf.length; i++) {
       var curByte = (i >= 0) ? buf[i] : prevBytes[i + prevOffset]
@@ -475,23 +477,23 @@ class DBCSDecoder {
         var seq = this.decodeTableSeq[SEQ_START - uCode]
         for (var k = 0; k < seq.length - 1; k++) {
           uCode = seq[k]
-          newBuf[j++] = uCode & 0xFF
-          newBuf[j++] = uCode >> 8
+          newBuf[j++] = uCode
         }
         uCode = seq[seq.length - 1]
       } else { throw new Error("iconv-lite internal error: invalid decoding table value " + uCode + " at " + nodeIdx + "/" + curByte) }
 
       // Write the character to buffer, handling higher planes using surrogate pair.
       if (uCode >= 0x10000) {
+        // Preserve legacy output for out-of-range GB18030 pointers during this refactor.
+        // TextDecoder-based backends would otherwise replace its isolated surrogates.
+        if (uCode > 0x10FFFF) preserveSurrogates = true
         uCode -= 0x10000
         var uCodeLead = 0xD800 | (uCode >> 10)
-        newBuf[j++] = uCodeLead & 0xFF
-        newBuf[j++] = uCodeLead >> 8
+        newBuf[j++] = uCodeLead
 
         uCode = 0xDC00 | (uCode & 0x3FF)
       }
-      newBuf[j++] = uCode & 0xFF
-      newBuf[j++] = uCode >> 8
+      newBuf[j++] = uCode
 
       // Reset trie node.
       nodeIdx = 0; seqStart = i + 1
@@ -502,7 +504,14 @@ class DBCSDecoder {
       ? Array.prototype.slice.call(buf, seqStart)
       : prevBytes.slice(seqStart + prevOffset).concat(Array.prototype.slice.call(buf))
 
-    return newBuf.slice(0, j).toString("ucs2")
+    if (preserveSurrogates) {
+      let result = ""
+      for (let start = 0; start < j; start += 0x1000) {
+        result += String.fromCharCode.apply(null, newBuf.subarray(start, Math.min(start + 0x1000, j)))
+      }
+      return result
+    }
+    return this.backend.rawCharsToResult(newBuf, j)
   }
 
   end () {

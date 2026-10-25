@@ -6,6 +6,8 @@ require("../helpers/utils").setIconvLite(iconv)
 
 // List of test files that are ready to be run in web environment.
 require("../cyrillic.test")
+require("../dbcs-backends.test")
+require("../dbcs-streaming.test")
 require("../greek.test")
 require("../internal.test")
 require("../sbcs.test")
