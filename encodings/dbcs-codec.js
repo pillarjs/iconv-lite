@@ -274,7 +274,9 @@ class DBCSEncoder {
   }
 
   write (str) {
-    var newBuf = Buffer.alloc(str.length * (this.gb18030 ? 4 : 3))
+    // A pending surrogate or sequence may emit output before the new input.
+    const pendingChars = (this.leadSurrogate === -1 ? 0 : 1) + (this.seqObj === undefined ? 0 : 1)
+    var newBuf = Buffer.alloc((str.length + pendingChars) * (this.gb18030 ? 4 : 3))
     var leadSurrogate = this.leadSurrogate
     var seqObj = this.seqObj
     var nextChar = -1
@@ -436,7 +438,8 @@ class DBCSDecoder {
   }
 
   write (buf) {
-    var newBuf = Buffer.alloc(buf.length * 2)
+    // Buffered bytes can complete a surrogate pair/sequence or need reprocessing.
+    var newBuf = Buffer.alloc((buf.length + this.prevBytes.length) * 2)
     var nodeIdx = this.nodeIdx
     var prevBytes = this.prevBytes; var prevOffset = this.prevBytes.length
     var seqStart = -this.prevBytes.length // idx of the start of current parsed sequence.
