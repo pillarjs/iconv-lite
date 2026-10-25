@@ -14,6 +14,10 @@
 
 ### 🐞 Bug fixes
 
+- Preserve caller options in UTF-16 and UTF-32 auto encoders - by [@KennyMcSimpson](https://github.com/KennyMcSimpson) and [@bjohansebas](https://github.com/bjohansebas) in [#427](https://github.com/pillarjs/iconv-lite/pull/427)
+
+    The automatic UTF-16 and UTF-32 encoders no longer modify the caller's options or throw when those options are frozen. Reusing the options for another encoding no longer adds an unexpected BOM. Explicit and inherited `addBOM` values, and UTF-32's `defaultEncoding`, remain respected.
+
 - Correct UTF-8 BOM handling - by [@bjohansebas](https://github.com/bjohansebas) in [#429](https://github.com/pillarjs/iconv-lite/pull/429)
 
     UTF-8 decoding strips only one leading BOM and calls `stripBOM` callbacks once.
