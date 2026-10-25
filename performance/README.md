@@ -1,14 +1,14 @@
 # Performance
 
 `npm run test:performance` runs `performance/index.js` with `bench-node`, comparing
-iconv-lite with native iconv and TextDecoder. It includes small and large inputs,
-six DBCS families, ASCII through GBK, and Big5/GB18030 decoding one byte per chunk.
+iconv-lite with native iconv and TextDecoder. It runs the Node backend first, then
+the Web backend, with separate reports. Both include small and large inputs, six
+DBCS families, ASCII through GBK, and Big5/GB18030 decoding one byte per chunk.
 
-To run the same suite against an earlier checkout or with the Web backend:
+To run both backends against an earlier checkout:
 
 ```sh
 npm run test:performance -- /path/to/baseline
-npm run test:performance -- . web
 ```
 
 Run both versions on the same machine. Streaming cases that produce incorrect
