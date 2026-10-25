@@ -11,7 +11,7 @@
 const path = require("path")
 const wptRunner = require("wpt-runner")
 const setup = require("./shim")
-const { WINDOW_TESTS, runWindowTest } = require("./run-window")
+const { WINDOW_TESTS, isWindowTest, runWindowTest } = require("./run-window")
 const { runDecodeCompare } = require("./decode-compare")
 
 const args = process.argv.slice(2)
@@ -39,15 +39,15 @@ if ("decode-compare".includes(target) || target === "") {
 
 // Serve from the WPT root so both relative (resources/...) and absolute
 // (/common/...) test includes resolve. jsdom runs the `.any.js` API tests;
-// `.window.js` mapping tests are handled by the vm runner above.
+// mapping tests with query variants are handled by the vm runner above.
 //
-// TODO: the `.window.js` non-TextDecoder variants (?XMLHttpRequest, ?document)
+// TODO: the non-TextDecoder variants (?XMLHttpRequest, ?document)
 // and the legacy-mb iframe tests need the official WPT python server. Running
 // those (e.g. via `wpt serve`) is future work to extend coverage.
 wptRunner(wptRoot, {
   rootURL: "/",
   setup,
-  filter: (testPath) => /\.any\.html$/.test(testPath) && testPath.includes(target)
+  filter: (testPath) => /\.any\.html$/.test(testPath) && !isWindowTest(testPath) && testPath.includes(target)
 })
   .then((failures) => {
     console.log(`\n=== ${failures + extraFailures} failing WPT test(s) against iconv-lite ===`)

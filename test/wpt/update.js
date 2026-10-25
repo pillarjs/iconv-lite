@@ -32,7 +32,8 @@ const FILES = [
   "encoding/textencoder-utf16-surrogates.any.js",
   // Single-byte decoder mapping test — run (TextDecoder variant only) by the
   // vm-based runner in run-window.js, following the approach Node.js uses.
-  "encoding/single-byte-decoder.window.js",
+  "encoding/single-byte-decoder.any.js",
+  "encoding/resources/single-byte-decoder.js",
   // Multi-byte legacy decoders that use TextDecoder (shimmable). Only gbk and
   // gb18030 ship a `.any.js`; shift_jis/euc-jp/euc-kr/big5 are iframe-only.
   "encoding/legacy-mb-schinese/gbk/gbk-decoder.any.js",

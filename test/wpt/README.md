@@ -32,9 +32,9 @@ the WHATWG Encoding Standard, e.g.:
 
 - [`shim.js`](./shim.js) — iconv-lite-backed `TextDecoder` / `TextEncoder`.
 - [`run.js`](./run.js) — entry point. Runs `.any.js` API tests via wpt-runner
-  (jsdom) and `.window.js` mapping tests via the vm runner.
+  (jsdom) and mapping tests with query variants via the vm runner.
 - [`run-window.js`](./run-window.js) — a small `vm`-based runner (following the
-  approach Node.js's `WPTRunner` uses) for `.window.js` tests that ship multiple
+  approach Node.js's `WPTRunner` uses) for tests that ship multiple
   `// META: variant=` blocks. It pins `location.search` to the TextDecoder
   variant so the mapping assertions run against iconv-lite without a browser.
 - [`decode-compare.js`](./decode-compare.js) — for the legacy multi-byte encodings
@@ -53,7 +53,7 @@ the WHATWG Encoding Standard, e.g.:
 
 ## Not yet covered (future work)
 
-- The `.window.js` **non-TextDecoder variants** (`?XMLHttpRequest`, `?document`)
+- The **non-TextDecoder variants** (`?XMLHttpRequest`, `?document`)
   and the upstream **legacy multi-byte iframe tests** (`legacy-mb-*/*.html`) decode
   in the browser/XHR client, not via `TextDecoder`, so they can't exercise iconv-lite
   through the shim (a `wpt serve` browser run would measure the browser instead).

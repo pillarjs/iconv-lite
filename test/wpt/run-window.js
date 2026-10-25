@@ -1,6 +1,6 @@
 "use strict"
 
-// Runs WPT `.window.js` mapping tests that wpt-runner (jsdom) can't — they ship
+// Runs WPT mapping tests that need a specific query variant — they ship
 // multiple `// META: variant=` blocks (TextDecoder / XMLHttpRequest / document)
 // and the non-TextDecoder ones need a server. Following Node.js's WPTRunner
 // approach, this evaluates the test in a `vm` context with a minimal testharness,
@@ -16,8 +16,13 @@ const upstream = path.join(__dirname, "upstream")
 
 // Which window tests to run, and the variant to pin (skips browser-only variants).
 const WINDOW_TESTS = [
-  { file: "encoding/single-byte-decoder.window.js", variant: "?TextDecoder" }
+  { file: "encoding/single-byte-decoder.any.js", variant: "?TextDecoder" }
 ]
+
+// Exclude these tests from jsdom, which does not select the TextDecoder variant.
+function isWindowTest (testPath) {
+  return WINDOW_TESTS.some((t) => t.file.replace(/\.js$/, ".html") === testPath)
+}
 
 function metaScripts (src, dir) {
   return Array.from(src.matchAll(/^\/\/ META:\s*script=(.+)$/gm)).map((m) => {
@@ -64,7 +69,7 @@ function runWindowTest ({ file, variant }) {
   return result
 }
 
-module.exports = { WINDOW_TESTS, runWindowTest }
+module.exports = { WINDOW_TESTS, isWindowTest, runWindowTest }
 
 if (require.main === module) {
   for (const t of WINDOW_TESTS) {
