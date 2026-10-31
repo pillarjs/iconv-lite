@@ -1,14 +1,13 @@
 import assert from "assert"
 import fs from "fs"
 import vm from "vm"
+import encodings from "../encodings/internal.js"
 
-// These script contexts exercise byte-method fallbacks; esm.test.js checks the native module graph.
-describe("Internal codecs without Node globals", function () {
+// Keep byte-method overrides in a separate context; esm.test.js checks the
+// native module graph without Node globals.
+describe("Web backend byte-method fallbacks", function () {
   for (const nativeByteMethods of [true, false]) {
-    it(`loads the codecs and web backend without Node globals (native byte methods: ${nativeByteMethods})`, function () {
-      const context = { TextEncoder, TextDecoder, btoa }
-      vm.runInNewContext(fs.readFileSync(new URL("../encodings/internal.js", import.meta.url), "utf8").replace("export default", "globalThis.exports ="), context)
-      const encodings = context.exports
+    it(`encodes and decodes with the web backend (native byte methods: ${nativeByteMethods})`, function () {
       const backendContext = { TextEncoder, TextDecoder, btoa }
       if (!nativeByteMethods) {
         vm.runInNewContext(`

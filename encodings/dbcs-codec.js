@@ -1,3 +1,5 @@
+import { EncodingHandler, EncodingBuffer } from "../lib/encoding-handler.js"
+
 // Multibyte codec. In this scheme, a character is represented by 1 or more bytes.
 // Our codec supports UTF-16 surrogates, extensions for GB18030 and unicode sequences.
 // To save memory and initialization time, we build codec tables only when requested.
@@ -129,7 +131,12 @@ class DBCSCodec {
     if (this.defCharSB === UNASSIGNED) this.defCharSB = "?".charCodeAt(0)
   }
 
-  createEncoder (options, iconv) { return new DBCSEncoder(this, iconv.backend) }
+  createEncoder (options, iconv) {
+    return typeof options?.invalidCharHandler === "function"
+      ? new DBCSHandlerEncoder(this, iconv.backend, options.invalidCharHandler)
+      : new DBCSEncoder(this, iconv.backend)
+  }
+
   createDecoder (options, iconv) { return new DBCSDecoder(this, iconv.backend) }
 
   // Decoder helpers
@@ -424,6 +431,136 @@ class DBCSEncoder {
 
   // Export for testing
   findIdx (table, val) { return findIdx(table, val) }
+}
+
+// The opt-in path retains source positions and sequence tokens so replacements can
+// participate in the same Big5/DBCS sequence as the surrounding input.
+class DBCSHandlerEncoder {
+  #codec
+  #backend
+  #handler
+  #sequence = []
+  #node = null
+
+  constructor (codec, backend, callback) {
+    this.#codec = codec
+    this.#backend = backend
+    this.#handler = new EncodingHandler(callback, codec.encodingName)
+  }
+
+  #mapping (char) {
+    const code = char.codePointAt(0)
+    if (code >= 0xD800 && code <= 0xDFFF) return UNASSIGNED
+    const mapped = this.#codec.encodeTable[code >> 8]?.[code & 0xFF] ?? UNASSIGNED
+    if (mapped !== UNASSIGNED || !this.#codec.gb18030) return mapped
+    const ranges = this.#codec.gb18030
+    const index = findIdx(ranges.uChars, code)
+    if (index === -1) return UNASSIGNED
+    const pointer = ranges.gbChars[index] + code - ranges.uChars[index]
+    return (0x81 + Math.floor(pointer / 12600)) * 0x1000000 +
+      (0x30 + Math.floor(pointer / 1260) % 10) * 0x10000 +
+      (0x81 + Math.floor(pointer / 10) % 126) * 0x100 + 0x30 + pointer % 10
+  }
+
+  #invalid (token, output) {
+    if (token.replacement) throw this.#handler.replacementError(token.char, token.index)
+    const replacement = this.#handler.resolve(token.char, token.index)
+    if (replacement === null) return false
+    if (replacement === undefined) {
+      if (!this.#flushSequence(output)) return false
+      output.writeCode(this.#codec.defCharSB)
+    } else {
+      for (const char of replacement) {
+        if (!this.#emit({ char, index: token.index, replacement: true }, output)) return false
+      }
+    }
+    return true
+  }
+
+  #flushSequence (output) {
+    if (!this.#node) return true
+    const code = this.#node[DEF_CHAR]
+    const sequence = this.#sequence
+    this.#node = null
+    this.#sequence = []
+    if (code !== undefined) {
+      output.writeCode(code)
+      return true
+    }
+    // A sequence prefix without its own mapping must not disappear silently.
+    if (!this.#invalid(sequence[0], output)) return false
+    for (const token of sequence.slice(1)) {
+      if (!this.#emit(token, output)) return false
+    }
+    return true
+  }
+
+  #emit (token, output) {
+    const mapped = this.#mapping(token.char)
+    if (this.#node) {
+      const next = this.#node[token.char.codePointAt(0)]
+      if (typeof next === "object") {
+        this.#sequence.push(token)
+        this.#node = next
+        return true
+      }
+      if (typeof next === "number") {
+        output.writeCode(next)
+        this.#node = null
+        this.#sequence = []
+        return true
+      }
+      // Resolve an invalid character before closing the preceding sequence: its
+      // replacement may finish that sequence, or an empty replacement may skip it.
+      if (mapped === UNASSIGNED) return this.#invalid(token, output)
+      if (!this.#flushSequence(output)) return false
+      return this.#emit(token, output)
+    }
+    if (mapped === UNASSIGNED) return this.#invalid(token, output)
+    if (mapped <= SEQ_START) {
+      this.#node = this.#codec.encodeTableSeq[SEQ_START - mapped]
+      this.#sequence = [token]
+    } else {
+      output.writeCode(mapped)
+    }
+    return true
+  }
+
+  #reset () {
+    this.#handler.clear()
+    this.#node = null
+    this.#sequence = []
+  }
+
+  #write (str, final) {
+    const output = new EncodingBuffer(this.#backend, str.length * 3)
+    try {
+      for (const token of this.#handler.read(str, final)) {
+        if (!this.#emit(token, output)) {
+          this.#reset()
+          return null
+        }
+      }
+      if (final) {
+        while (this.#node) {
+          if (!this.#flushSequence(output)) {
+            this.#reset()
+            return null
+          }
+        }
+      }
+      return output.finish()
+    } catch (error) {
+      this.#reset()
+      throw error
+    }
+  }
+
+  write (str) { return this.#write(str, false) }
+
+  end () {
+    if (this.#handler.hasPending || this.#node) return this.#write("", true)
+  }
 }
 
 // == Decoder ==================================================================

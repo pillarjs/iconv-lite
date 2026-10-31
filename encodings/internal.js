@@ -1,6 +1,8 @@
 // Keep streaming state here and delegate platform-specific conversions to the
 // backend: native Buffer operations in Node, Web APIs and typed arrays in browsers.
 
+import { TextEncoderWithHandler, isUnicodeScalar, isBinaryCharacter } from "../lib/encoding-handler.js"
+
 // ------------------------------------------------------------------------------
 
 class InternalCodec {
@@ -10,14 +12,23 @@ class InternalCodec {
   }
 
   createEncoder (options, iconv) {
+    if ((this.enc === "hex" || this.enc === "base64") && options?.invalidCharHandler !== undefined) {
+      throw new TypeError("invalidCharHandler is not supported for " + this.enc)
+    }
     if (this.enc === "base64") {
       return new InternalEncoderBase64(iconv.backend)
     } else if (this.enc === "utf8") {
-      return new InternalEncoderUtf8(iconv.backend)
+      const encoder = new InternalEncoderUtf8(iconv.backend)
+      return typeof options?.invalidCharHandler === "function"
+        ? new TextEncoderWithHandler(encoder, iconv.backend, options.invalidCharHandler, this.enc, isUnicodeScalar, "\uFFFD")
+        : encoder
     } else if (this.enc === "cesu8") {
       return new InternalEncoderCesu8(iconv.backend)
     }
-    return new InternalEncoder(iconv.backend, this.enc)
+    const encoder = new InternalEncoder(iconv.backend, this.enc)
+    return this.enc === "binary" && typeof options?.invalidCharHandler === "function"
+      ? new TextEncoderWithHandler(encoder, iconv.backend, options.invalidCharHandler, this.enc, isBinaryCharacter)
+      : encoder
   }
 
   createDecoder (options, iconv) {

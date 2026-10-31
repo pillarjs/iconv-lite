@@ -6,6 +6,12 @@
 
     Only `iconv-lite`, `iconv-lite/web`, and `iconv-lite/encodings/*.js` are exported. Direct package imports of `lib/*`, `backends/*`, and `package.json` are no longer supported. Encoding label normalization is now an internal utility rather than the `_canonicalizeEncoding` instance method; public encoding operations continue to normalize labels internally.
 
+### 🚀 Improvements
+
+- Support `invalidCharHandler` across text encodings - by [@DecimalTurn](https://github.com/DecimalTurn) and [@bjohansebas](https://github.com/bjohansebas) in [#388](https://github.com/pillarjs/iconv-lite/pull/388)
+
+    Add custom handling for unrepresentable characters in single-byte, multibyte, UTF-8, UTF-32, and binary encoding. Handlers can return replacement text, skip characters, keep default fallback bytes, cancel a write, or throw. Streaming preserves split surrogate pairs and original character positions. Supported by both Node and Web backends; `hex` and `base64` reject the option.
+
 ### 🐞 Bug fixes
 
 - Isolate the Node and Web entry points.

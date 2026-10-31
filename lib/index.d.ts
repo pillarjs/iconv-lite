@@ -30,11 +30,32 @@ export interface EncodeOptions {
   addBOM?: boolean;
   /** Override the default endianness for `UTF-32` encoding. */
   defaultEncoding?: "utf32be";
+  /**
+   * Called when encoding a character that cannot be represented in the target encoding.
+   * Return `true` to discard the current write (or buffered end output) and return `null`.
+   * Later writes may still succeed. A cancellation also makes `iconv.encode()` return `null`.
+   * Return a string to encode it instead (an empty string omits the character).
+   * An unencodable replacement or any other return value throws a TypeError,
+   * without invoking the handler recursively.
+   * Return `false` or nothing to keep the default replacement bytes.
+   * Thrown errors propagate to the caller or become errors on `encodeStream()`.
+   *
+   * Used by single-byte and multibyte encoders, UTF-8, UTF-32, and binary.
+   * These encoders buffer a trailing high surrogate until the next nonempty write or `end()`.
+   * UTF-16, CESU-8, and UTF-7 preserve all UTF-16 code units and never invoke it.
+   * Hex and Base64 reject this option.
+   *
+   * @param char - The unencodable character.
+   * @param index - The zero-based code-point position in the original write where the character starts.
+   */
+  invalidCharHandler?: (char: string, index: number) => string | boolean | void;
 }
 
-export interface EncoderStream<Bytes extends Uint8Array = Buffer> {
-  write(str: string): Bytes;
-  end(): Bytes | undefined;
+export interface EncoderStream<Bytes extends Uint8Array = Buffer, CanCancel extends boolean = boolean> {
+  /** Encodes a chunk. A cancelling handler discards this write's output and returns `null`. */
+  write(str: string): CanCancel extends true ? Bytes | null : Bytes;
+  /** Flushes buffered characters. A cancelling handler may return `null` here too. */
+  end(): (CanCancel extends true ? Bytes | null : Bytes) | undefined;
 }
 
 export interface DecoderStream {
@@ -62,7 +83,8 @@ export interface Backend<Bytes extends Uint8Array = Uint8Array> {
 
 export interface Iconv<Bytes extends Uint8Array = Buffer> {
   /** Encodes a `string` into backend bytes, using the provided `encoding`. */
-  encode (content: string, encoding: Encoding, options?: EncodeOptions): Bytes
+  encode (content: string, encoding: Encoding, options?: EncodeOptions & { invalidCharHandler?: undefined }): Bytes
+  encode (content: string, encoding: Encoding, options?: EncodeOptions): Bytes | null
 
   /** Decodes a `Buffer` into a `string`, using the provided `encoding`. */
   decode (buffer: Buffer | Uint8Array, encoding: Encoding, options?: DecodeOptions): string
@@ -92,6 +114,7 @@ export interface Iconv<Bytes extends Uint8Array = Buffer> {
   enableStreamingAPI (stream_module: { Transform: typeof Stream.Transform }): void
 
   /** Creates and returns a low-level encoder stream. */
+  getEncoder (encoding: Encoding, options?: EncodeOptions & { invalidCharHandler?: undefined }): EncoderStream<Bytes, false>
   getEncoder (encoding: Encoding, options?: EncodeOptions): EncoderStream<Bytes>
 
   /** Creates and returns a low-level decoder stream. */
