@@ -104,13 +104,20 @@ const bytes = iconv.encode('Hello', 'utf8'); // Uint8Array, without a Buffer pol
 ```
 
 For native browser modules, import `lib/index-web.js` from a served copy of the
-package. Streams are disabled by default; enable them with
-`iconv.enableStreamingAPI(stream)` if your application provides a stream implementation.
+package. `encodeWebStream()` and `decodeWebStream()` use the native
+`TransformStream` automatically. `iconv.supportsWebStreams` reports whether it is
+available; older environments can supply a global `TransformStream` polyfill.
+The Web entry point exposes only Web Streams. `encodeStream()`, `decodeStream()`,
+and `supportsStreams` belong to the Node entry point.
 
 DBCS table modules are imported with the library, but their arrays and codec
 lookup tables are initialized and cached only when the corresponding encoding is used.
 
 ### Streaming API
+
+In Node.js, `encodeStream()` and `decodeStream()` return Node streams.
+`encodeWebStream()` and `decodeWebStream()` return Web Streams and are available
+in both Node.js and browsers. Both APIs are initialized automatically.
 
 ```javascript
 // Decode stream (from binary data stream to js strings)
@@ -129,7 +136,7 @@ fs.createReadStream('file-in-win1251.txt')
     .pipe(iconv.encodeStream('ucs2'))
     .pipe(fs.createWriteStream('file-in-ucs2.txt'));
 
-// Sugar: all encode/decode streams have .collect(cb) method to accumulate data.
+// Sugar: Node encode/decode streams have .collect(cb) to accumulate data.
 http.createServer(function(req, res) {
     req.pipe(iconv.decodeStream('win1251')).collect(function(err, body) {
         assert(typeof body == 'string');
@@ -138,10 +145,36 @@ http.createServer(function(req, res) {
 });
 ```
 
+Web Streams work with `fetch()`, `pipeThrough()`, and `pipeTo()`:
+
+```javascript
+import iconv from 'iconv-lite/web'; // Use 'iconv-lite' in Node.js.
+
+const response = await fetch('/file-in-win1251.txt');
+const utf8Bytes = response.body
+    .pipeThrough(iconv.decodeWebStream('win1251'))
+    .pipeThrough(iconv.encodeWebStream('utf8'));
+
+// Consume the stream, or pipe it to a WritableStream destination.
+const text = await new Response(utf8Bytes).text();
+```
+
+`encodeWebStream(encoding, options)` accepts strings and produces encoded bytes
+(`Buffer` with the Node backend, `Uint8Array` with the Web backend).
+`decodeWebStream(encoding, options)` accepts `Uint8Array` or `Buffer` chunks and
+produces strings. Both accept the same codec options as `encode()` and `decode()`.
+Closing the writable side flushes buffered codec output; errors and cancellation
+propagate through the native stream pipeline, with native backpressure.
+Use a reader or `pipeTo()` to consume output while writing input. Web Streams
+expose `.readable` and `.writable`; `.collect()` belongs to the Node stream API.
+As with Node streams, `hex` input is parsed per chunk, so keep each pair of hex
+digits in the same chunk.
+
 Returning `true` from `invalidCharHandler` discards the entire
 current `write()`, including its valid prefix, and returns `null`. Later writes
-can still succeed. In `encodeStream()`, this drops the current chunk without
-ending the stream; throw from the handler to signal a stream error instead.
+can still succeed. In `encodeStream()` and `encodeWebStream()`, this drops the
+current chunk without ending the stream; throw from the handler to signal a
+stream error instead.
 
 With a handler, SBCS, DBCS, UTF-8, UTF-32, and `binary` encoders buffer a trailing
 high surrogate until the next nonempty write or `end()`, so a split surrogate

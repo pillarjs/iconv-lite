@@ -10,12 +10,13 @@ describe("iconv-lite", function () {
     assert.equal(typeof iconv.encode, "function")
   })
 
-  it("does not support streams by default", function () {
-    assert(!iconv.supportsStreams)
-
-    assert.throws(function () {
-      iconv.encodeStream()
-    }, /Streaming API is not enabled/)
+  it("supports Web Streams automatically and exposes no Node stream methods", function () {
+    assert(iconv.supportsWebStreams)
+    assert(iconv.encodeWebStream("utf8") instanceof TransformStream)
+    assert(iconv.decodeWebStream("utf8") instanceof TransformStream)
+    for (const name of ["encodeStream", "decodeStream", "enableStreamingAPI", "supportsStreams"]) {
+      assert(!(name in iconv))
+    }
   })
 
   it("can encode/decode sbcs encodings", function () {

@@ -1,6 +1,6 @@
-import type { Iconv } from "./index.js"
+import type { WebIconv as Iconv } from "./index.js"
 
-export type { Iconv, Backend, Codec, EncodeOptions, DecodeOptions, EncoderStream, DecoderStream, Encoding } from "./index.js"
+export type { WebIconv as Iconv, Backend, Codec, EncodeOptions, DecodeOptions, EncoderStream, DecoderStream, Encoding } from "./index.js"
 
 declare const iconv: Iconv<Uint8Array>
 export default iconv
@@ -13,7 +13,6 @@ export const fromEncoding: Iconv<Uint8Array>["fromEncoding"]
 export const getCodec: Iconv<Uint8Array>["getCodec"]
 export const getEncoder: Iconv<Uint8Array>["getEncoder"]
 export const getDecoder: Iconv<Uint8Array>["getDecoder"]
-export const encodeStream: Iconv<Uint8Array>["encodeStream"]
-export const decodeStream: Iconv<Uint8Array>["decodeStream"]
-export const enableStreamingAPI: Iconv<Uint8Array>["enableStreamingAPI"]
+export const encodeWebStream: Iconv<Uint8Array>["encodeWebStream"]
+export const decodeWebStream: Iconv<Uint8Array>["decodeWebStream"]
 export const setBackend: Iconv<Uint8Array>["setBackend"]

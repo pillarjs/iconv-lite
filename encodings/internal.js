@@ -36,6 +36,8 @@ class InternalCodec {
       return new InternalDecoder(options)
     } else if (this.enc === "cesu8") {
       return new InternalDecoderCesu8(iconv.defaultCharUnicode)
+    } else if (this.enc === "base64") {
+      return new InternalDecoderBase64(iconv.backend)
     }
     return new InternalDecoderBytes(iconv.backend, this.enc)
   }
@@ -60,12 +62,11 @@ class InternalDecoder {
   }
 }
 
-// Binary, hex and Base64 expose the buffered bytes as a string on final flush.
+// Binary and hex convert each chunk independently.
 class InternalDecoderBytes {
   constructor (backend, encoding) {
     this.backend = backend
     this.enc = encoding
-    this.chunks = []
   }
 
   // A complete input can be converted directly without retaining a copy.
@@ -74,18 +75,46 @@ class InternalDecoderBytes {
   }
 
   write (buf) {
-    if (buf.length > 0) {
-      // Copy so callers can reuse or mutate their input after write().
-      this.chunks.push(this.backend.copyBytes(buf))
-    }
-    return ""
+    return this.decode(buf)
   }
 
   end () {
-    // Avoid a second copy for the common, single-write decode() call.
-    const bytes = this.chunks.length === 1 ? this.chunks[0] : this.backend.concatByteResults(this.chunks)
-    this.chunks = []
-    return this.backend.decodeBytes(bytes, this.enc)
+    return ""
+  }
+}
+
+// Base64 retains at most two bytes so padding appears only on final flush.
+class InternalDecoderBase64 extends InternalDecoderBytes {
+  #pending = new Uint8Array(3)
+  #pendingLength = 0
+
+  constructor (backend) {
+    super(backend, "base64")
+  }
+
+  write (buf) {
+    let result = ""
+    if (this.#pendingLength > 0) {
+      const length = Math.min(3 - this.#pendingLength, buf.length)
+      this.#pending.set(buf.subarray(0, length), this.#pendingLength)
+      this.#pendingLength += length
+      if (this.#pendingLength < 3) return ""
+      result = this.decode(this.#pending)
+      this.#pendingLength = 0
+      buf = buf.subarray(length)
+    }
+
+    const completeLength = buf.length - (buf.length % 3)
+    if (completeLength > 0) result += this.decode(buf.subarray(0, completeLength))
+    this.#pending.set(buf.subarray(completeLength))
+    this.#pendingLength = buf.length - completeLength
+    return result
+  }
+
+  end () {
+    const result = this.decode(this.#pending.subarray(0, this.#pendingLength))
+    this.#pendingLength = 0
+    return result
   }
 }
 

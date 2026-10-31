@@ -2,11 +2,19 @@
 
 ### ⚠️ Breaking changes
 
+- Remove Node-style streams from the Web entry point.
+
+    `iconv-lite/web` no longer exposes `encodeStream()`, `decodeStream()`, or `supportsStreams`. Use the native `encodeWebStream()` and `decodeWebStream()` methods and `supportsWebStreams` instead. The Node entry point continues to offer both stream APIs. `enableStreamingAPI()` has been removed from both entry points; Node streams initialize automatically.
+
 - Restrict public package entry points.
 
     Only `iconv-lite`, `iconv-lite/web`, and `iconv-lite/encodings/*.js` are exported. Direct package imports of `lib/*`, `backends/*`, and `package.json` are no longer supported. Encoding label normalization is now an internal utility rather than the `_canonicalizeEncoding` instance method; public encoding operations continue to normalize labels internally.
 
 ### 🚀 Improvements
+
+- Add native Web Streams support - by [@bjohansebas](https://github.com/bjohansebas), following [#340](https://github.com/pillarjs/iconv-lite/discussions/340)
+
+    Add `encodeWebStream()` and `decodeWebStream()` in Node.js and browsers, using the global `TransformStream` without setup. The streams preserve codec options, buffered output, and invalid character handling, with native backpressure and error propagation. Node.js callers can choose these methods or the existing Node-style `encodeStream()` and `decodeStream()`. `supportsWebStreams` reports native or polyfilled availability.
 
 - Support `invalidCharHandler` across text encodings - by [@DecimalTurn](https://github.com/DecimalTurn) and [@bjohansebas](https://github.com/bjohansebas) in [#388](https://github.com/pillarjs/iconv-lite/pull/388)
 
@@ -14,9 +22,21 @@
 
 ### 🐞 Bug fixes
 
+- Match root import types to the selected runtime entry point.
+
+    Browser and default resolution expose the Web API with Uint8Array results. Node resolution retains Buffer results and Node stream methods.
+
+- Decode binary, hex and Base64 streams incrementally.
+
+    Emit output during writes instead of retaining the entire input until close. Base64 keeps at most two pending bytes and adds padding only on final flush, allowing stream backpressure to bound queued output.
+
+- Preserve buffered UTF-16 and UTF-32 input during endianness detection.
+
+    Reusing or transferring input buffers after a streaming write no longer corrupts or discards bytes retained for autodetection.
+
 - Isolate the Node and Web entry points.
 
-    Importing `iconv-lite/web` alongside `iconv-lite` no longer changes the Node backend or enables streams on the Web instance. Each instance has its own codec cache and mutable settings; `setBackend()` and `enableStreamingAPI()` affect only that instance.
+    Importing `iconv-lite/web` alongside `iconv-lite` no longer changes the Node backend or enables Node streams on the Web instance. Each instance has its own codec cache and mutable settings; `setBackend()` affects only that instance.
 
 ## 1.0.0-alpha.3
 

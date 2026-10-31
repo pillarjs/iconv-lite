@@ -331,9 +331,11 @@ class Utf32AutoDecoder {
 
   write (buf) {
     if (!this.decoder) {
+      if (buf.length === 0) return ""
       // Codec not chosen yet: accumulate initial bytes until the heuristic has enough to work with.
-      this.initialBufs.push(buf)
       this.initialBufsLen += buf.length
+      // Own bytes retained after write(); the chunk that triggers detection is consumed now.
+      this.initialBufs.push(this.initialBufsLen < 32 ? new Uint8Array(buf) : buf)
       if (this.initialBufsLen < 32) { return "" }
       return this._chooseDecoder()
     }
