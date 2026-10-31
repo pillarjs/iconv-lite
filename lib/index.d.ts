@@ -35,15 +35,18 @@ export interface EncodeOptions {
    * Return `true` to discard the current write (or buffered end output) and return `null`.
    * Later writes may still succeed. A cancellation also makes `iconv.encode()` return `null`.
    * Return a string to encode it instead (an empty string omits the character).
-   * An unencodable replacement throws without invoking the handler recursively.
+   * An unencodable replacement or any other return value throws a TypeError,
+   * without invoking the handler recursively.
    * Return `false` or nothing to keep the default replacement bytes.
    * Thrown errors propagate to the caller or become errors on `encodeStream()`.
    *
-   * Currently used by single-byte encoders only.
-   * A trailing high surrogate is buffered until the next nonempty write or `end()`.
+   * Used by single-byte and multibyte encoders, UTF-8, UTF-32, and binary.
+   * These encoders buffer a trailing high surrogate until the next nonempty write or `end()`.
+   * UTF-16, CESU-8, and UTF-7 preserve all UTF-16 code units and never invoke it.
+   * Hex and Base64 reject this option.
    *
    * @param char - The unencodable character.
-   * @param index - The zero-based code-point position in the write where the character starts.
+   * @param index - The zero-based code-point position in the original write where the character starts.
    */
   invalidCharHandler?: (char: string, index: number) => string | boolean | void;
 }

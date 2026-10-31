@@ -87,3 +87,6 @@ webIconv.setBackend(webBackend)
 webIconv.defaultCharUnicode = "?"
 
 expectTypeOf(encode("🙂", "latin1", { invalidCharHandler: () => ":)" })).toEqualTypeOf<Buffer | null>()
+expectTypeOf(webEncode("🙂", "shiftjis", { invalidCharHandler: () => "" })).toEqualTypeOf<Uint8Array | null>()
+expectTypeOf(getEncoder("utf8", { invalidCharHandler: () => "�" }).end()).toEqualTypeOf<Buffer | null | undefined>()
+expectTypeOf(webEncoder("utf32", { invalidCharHandler: () => "�" }).write("\uD800")).toEqualTypeOf<Uint8Array | null>()
