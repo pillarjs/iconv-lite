@@ -1,4 +1,4 @@
-import iconv, { encode, getEncoder, encodeWebStream, decodeWebStream } from "iconv-lite"
+import iconv, { encode, getEncoder, encodeWebStream, decodeWebStream, addEncoding } from "iconv-lite"
 import * as exports from "iconv-lite"
 import { expectTypeOf } from "expect-type"
 
@@ -13,3 +13,5 @@ expectTypeOf(getEncoder("utf8").write("hello")).toEqualTypeOf<Uint8Array>()
 expectTypeOf(encodeWebStream("utf8")).toEqualTypeOf<TransformStream<string, Uint8Array>>()
 expectTypeOf(decodeWebStream("utf8")).toEqualTypeOf<TransformStream<Uint8Array, string>>()
 expectTypeOf(iconv.supportsWebStreams).toBeBoolean()
+addEncoding({ "external-alias": "utf8" })
+expectTypeOf(encode("hello", "external-alias")).toEqualTypeOf<Uint8Array>()

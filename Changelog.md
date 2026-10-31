@@ -12,6 +12,10 @@
 
 ### 🚀 Improvements
 
+- Register external encoding packages with `addEncoding(definitions, options)`.
+
+    Support codec constructors, aliases, and configured variants on the Node and Web instances. Registration is atomic and idempotent; replacements require `{ replace: true }` and invalidate dependent caches. Publish codec and backend contracts and types for external labels. UTF-7 and UTF-7-IMAP remain built in. Addresses [#253](https://github.com/pillarjs/iconv-lite/issues/253).
+
 - Add native Web Streams support - by [@bjohansebas](https://github.com/bjohansebas), following [#340](https://github.com/pillarjs/iconv-lite/discussions/340)
 
     Add `encodeWebStream()` and `decodeWebStream()` in Node.js and browsers, using the global `TransformStream` without setup. The streams preserve codec options, buffered output, and invalid character handling, with native backpressure and error propagation. Node.js callers can choose these methods or the existing Node-style `encodeStream()` and `decodeStream()`. `supportsWebStreams` reports native or polyfilled availability.
@@ -21,6 +25,10 @@
     Add custom handling for unrepresentable characters in single-byte, multibyte, UTF-8, UTF-32, and binary encoding. Handlers can return replacement text, skip characters, keep default fallback bytes, cancel a write, or throw. Streaming preserves split surrogate pairs and original character positions. Supported by both Node and Web backends; `hex` and `base64` reject the option.
 
 ### 🐞 Bug fixes
+
+- Preserve configured codec variants when their base codec is cached.
+
+    Configured aliases use their own options and cache entries, with variant options taking precedence over base options. Cyclic aliases fail with an error instead of looping indefinitely.
 
 - Match root import types to the selected runtime entry point.
 

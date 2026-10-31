@@ -69,6 +69,27 @@ const checkedBuf = iconv.encode("Hello 世界", 'latin1', {
 iconv.encodingExists("us-ascii")
 ```
 
+### External encodings
+
+Import an encoding package's definition map and register it on the entry point
+your application uses:
+
+```javascript
+import iconv from 'iconv-lite'; // Or 'iconv-lite/web'.
+import definitions from './custom-encodings.js';
+
+iconv.addEncoding(definitions);
+const bytes = iconv.encode('Hello', 'custom-encoding');
+```
+
+`addEncoding(definitions, { replace: true })` explicitly allows replacing existing
+codecs and aliases. Registration is atomic, normalizes labels, and rejects missing
+alias targets and cycles. Repeating equivalent definitions is a no-op. Node and Web
+instances keep their registrations separate. UTF-7 and UTF-7-IMAP remain built in.
+
+See [Writing encoding packages](docs/encoding-packages.md) for the codec and backend
+contracts, TypeScript types, and testing guidance.
+
 ### Handling unrepresentable characters
 
 `invalidCharHandler(char, index)` runs when encoding would replace or truncate an

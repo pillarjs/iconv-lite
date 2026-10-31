@@ -13,6 +13,7 @@
         "backends/",
         "lib/",
         "encodings/",
+        "docs/encoding-packages.md",
         "types/"
     ],
     "author": "Alexander Shtuchkin <ashtuchkin@gmail.com>",
