@@ -1,3 +1,17 @@
+## Unreleased
+
+### ⚠️ Breaking changes
+
+- Restrict public package entry points.
+
+    Only `iconv-lite`, `iconv-lite/web`, and `iconv-lite/encodings/*.js` are exported. Direct package imports of `lib/*`, `backends/*`, and `package.json` are no longer supported. Encoding label normalization is now an internal utility rather than the `_canonicalizeEncoding` instance method; public encoding operations continue to normalize labels internally.
+
+### 🐞 Bug fixes
+
+- Isolate the Node and Web entry points.
+
+    Importing `iconv-lite/web` alongside `iconv-lite` no longer changes the Node backend or enables streams on the Web instance. Each instance has its own codec cache and mutable settings; `setBackend()` and `enableStreamingAPI()` affect only that instance.
+
 ## 1.0.0-alpha.3
 
 ### ⚠️ Breaking changes

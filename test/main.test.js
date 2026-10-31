@@ -2,6 +2,7 @@ import whatwgAliases from "../encodings/whatwg-aliases.js"
 import assert from "assert"
 import { Buffer } from "buffer"
 import iconv from "../lib/index-node.js"
+import { canonicalizeEncoding } from "../lib/utils.js"
 
 var testString = "Hello123!"
 var testStringLatin1 = "Hello123!£Å÷×çþÿ¿®"
@@ -123,17 +124,20 @@ describe("Generic UTF8-UCS2 tests", function () {
   })
 })
 
-describe("Canonicalize encoding function", function () {
+describe("Encoding label normalization", function () {
   it("works with numbers directly", function () {
-    assert.equal(iconv._canonicalizeEncoding(955), "955")
+    assert.strictEqual(canonicalizeEncoding(955), "955")
+    assert.strictEqual(iconv.getCodec(1251), iconv.getCodec("1251"))
   })
 
   it("correctly strips year and non-alpha chars", function () {
-    assert.equal(iconv._canonicalizeEncoding("ISO_8859-5:1988"), "iso88595")
+    assert.strictEqual(canonicalizeEncoding("ISO_8859-5:1988"), "iso88595")
+    assert.strictEqual(iconv.getCodec("ISO_8859-5:1988"), iconv.getCodec("iso88595"))
   })
 
   it("trims surrounding ASCII whitespace (per WHATWG)", function () {
-    assert.equal(iconv._canonicalizeEncoding(" \t\n\f\rUTF-8 \t\n\f\r"), "utf8")
+    assert.strictEqual(canonicalizeEncoding(" \t\n\f\rUTF-8 \t\n\f\r"), "utf8")
+    assert.strictEqual(iconv.getCodec(" \t\n\f\rUTF-8 \t\n\f\r"), iconv.getCodec("utf8"))
     assert.ok(iconv.encodingExists("  utf-8  "))
   })
 

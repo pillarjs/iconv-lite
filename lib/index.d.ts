@@ -103,9 +103,6 @@ export interface Iconv<Bytes extends Uint8Array = Buffer> {
    */
   getCodec (encoding: Encoding): Codec<Bytes>
 
-  /** Strips all non-alphanumeric characters and appended year from `encoding`. */
-  _canonicalizeEncoding (encoding: Encoding): string
-
   /** A cache of all loaded encoding definitions. */
   encodings: Record<
     Encoding,

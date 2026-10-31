@@ -80,9 +80,6 @@
             "types": "./lib/index-web.d.ts",
             "default": "./lib/index-web.js"
         },
-        "./backends/*.js": "./backends/*.js",
-        "./encodings/*.js": "./encodings/*.js",
-        "./lib/*.js": "./lib/*.js",
-        "./package.json": "./package.json"
+        "./encodings/*.js": "./encodings/*.js"
     }
 }

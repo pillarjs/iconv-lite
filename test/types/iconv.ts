@@ -1,12 +1,16 @@
 import iconv, { encode, decode, getEncoder } from "iconv-lite"
+import { canonicalizeEncoding } from "../../lib/utils.js"
 import type { Encoding } from "iconv-lite"
 import { expectTypeOf } from "expect-type"
 
 // Default and named ESM exports preserve the output type of each entry point.
 import webIconv, { encode as webEncode, getEncoder as webEncoder } from "iconv-lite/web"
-import webBackend from "iconv-lite/backends/web.js"
+import webBackend from "../../backends/web.js"
 
-expectTypeOf(iconv._canonicalizeEncoding).toBeFunction()
+expectTypeOf(iconv).not.toHaveProperty("_canonicalizeEncoding")
+expectTypeOf(webIconv).not.toHaveProperty("_canonicalizeEncoding")
+expectTypeOf(iconv).not.toHaveProperty("canonicalizeEncoding")
+expectTypeOf(webIconv).not.toHaveProperty("canonicalizeEncoding")
 expectTypeOf(iconv.encode).toBeFunction()
 expectTypeOf(iconv.decode).toBeFunction()
 expectTypeOf(iconv.encodingExists).toBeFunction()
@@ -34,6 +38,8 @@ expectTypeOf(iconv.encodings).toEqualTypeOf<Record<
 
 expectTypeOf<Encoding>().toBeString()
 
+expectTypeOf(canonicalizeEncoding("UTF-8")).toEqualTypeOf<string>()
+expectTypeOf(canonicalizeEncoding(1251)).toEqualTypeOf<string>()
 expectTypeOf(encode("hello", "utf8")).toEqualTypeOf<Buffer>()
 expectTypeOf(decode(new Uint8Array(), "utf8")).toEqualTypeOf<string>()
 expectTypeOf(getEncoder("utf8").write("hello")).toEqualTypeOf<Buffer>()

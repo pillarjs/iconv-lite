@@ -25,6 +25,9 @@ Use the default export to change settings such as `defaultCharUnicode`. Function
 are also available as named exports, for example `import { encode, decode } from
 'iconv-lite'`.
 
+The public package entry points are `iconv-lite`, `iconv-lite/web`, and
+`iconv-lite/encodings/*.js`.
+
 ### Basic API
 
 ```javascript
