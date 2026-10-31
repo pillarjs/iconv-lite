@@ -39,9 +39,60 @@ const str = iconv.decode(Buffer.from([0x68, 0x65, 0x6c, 0x6c, 0x6f]), 'win1251')
 // Convert from a js string to an encoded buffer.
 const buf = iconv.encode("Sample input string", 'win1251');
 
+// Replace unsupported characters with text in the target encoding.
+const replacedBuf = iconv.encode("Hola 🙂", 'latin1', {
+    invalidCharHandler: () => ":)"
+});
+// Encodes "Hola :)"
+
+// Customize handling in case some characters are not representable in the target encoding
+try {
+    iconv.encode("Hello 世界", 'latin1', {
+        invalidCharHandler: function(char, index) {
+            throw new Error("Cannot encode character " + char + " at index " + index);
+        }
+    });
+} catch (error) {
+    console.warn(error.message);
+}
+
+// Stop after first unsupported character (useful to avoid repeated warnings)
+const checkedBuf = iconv.encode("Hello 世界", 'latin1', {
+    invalidCharHandler: function(char, index) {
+        console.warn("Unsupported character " + char + " at index " + index);
+        return true;
+    }
+});
+// checkedBuf === null
+
 // Check if encoding is supported
 iconv.encodingExists("us-ascii")
 ```
+
+### Handling unrepresentable characters
+
+`invalidCharHandler(char, index)` runs when encoding would replace or truncate an
+input character. Its result controls what happens:
+
+| Handler result | Behavior |
+| --- | --- |
+| A string | Encode that replacement text; `""` omits the character. |
+| `false` or `undefined` | Keep the encoding's default replacement bytes. |
+| `true` | Discard the current write and return `null`. |
+| Throw an error | Propagate the error to the caller or encoding stream. |
+
+Replacement text must be representable in the target encoding. An invalid
+replacement or any other return value throws a `TypeError`, without calling the
+handler recursively. Replacements use the same encoding context as surrounding
+text, including multicharacter Big5 mappings. Indices refer to the original input,
+not the replacement text.
+
+The handler covers unmappable characters in single-byte and multibyte encodings,
+unpaired surrogates in UTF-8 and UTF-32, and characters above U+00FF in `binary`.
+UTF-16, CESU-8, and UTF-7 preserve UTF-16 code units, including unpaired surrogates,
+so they do not invoke the handler. `hex` and `base64` reject this option because
+they convert byte representations rather than text. Omitting the handler keeps
+the existing encoding behavior.
 
 ### Browsers
 
@@ -86,6 +137,20 @@ http.createServer(function(req, res) {
     });
 });
 ```
+
+Returning `true` from `invalidCharHandler` discards the entire
+current `write()`, including its valid prefix, and returns `null`. Later writes
+can still succeed. In `encodeStream()`, this drops the current chunk without
+ending the stream; throw from the handler to signal a stream error instead.
+
+With a handler, SBCS, DBCS, UTF-8, UTF-32, and `binary` encoders buffer a trailing
+high surrogate until the next nonempty write or `end()`, so a split surrogate
+pair is processed as one character. The
+callback index counts Unicode code points within the input of the write where
+the character starts. A buffered character retains its index from that write.
+When using `getEncoder()`, consume the bytes returned by `end()` too; it can
+return `null` if the handler cancels the buffered character. A cancellation
+during either `write()` or `end()` makes the one-shot `encode()` return `null`.
 
 ## Supported encodings
 
@@ -151,7 +216,8 @@ It is not recommended for large or bulk text, where the native `utf8`/`utf16` en
 ## Other notes
 
 When decoding, be sure to supply a Buffer to decode() method, otherwise [bad things usually happen](https://github.com/ashtuchkin/iconv-lite/wiki/Use-Buffers-when-decoding).  
-Untranslatable characters are set to � or ?. No transliteration is currently supported.  
+Untranslatable characters are set to � or ?. When encoding, `invalidCharHandler` can customize replacements, observe unsupported characters, cancel a write, or throw. Automatic transliteration is not supported.
+
 Node versions 0.10.31 and 0.11.13 are buggy, don't use them (see [#65](https://github.com/ashtuchkin/iconv-lite/issues/65), [#77](https://github.com/ashtuchkin/iconv-lite/issues/77)).  
 
 ## Testing

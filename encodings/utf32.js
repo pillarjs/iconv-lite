@@ -21,6 +21,15 @@
  * @see https://unicode.org/faq/utf_bom#utf32-7
  */
 
+import { TextEncoderWithHandler, isUnicodeScalar } from "../lib/encoding-handler.js"
+
+function createEncoder (options, iconv, isLE) {
+  const encoder = new Utf32Encoder(iconv.backend, isLE)
+  return typeof options?.invalidCharHandler === "function"
+    ? new TextEncoderWithHandler(encoder, iconv.backend, options.invalidCharHandler, isLE ? "utf32le" : "utf32be", isUnicodeScalar, "\uFFFD")
+    : encoder
+}
+
 /** Unicode replacement character, emitted by the encoder for ill-formed input. */
 const REPLACEMENT = 0xFFFD
 
@@ -38,14 +47,14 @@ const utf16leDecoder = new TextDecoder("utf-16le", { ignoreBOM: true })
 
 /** UTF-32LE codec. */
 class Utf32LECodec {
-  createEncoder (options, iconv) { return new Utf32Encoder(iconv.backend, true) }
+  createEncoder (options, iconv) { return createEncoder(options, iconv, true) }
   createDecoder (options, iconv) { return new Utf32Decoder(true, iconv.defaultCharUnicode.charCodeAt(0), !!(options && options.fatal)) }
   get bomAware () { return true }
 }
 
 /** UTF-32BE codec. */
 class Utf32BECodec {
-  createEncoder (options, iconv) { return new Utf32Encoder(iconv.backend, false) }
+  createEncoder (options, iconv) { return createEncoder(options, iconv, false) }
   createDecoder (options, iconv) { return new Utf32Decoder(false, iconv.defaultCharUnicode.charCodeAt(0), !!(options && options.fatal)) }
   get bomAware () { return true }
 }
