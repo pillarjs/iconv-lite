@@ -1,19 +1,18 @@
 
 // This script generates unicode normalization data.
 
-import utils from "../utils.js";
-import errTo from "errto";
-import async from "async";
+import { getFile, parseText } from "../utils.js";
 
 var baseUrl = "http://www.unicode.org/Public/6.3.0/ucd/";
 
-async.parallel({
-    data:       utils.getFile.bind(null, baseUrl + "UnicodeData.txt"),
-    exclusions: utils.getFile.bind(null, baseUrl + "CompositionExclusions.txt")
-}, errTo(console.log, function(data) {
+async function generate() {
+    const [data, exclusions] = await Promise.all([
+        getFile(baseUrl + "UnicodeData.txt"),
+        getFile(baseUrl + "CompositionExclusions.txt")
+    ]);
 
     var features = {};
-    utils.parseText(data.data, ";").map(function(a) {
+    parseText(data, ";").map(function(a) {
         var ch = parseInt(a[0], 16);
         var combiningClass = parseInt(a[3], 10) || 0;
         var decompStr = a[5].trim();
@@ -39,7 +38,7 @@ async.parallel({
     });
 
     // Process CompositionExclusions.txt
-    utils.parseText(data.exclusions).map(function(a) { 
+    parseText(exclusions).map(function(a) {
         var ch = parseInt(a[0], 16);
         features[ch].noCompose = true;
     });
@@ -151,6 +150,11 @@ async.parallel({
             }
         }
     }
-}));
+}
+
+generate().catch(function(err) {
+    console.error(err);
+    process.exitCode = 1;
+});
 
 

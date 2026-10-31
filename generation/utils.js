@@ -1,34 +1,31 @@
-import request from "request";
-import fs from "fs";
-import path from "path";
-import errTo from "errto";
+import fs from "node:fs";
+import { readFile, mkdir, writeFile as writeFileAsync } from "node:fs/promises";
+import path from "node:path";
 
 // Common utilities used in scripts.
 
-const utils = {};
-export default utils;
+export async function getFile(url) {
+    const sourceDataFolder = path.join(import.meta.dirname, "source-data");
+    const fullpath = path.join(sourceDataFolder, path.basename(url));
+    try {
+        return await readFile(fullpath, "utf8");
+    } catch (err) {
+        if (err.code !== "ENOENT") throw err;
+    }
 
-utils.getFile = function(url, cb) {
-    var sourceDataFolder = path.join(import.meta.dirname, "source-data");
-    var fullpath = path.join(sourceDataFolder, path.basename(url));
-    fs.readFile(fullpath, "utf8", function(err, text) {
-        if (!err) return cb(null, text);
-        if (err.code != "ENOENT") return cb(err);
-        request(url, errTo(cb, function(res, buf) {
-            if (res.statusCode !== 200)
-                return cb(new Error("GET " + url + " returned HTTP " + res.statusCode));
-            fs.mkdir(sourceDataFolder, function(err) {
-                if (err && err.code != "EEXIST") return cb(err);
-                fs.writeFile(fullpath, buf, errTo(cb, function() {
-                    cb(null, buf.toString());
-                }));
-            });
-        }));
-    });
+    const response = await fetch(url);
+    if (response.status !== 200) {
+        await response.body?.cancel();
+        throw new Error("GET " + url + " returned HTTP " + response.status);
+    }
+    const text = await response.text();
+    await mkdir(sourceDataFolder, { recursive: true });
+    await writeFileAsync(fullpath, text);
+    return text;
 }
 
 // Returns array of arrays.
-utils.parseText = function(text, splitChar) {
+export function parseText(text, splitChar) {
     return text.split("\n").map(function(line) {
         return line.split("#")[0].trim(); 
     }).filter(Boolean).map(function(line) {
@@ -68,7 +65,7 @@ function arrToStr(arr) {
 // [0] = address of start of the chunk, hex string.
 // <str> - characters of the chunk.
 // <num> - increasing sequence of the length num, starting with prev character.
-utils.generateTable = function(dbcs, maxBytes) {
+export function generateTable(dbcs, maxBytes) {
     var minSeqLen = 4;
     var table = [], range, block, seqLen;
     var max = 1 << ((maxBytes || 2) * 8);
@@ -109,11 +106,11 @@ utils.generateTable = function(dbcs, maxBytes) {
 }
 
 
-utils.writeTable = function(name, table) {
-    this.writeFile(name, "[\n" + table.map(function(a) {return JSON.stringify(a);}).join(",\n") + "\n]\n");
+export function writeTable(name, table) {
+    writeFile(name, "[\n" + table.map(function(a) {return JSON.stringify(a);}).join(",\n") + "\n]\n");
 }
 
-utils.writeFile = function(name, body) {
+export function writeFile(name, body) {
     fs.writeFileSync(path.join(import.meta.dirname, "../encodings/tables", name + ".js"),
         "// Generated encoding table. Allocate and cache its data on first use.\nlet table\n\n" +
         "export default function getTable () {\n  return table ||= " + body.trimEnd() + "\n}\n");

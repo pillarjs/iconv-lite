@@ -8,10 +8,7 @@
         "generate:sbcs": "node gen-sbcs.js"
     },
     "devDependencies": {
-        "async": "^3.2.0",
-        "errto": "^0.2.1",
-        "iconv": "^2.3.5",
-        "request": "^2.88.2"
+        "iconv": "^2.3.5"
     },
     "type": "module"
 }
