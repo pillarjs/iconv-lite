@@ -85,10 +85,10 @@ const bytes = iconv.encode('Hello', 'custom-encoding');
 `addEncoding(definitions, { replace: true })` explicitly allows replacing existing
 codecs and aliases. Registration is atomic, normalizes labels, and rejects missing
 alias targets and cycles. Repeating equivalent definitions is a no-op. Node and Web
-instances keep their registrations separate. UTF-7 and UTF-7-IMAP remain built in.
+instances keep their registrations separate.
 
-See [Writing encoding packages](docs/encoding-packages.md) for the codec and backend
-contracts, TypeScript types, and testing guidance.
+See [External encoding API](docs/encoding-packages.md) for registration examples,
+codec and backend contracts, and TypeScript types.
 
 ### Handling unrepresentable characters
 

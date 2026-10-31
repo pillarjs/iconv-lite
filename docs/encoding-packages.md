@@ -1,9 +1,30 @@
-# Writing encoding packages
+# External encoding API
 
-An encoding package exports an object whose keys are encoding labels. Import that
-object and pass it to `iconv.addEncoding(definitions, options)`. This synchronous
-method accepts definitions, not a module path or a promise. Applications control
-when to import the package, including through `await import()`.
+Use `addEncoding(definitions, options)` to register codecs, create aliases, and
+configure variants of existing encodings. The registered labels work with the
+conversion and streaming APIs.
+
+```js
+import iconv from 'iconv-lite'; // Or 'iconv-lite/web'.
+import definitions from './custom-encodings.js';
+
+iconv.addEncoding(definitions);
+
+const bytes = iconv.encode('Hello', 'custom-encoding');
+const text = iconv.decode(bytes, 'custom-encoding');
+const supported = iconv.encodingExists('custom-encoding');
+```
+
+Use the same labels with `getEncoder()`, `getDecoder()`, `encodeWebStream()`, and
+`decodeWebStream()`. The Node entry point also supports `encodeStream()` and
+`decodeStream()`.
+
+Registration is synchronous. Import the definition object before calling
+`addEncoding()`, using a static import or `await import()`.
+
+## Defining a codec
+
+An encoding package exports an object whose keys are encoding labels:
 
 ```js
 // custom-encodings.js: a minimal codec that delegates to UTF-8.
@@ -48,6 +69,13 @@ before any definitions change. Import dependencies before registering a package
 that depends on them.
 
 Existing labels cannot be overwritten unless `{ replace: true }` is supplied.
+For example, an application can create an alias and later change its target:
+
+```js
+iconv.addEncoding({ 'application-text': 'utf8' });
+iconv.addEncoding({ 'application-text': 'utf16be' }, { replace: true });
+```
+
 Identical constructor references, aliases, and shallowly equal options are
 idempotent and preserve the cache. Nested options and tables are shared by
 reference; do not mutate them after registration. A changed registration clears
@@ -109,7 +137,7 @@ Byte views can have nonzero offsets. Treat them as views, not as their entire
 backing buffers. Do not assume output allocations are reusable after returning
 them to callers.
 
-## TypeScript and tests
+## TypeScript
 
 The root and Web entry points export `FactoryCodec`, `ConstructorCodec`, `Codec`,
 `CodecConstructor`, `CodecOptions`, `EncodingDefinitions`, `AddEncodingOptions`,
@@ -120,15 +148,3 @@ For a portable codec, parameterize byte output as `Bytes extends Uint8Array`,
 implement `FactoryCodec<Bytes>`, and accept `WebIconv<Bytes>` in factory methods
 (`Iconv<Bytes>` when importing the types from `iconv-lite/web`). Return results
 through that instance's backend.
-
-Test each encoding against known byte/text vectors on both entry points and in a
-real browser. Check every byte and UTF-16 chunk boundary, including split
-surrogate pairs, empty chunks, incomplete final sequences, nonzero-offset views,
-buffer reuse, and handler/BOM options that the codec supports. Exercise direct
-conversion, low-level encoders/decoders, Node streams, and Web Streams.
-
-The repository's [external encoding tests](../test/add-encoding.test.js) provide a
-portable example suite. It runs with the Node backend, Web backend, and Chrome;
-[instance tests](../test/instances.test.js) also cover Node streams and backend
-changes. No built-in encodings need to be removed to run these tests: UTF-7 and
-UTF-7-IMAP remain available without registration.

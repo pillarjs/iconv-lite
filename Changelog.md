@@ -14,7 +14,7 @@
 
 - Register external encoding packages with `addEncoding(definitions, options)`.
 
-    Support codec constructors, aliases, and configured variants on the Node and Web instances. Registration is atomic and idempotent; replacements require `{ replace: true }` and invalidate dependent caches. Publish codec and backend contracts and types for external labels. UTF-7 and UTF-7-IMAP remain built in. Addresses [#253](https://github.com/pillarjs/iconv-lite/issues/253).
+    Support codec constructors, aliases, and configured variants on the Node and Web instances. Registration is atomic and idempotent; replacements require `{ replace: true }` and invalidate dependent caches. Publish codec and backend contracts and types for external labels. Addresses [#253](https://github.com/pillarjs/iconv-lite/issues/253).
 
 - Add native Web Streams support - by [@bjohansebas](https://github.com/bjohansebas), following [#340](https://github.com/pillarjs/iconv-lite/discussions/340)
 
