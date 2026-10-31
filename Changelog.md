@@ -22,6 +22,10 @@
 
 ### 🐞 Bug fixes
 
+- Decode binary, hex and Base64 streams incrementally.
+
+    Emit output during writes instead of retaining the entire input until close. Base64 keeps at most two pending bytes and adds padding only on final flush, allowing stream backpressure to bound queued output.
+
 - Preserve buffered UTF-16 and UTF-32 input during endianness detection.
 
     Reusing or transferring input buffers after a streaming write no longer corrupts or discards bytes retained for autodetection.

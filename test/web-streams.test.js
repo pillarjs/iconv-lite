@@ -112,6 +112,31 @@ describe("Web Streams #node-web", function () {
     assert.equal(decoded.join(""), "4142")
   })
 
+  for (const [encoding, first, second] of [
+    ["binary", "ABCD", "EF"],
+    ["hex", "41424344", "4546"],
+    ["base64", "QUJD", "REVG"]
+  ]) {
+    it(`${encoding} decodes before close and applies backpressure`, async function () {
+      const transform = iconv.decodeWebStream(encoding)
+      const writer = transform.writable.getWriter()
+      const reader = transform.readable.getReader()
+      const read = reader.read()
+      await writer.write(Uint8Array.of(0x41, 0x42, 0x43, 0x44))
+      assert.equal((await read).value, first)
+      let written = false
+      const pending = writer.write(Uint8Array.of(0x45, 0x46)).then(() => { written = true })
+      await Promise.resolve()
+      assert.equal(written, false)
+      assert.equal((await reader.read()).value, second)
+      await pending
+      await writer.close()
+      assert.equal((await reader.read()).done, true)
+      writer.releaseLock()
+      reader.releaseLock()
+    })
+  }
+
   it("preserves BOM options and flushes replacement text with original indices", async function () {
     const calls = []
     const options = Object.freeze({
