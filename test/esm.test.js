@@ -10,6 +10,7 @@ describe("ES module entry points", function () {
     assert.equal("enableStreamingAPI" in iconv, false)
     assert.equal(encode, iconv.encode)
     assert.equal(decode, iconv.decode)
+    assert.equal(node.addEncoding, iconv.addEncoding)
     assert.equal(encodeStream, iconv.encodeStream)
     assert.equal(encodeWebStream, iconv.encodeWebStream)
     assert.equal(decodeWebStream, iconv.decodeWebStream)
@@ -36,6 +37,7 @@ describe("ES module entry points", function () {
 
     assert.notEqual(iconv, webIconv)
     assert.equal(webEncode, webIconv.encode)
+    assert.equal(web.addEncoding, webIconv.addEncoding)
     assert(Buffer.isBuffer(encode("hello", "windows1251")))
     assert.equal(webEncode("hello", "windows1251").constructor, Uint8Array)
     assert.equal(iconv.getCodec("windows1251"), nodeCodec)
