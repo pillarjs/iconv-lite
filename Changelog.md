@@ -4,7 +4,7 @@
 
 - Remove Node-style streams from the Web entry point.
 
-    `iconv-lite/web` no longer exposes `encodeStream()`, `decodeStream()`, `enableStreamingAPI()`, or `supportsStreams`. Use the native `encodeWebStream()` and `decodeWebStream()` methods and `supportsWebStreams` instead. The Node entry point continues to offer both stream APIs.
+    `iconv-lite/web` no longer exposes `encodeStream()`, `decodeStream()`, or `supportsStreams`. Use the native `encodeWebStream()` and `decodeWebStream()` methods and `supportsWebStreams` instead. The Node entry point continues to offer both stream APIs. `enableStreamingAPI()` has been removed from both entry points; Node streams initialize automatically.
 
 - Restrict public package entry points.
 
@@ -24,7 +24,7 @@
 
 - Isolate the Node and Web entry points.
 
-    Importing `iconv-lite/web` alongside `iconv-lite` no longer changes the Node backend or enables streams on the Web instance. Each instance has its own codec cache and mutable settings; `setBackend()` and `enableStreamingAPI()` affect only that instance.
+    Importing `iconv-lite/web` alongside `iconv-lite` no longer changes the Node backend or enables Node streams on the Web instance. Each instance has its own codec cache and mutable settings; `setBackend()` affects only that instance.
 
 ## 1.0.0-alpha.3
 

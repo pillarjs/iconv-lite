@@ -1,5 +1,4 @@
 import assert from "node:assert/strict"
-import * as stream from "node:stream"
 import Iconv from "../lib/iconv-node.js"
 import defaultIconv from "../lib/index-node.js"
 
@@ -115,7 +114,6 @@ describe("invalidCharHandler (Unicode and binary) #node-web", function () {
   }
 
   it("replaces malformed UTF-8 input in streams without changing BOM or source positions", async function () {
-    iconv.enableStreamingAPI(stream)
     const calls = []
     const encoder = iconv.encodeStream("utf8", {
       addBOM: true,

@@ -1,5 +1,4 @@
 import assert from "node:assert/strict"
-import * as stream from "node:stream"
 import Iconv from "../lib/iconv.js"
 import NodeIconv from "../lib/iconv-node.js"
 import nodeBackend from "../backends/node.js"
@@ -58,9 +57,8 @@ describe("Iconv instances", function () {
   })
 
   it("keeps Node stream support out of the Web instance", function () {
-    nodeIconv.enableStreamingAPI(stream)
-
     assert.equal(nodeIconv.supportsStreams, true)
+    assert.equal("enableStreamingAPI" in nodeIconv, false)
     for (const method of ["encodeStream", "decodeStream", "enableStreamingAPI", "supportsStreams"]) {
       assert.equal(method in webIconv, false)
     }
@@ -68,10 +66,9 @@ describe("Iconv instances", function () {
   })
 
   it("collects Node stream chunks using the configured Web backend", function (done) {
-    nodeIconv.enableStreamingAPI(stream)
     const customIconv = new NodeIconv(webBackend)
-    customIconv.enableStreamingAPI(stream)
-    const encoder = customIconv.encodeStream("utf8")
+    const { encodeStream } = customIconv
+    const encoder = encodeStream("utf8")
 
     encoder.collect(function (error, bytes) {
       if (error) return done(error)

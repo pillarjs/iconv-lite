@@ -4,7 +4,10 @@ import { fileURLToPath } from "node:url"
 import iconv, { encode, decode, encodeStream, encodeWebStream, decodeWebStream } from "iconv-lite"
 
 describe("ES module entry points", function () {
-  it("exports the Node API as default and named functions", function () {
+  it("exports the Node API as default and named functions", async function () {
+    const node = await import("iconv-lite")
+    assert.equal("enableStreamingAPI" in node, false)
+    assert.equal("enableStreamingAPI" in iconv, false)
     assert.equal(encode, iconv.encode)
     assert.equal(decode, iconv.decode)
     assert.equal(encodeStream, iconv.encodeStream)

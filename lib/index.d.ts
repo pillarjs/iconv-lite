@@ -9,7 +9,8 @@
  * This file provides detailed typings for the public API of iconv-lite
  *-------------------------------------------------------------------------------------------- */
 
-import type * as Stream from "node:stream"
+/// <reference types="node" />
+
 import type { Encoding } from "../types/encodings.js"
 
 export interface DecodeOptions {
@@ -150,9 +151,6 @@ export interface Iconv<Bytes extends Uint8Array = Buffer> extends WebIconv<Bytes
   /** Creates a Node stream that encodes strings into bytes. */
   encodeStream (encoding: Encoding, options?: EncodeOptions): NodeJS.ReadWriteStream
 
-  /** Enables Node-style streams. The Node entry point calls this automatically. */
-  enableStreamingAPI (stream_module: { Transform: typeof Stream.Transform }): void
-
   /** @readonly Whether Node-style streams are enabled. */
   readonly supportsStreams: boolean
 }
@@ -173,5 +171,4 @@ export const encodeStream: Iconv["encodeStream"]
 export const decodeStream: Iconv["decodeStream"]
 export const encodeWebStream: Iconv["encodeWebStream"]
 export const decodeWebStream: Iconv["decodeWebStream"]
-export const enableStreamingAPI: Iconv["enableStreamingAPI"]
 export const setBackend: Iconv["setBackend"]

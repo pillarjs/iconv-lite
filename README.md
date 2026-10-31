@@ -108,7 +108,7 @@ package. `encodeWebStream()` and `decodeWebStream()` use the native
 `TransformStream` automatically. `iconv.supportsWebStreams` reports whether it is
 available; older environments can supply a global `TransformStream` polyfill.
 The Web entry point exposes only Web Streams. `encodeStream()`, `decodeStream()`,
-`enableStreamingAPI()`, and `supportsStreams` belong to the Node entry point.
+and `supportsStreams` belong to the Node entry point.
 
 DBCS table modules are imported with the library, but their arrays and codec
 lookup tables are initialized and cached only when the corresponding encoding is used.
@@ -117,7 +117,7 @@ lookup tables are initialized and cached only when the corresponding encoding is
 
 In Node.js, `encodeStream()` and `decodeStream()` return Node streams.
 `encodeWebStream()` and `decodeWebStream()` return Web Streams and are available
-in both Node.js and browsers, without calling `enableStreamingAPI()`.
+in both Node.js and browsers. Both APIs are initialized automatically.
 
 ```javascript
 // Decode stream (from binary data stream to js strings)
