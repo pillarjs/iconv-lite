@@ -22,6 +22,10 @@
 
 ### 🐞 Bug fixes
 
+- Preserve buffered UTF-16 and UTF-32 input during endianness detection.
+
+    Reusing or transferring input buffers after a streaming write no longer corrupts or discards bytes retained for autodetection.
+
 - Isolate the Node and Web entry points.
 
     Importing `iconv-lite/web` alongside `iconv-lite` no longer changes the Node backend or enables Node streams on the Web instance. Each instance has its own codec cache and mutable settings; `setBackend()` affects only that instance.

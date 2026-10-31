@@ -132,9 +132,11 @@ class Utf16Decoder {
 
   write (buf) {
     if (!this.decoder) {
+      if (buf.length === 0) return ""
       // Codec is not chosen yet. Accumulate initial bytes.
-      this.initialBufs.push(buf)
       this.initialBufsLen += buf.length
+      // Own bytes retained after write(); the chunk that triggers detection is consumed now.
+      this.initialBufs.push(this.initialBufsLen < 16 ? new Uint8Array(buf) : buf)
 
       // We need more bytes to use space heuristic (see below)
       if (this.initialBufsLen < 16) {

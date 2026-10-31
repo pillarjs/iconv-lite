@@ -82,6 +82,28 @@ describe("Web Streams #node-web", function () {
     })
   }
 
+  for (const encoding of ["utf16", "utf32"]) {
+    for (const transfer of [false, true]) {
+      it(`${encoding} preserves input after buffers are ${transfer ? "transferred" : "reused"}`, async function () {
+        // Cover detection during write() and during the final flush, with offset views.
+        for (const text of ["A", "A".repeat(12)]) {
+          const transform = iconv.decodeWebStream(encoding)
+          const output = collect(transform.readable)
+          const writer = transform.writable.getWriter()
+          for (const byte of iconv.encode(text, encoding, { addBOM: false })) {
+            const bytes = new Uint8Array([0xff, byte, 0xff])
+            await writer.write(bytes.subarray(1, 2))
+            if (transfer) structuredClone(bytes.buffer, { transfer: [bytes.buffer] })
+            else bytes.fill(0x42)
+          }
+          await writer.close()
+          writer.releaseLock()
+          assert.equal((await output).join(""), text)
+        }
+      })
+    }
+  }
+
   it("preserves per-chunk hex parsing and flushes hexadecimal output", async function () {
     const encoded = await collect(source(["4", "142"]).pipeThrough(iconv.encodeWebStream("hex")))
     assert.deepStrictEqual(Array.from(iconv.backend.concatByteResults(encoded)), [0x14])
