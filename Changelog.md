@@ -22,6 +22,10 @@
 
 ### 🐞 Bug fixes
 
+- Match root import types to the selected runtime entry point.
+
+    Browser and default resolution expose the Web API with Uint8Array results. Node resolution retains Buffer results and Node stream methods.
+
 - Decode binary, hex and Base64 streams incrementally.
 
     Emit output during writes instead of retaining the entire input until close. Base64 keeps at most two pending bytes and adds padding only on final flush, allowing stream backpressure to bound queued output.

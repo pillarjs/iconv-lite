@@ -8,7 +8,8 @@ export default [
       "encodings/sbcs-data-generated.js", // This a generate file
       "test/wpt/upstream" // Vendored upstream Web Platform Tests
     ],
-    ts: true
+    ts: true,
+    filesTs: ["**/*.mts"]
   }),
   {
     languageOptions: { ecmaVersion: "latest" },

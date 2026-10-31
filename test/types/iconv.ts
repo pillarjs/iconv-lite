@@ -1,3 +1,4 @@
+/* eslint-disable import-x/no-duplicates -- Compare distinct entry points that the linter resolves with browser conditions. */
 import iconv, { encode, decode, getEncoder, encodeWebStream, decodeWebStream } from "iconv-lite"
 import { canonicalizeEncoding } from "../../lib/utils.js"
 import type { Encoding, EncodeOptions } from "iconv-lite"

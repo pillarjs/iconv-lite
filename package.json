@@ -40,7 +40,7 @@
         "test:cov": "c8 --check-coverage=false --reporter=none mocha --check-leaks && c8 --no-clean --reporter=html --reporter=text mocha --require ./test/env/web-backend.js --grep '#node-web'",
         "test:node-web": "mocha --require ./test/env/web-backend.js --grep '#node-web'",
         "test:performance": "node --allow-natives-syntax performance/index.js",
-        "test:typescript": "tsc && attw --pack --profile esm-only",
+        "test:typescript": "tsc && tsc -p test/types/tsconfig.web.json && tsc -p test/types/tsconfig.web.json --module NodeNext --moduleResolution NodeNext --customConditions browser && attw --pack --profile esm-only",
         "test:webpack": "npm pack && mv iconv-lite-*.tgz test/webpack/iconv-lite.tgz && cd test/webpack && npm install && npm run test && rm iconv-lite.tgz && rm -r node_modules",
         "test:wpt": "node test/wpt/run.js",
         "typegen": "node generation/gen-typings.js"
@@ -71,10 +71,18 @@
     "type": "module",
     "exports": {
         ".": {
-            "types": "./lib/index.d.ts",
-            "browser": "./lib/index-web.js",
-            "node": "./lib/index-node.js",
-            "default": "./lib/index-web.js"
+            "browser": {
+                "types": "./lib/index-web.d.ts",
+                "default": "./lib/index-web.js"
+            },
+            "node": {
+                "types": "./lib/index.d.ts",
+                "default": "./lib/index-node.js"
+            },
+            "default": {
+                "types": "./lib/index-web.d.ts",
+                "default": "./lib/index-web.js"
+            }
         },
         "./web": {
             "types": "./lib/index-web.d.ts",
