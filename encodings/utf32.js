@@ -26,7 +26,7 @@ import { TextEncoderWithHandler, isUnicodeScalar } from "../lib/encoding-handler
 function createEncoder (options, iconv, isLE) {
   const encoder = new Utf32Encoder(iconv.backend, isLE)
   return typeof options?.invalidCharHandler === "function"
-    ? new TextEncoderWithHandler(encoder, iconv.backend, options.invalidCharHandler, isLE ? "utf32le" : "utf32be", isUnicodeScalar)
+    ? new TextEncoderWithHandler(encoder, iconv.backend, options.invalidCharHandler, isLE ? "utf32le" : "utf32be", isUnicodeScalar, "\uFFFD")
     : encoder
 }
 

@@ -20,7 +20,7 @@ class InternalCodec {
     } else if (this.enc === "utf8") {
       const encoder = new InternalEncoderUtf8(iconv.backend)
       return typeof options?.invalidCharHandler === "function"
-        ? new TextEncoderWithHandler(encoder, iconv.backend, options.invalidCharHandler, this.enc, isUnicodeScalar)
+        ? new TextEncoderWithHandler(encoder, iconv.backend, options.invalidCharHandler, this.enc, isUnicodeScalar, "\uFFFD")
         : encoder
     } else if (this.enc === "cesu8") {
       return new InternalEncoderCesu8(iconv.backend)

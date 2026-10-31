@@ -66,6 +66,17 @@ describe("invalidCharHandler (Unicode and binary) #node-web", function () {
       assert.throws(() => iconv.encode("\uD800", encoding, { invalidCharHandler () { throw error } }), actual => actual === error)
     })
 
+    it(`${encoding} leaves no stale surrogate after cancelling a final character`, function () {
+      let calls = 0
+      const encoder = iconv.getEncoder(encoding, { invalidCharHandler () { return ++calls === 2 } })
+      assert.deepEqual(encoder.write("\uD800\uD800"), iconv.encode("\uFFFD", encoding))
+      assert.equal(encoder.end(), null)
+      assert.deepEqual(encoder.write("A"), iconv.encode("A", encoding, { addBOM: false }))
+      const tail = encoder.end()
+      assert.ok(!tail || tail.length === 0)
+      assert.equal(calls, 2)
+    })
+
     it(`${encoding} excludes BOM from positions and preserves it after cancellation`, function () {
       const calls = []
       const options = Object.freeze({
