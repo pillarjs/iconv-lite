@@ -2,11 +2,19 @@
 
 ### ⚠️ Breaking changes
 
+- Remove Node-style streams from the Web entry point.
+
+    `iconv-lite/web` no longer exposes `encodeStream()`, `decodeStream()`, `enableStreamingAPI()`, or `supportsStreams`. Use the native `encodeWebStream()` and `decodeWebStream()` methods and `supportsWebStreams` instead. The Node entry point continues to offer both stream APIs.
+
 - Restrict public package entry points.
 
     Only `iconv-lite`, `iconv-lite/web`, and `iconv-lite/encodings/*.js` are exported. Direct package imports of `lib/*`, `backends/*`, and `package.json` are no longer supported. Encoding label normalization is now an internal utility rather than the `_canonicalizeEncoding` instance method; public encoding operations continue to normalize labels internally.
 
 ### 🚀 Improvements
+
+- Add native Web Streams support - by [@bjohansebas](https://github.com/bjohansebas), following [#340](https://github.com/pillarjs/iconv-lite/discussions/340)
+
+    Add `encodeWebStream()` and `decodeWebStream()` in Node.js and browsers, using the global `TransformStream` without setup. The streams preserve codec options, buffered output, and invalid character handling, with native backpressure and error propagation. Node.js callers can choose these methods or the existing Node-style `encodeStream()` and `decodeStream()`. `supportsWebStreams` reports native or polyfilled availability.
 
 - Support `invalidCharHandler` across text encodings - by [@DecimalTurn](https://github.com/DecimalTurn) and [@bjohansebas](https://github.com/bjohansebas) in [#388](https://github.com/pillarjs/iconv-lite/pull/388)
 
