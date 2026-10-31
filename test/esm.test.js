@@ -1,16 +1,20 @@
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
 import { fileURLToPath } from "node:url"
-import iconv, { encode, decode, encodeStream } from "iconv-lite"
+import iconv, { encode, decode, encodeStream, encodeWebStream, decodeWebStream } from "iconv-lite"
 
 describe("ES module entry points", function () {
   it("exports the Node API as default and named functions", function () {
     assert.equal(encode, iconv.encode)
     assert.equal(decode, iconv.decode)
     assert.equal(encodeStream, iconv.encodeStream)
+    assert.equal(encodeWebStream, iconv.encodeWebStream)
+    assert.equal(decodeWebStream, iconv.decodeWebStream)
     assert(Buffer.isBuffer(encode("hello", "utf8")))
     assert.equal(decode(encode("hello", "utf8"), "utf8"), "hello")
     assert.equal(typeof encodeStream("utf8").pipe, "function")
+    assert(encodeWebStream("utf8") instanceof TransformStream)
+    assert(decodeWebStream("utf8") instanceof TransformStream)
   })
 
   it("supports dynamic import from CommonJS", function () {
@@ -24,7 +28,8 @@ describe("ES module entry points", function () {
 
   it("keeps Node and Web entry points independent", async function () {
     const nodeCodec = iconv.getCodec("windows1251")
-    const { default: webIconv, encode: webEncode } = await import("iconv-lite/web")
+    const web = await import("iconv-lite/web")
+    const { default: webIconv, encode: webEncode, encodeWebStream: webEncodeStream, decodeWebStream: webDecodeStream } = web
 
     assert.notEqual(iconv, webIconv)
     assert.equal(webEncode, webIconv.encode)
@@ -32,7 +37,15 @@ describe("ES module entry points", function () {
     assert.equal(webEncode("hello", "windows1251").constructor, Uint8Array)
     assert.equal(iconv.getCodec("windows1251"), nodeCodec)
     assert.equal(iconv.supportsStreams, true)
-    assert.equal(webIconv.supportsStreams, false)
+    for (const name of ["encodeStream", "decodeStream", "enableStreamingAPI", "supportsStreams"]) {
+      assert.equal(name in web, false)
+      assert.equal(name in webIconv, false)
+    }
+    assert.equal(webIconv.supportsWebStreams, true)
+    assert.equal(webEncodeStream, webIconv.encodeWebStream)
+    assert.equal(webDecodeStream, webIconv.decodeWebStream)
+    assert(webEncodeStream("utf8") instanceof TransformStream)
+    assert(webDecodeStream("utf8") instanceof TransformStream)
   })
 
   it("exports encoding modules", async function () {

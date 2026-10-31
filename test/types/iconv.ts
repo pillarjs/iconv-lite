@@ -1,16 +1,20 @@
-import iconv, { encode, decode, getEncoder } from "iconv-lite"
+import iconv, { encode, decode, getEncoder, encodeWebStream, decodeWebStream } from "iconv-lite"
 import { canonicalizeEncoding } from "../../lib/utils.js"
 import type { Encoding, EncodeOptions } from "iconv-lite"
 import { expectTypeOf } from "expect-type"
 
 // Default and named ESM exports preserve the output type of each entry point.
-import webIconv, { encode as webEncode, getEncoder as webEncoder } from "iconv-lite/web"
+import webIconv, { encode as webEncode, getEncoder as webEncoder, encodeWebStream as webEncodeStream, decodeWebStream as webDecodeStream } from "iconv-lite/web"
 import webBackend from "../../backends/web.js"
 
 expectTypeOf(iconv).not.toHaveProperty("_canonicalizeEncoding")
 expectTypeOf(webIconv).not.toHaveProperty("_canonicalizeEncoding")
 expectTypeOf(iconv).not.toHaveProperty("canonicalizeEncoding")
 expectTypeOf(webIconv).not.toHaveProperty("canonicalizeEncoding")
+expectTypeOf(webIconv).not.toHaveProperty("encodeStream")
+expectTypeOf(webIconv).not.toHaveProperty("decodeStream")
+expectTypeOf(webIconv).not.toHaveProperty("enableStreamingAPI")
+expectTypeOf(webIconv).not.toHaveProperty("supportsStreams")
 expectTypeOf(iconv.encode).toBeFunction()
 expectTypeOf(iconv.decode).toBeFunction()
 expectTypeOf(iconv.encodingExists).toBeFunction()
@@ -27,6 +31,7 @@ expectTypeOf(iconv._codecDataCache).toBeObject()
 expectTypeOf(iconv.defaultCharUnicode).toBeString()
 expectTypeOf(iconv.defaultCharSingleByte).toBeString()
 expectTypeOf(iconv.supportsStreams).toBeBoolean()
+expectTypeOf(iconv.supportsWebStreams).toBeBoolean()
 expectTypeOf(iconv.encodings).toEqualTypeOf<Record<
   Encoding,
   | string
@@ -90,3 +95,18 @@ expectTypeOf(encode("🙂", "latin1", { invalidCharHandler: () => ":)" })).toEqu
 expectTypeOf(webEncode("🙂", "shiftjis", { invalidCharHandler: () => "" })).toEqualTypeOf<Uint8Array | null>()
 expectTypeOf(getEncoder("utf8", { invalidCharHandler: () => "�" }).end()).toEqualTypeOf<Buffer | null | undefined>()
 expectTypeOf(webEncoder("utf32", { invalidCharHandler: () => "�" }).write("\uD800")).toEqualTypeOf<Uint8Array | null>()
+
+// Web Streams expose the native pipeline API and keep the backend's byte type.
+expectTypeOf(iconv.encodeWebStream("utf8")).toEqualTypeOf<TransformStream<string, Buffer>>()
+expectTypeOf(encodeWebStream("latin1", { invalidCharHandler: () => true })).toEqualTypeOf<TransformStream<string, Buffer>>()
+expectTypeOf(decodeWebStream("utf8")).toEqualTypeOf<TransformStream<Uint8Array, string>>()
+expectTypeOf(webIconv.encodeWebStream("utf8")).toEqualTypeOf<TransformStream<string, Uint8Array>>()
+expectTypeOf(webEncodeStream("utf8", { addBOM: true })).toEqualTypeOf<TransformStream<string, Uint8Array>>()
+expectTypeOf(webDecodeStream("utf8", { stripBOM: false })).toEqualTypeOf<TransformStream<Uint8Array, string>>()
+expectTypeOf(iconv.encodeStream("utf8")).toEqualTypeOf<NodeJS.ReadWriteStream>()
+expectTypeOf(iconv.decodeStream("utf8")).toEqualTypeOf<NodeJS.ReadWriteStream>()
+new ReadableStream<string>().pipeThrough(webEncodeStream("gbk")).pipeThrough(webDecodeStream("gbk"))
+// @ts-expect-error Encoders accept string chunks, not bytes.
+new ReadableStream<Uint8Array>().pipeThrough(encodeWebStream("utf8"))
+// @ts-expect-error Decoders accept byte chunks, not strings.
+new ReadableStream<string>().pipeThrough(webDecodeStream("utf8"))

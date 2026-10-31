@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import * as stream from "node:stream"
 import Iconv from "../lib/iconv.js"
+import NodeIconv from "../lib/iconv-node.js"
 import nodeBackend from "../backends/node.js"
 import webBackend from "../backends/web.js"
 
@@ -9,7 +10,7 @@ describe("Iconv instances", function () {
   let webIconv
 
   beforeEach(function () {
-    nodeIconv = new Iconv(nodeBackend)
+    nodeIconv = new NodeIconv(nodeBackend)
     webIconv = new Iconv(webBackend)
   })
 
@@ -56,19 +57,21 @@ describe("Iconv instances", function () {
     assert(Buffer.isBuffer(webIconv.encode("hello", "windows1251")))
   })
 
-  it("enables streams only on the selected instance", function () {
+  it("keeps Node stream support out of the Web instance", function () {
     nodeIconv.enableStreamingAPI(stream)
 
     assert.equal(nodeIconv.supportsStreams, true)
-    assert.equal(webIconv.supportsStreams, false)
-    assert.throws(() => webIconv.encodeStream("utf8"), /Streaming API is not enabled/)
-    assert.throws(() => webIconv.decodeStream("utf8"), /Streaming API is not enabled/)
+    for (const method of ["encodeStream", "decodeStream", "enableStreamingAPI", "supportsStreams"]) {
+      assert.equal(method in webIconv, false)
+    }
+    assert.equal(webIconv.supportsWebStreams, true)
   })
 
-  it("collects Web stream chunks with its own backend", function (done) {
+  it("collects Node stream chunks using the configured Web backend", function (done) {
     nodeIconv.enableStreamingAPI(stream)
-    webIconv.enableStreamingAPI(stream)
-    const encoder = webIconv.encodeStream("utf8")
+    const customIconv = new NodeIconv(webBackend)
+    customIconv.enableStreamingAPI(stream)
+    const encoder = customIconv.encodeStream("utf8")
 
     encoder.collect(function (error, bytes) {
       if (error) return done(error)

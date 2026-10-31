@@ -1,7 +1,7 @@
 import assert from "assert"
 import * as stream from "node:stream"
 import defaultIconv from "../lib/index-node.js"
-import Iconv from "../lib/iconv.js"
+import Iconv from "../lib/iconv-node.js"
 
 describe("invalidCharHandler (SBCS) #node-web", function () {
   let iconv

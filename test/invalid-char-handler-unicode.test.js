@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import * as stream from "node:stream"
-import Iconv from "../lib/iconv.js"
+import Iconv from "../lib/iconv-node.js"
 import defaultIconv from "../lib/index-node.js"
 
 describe("invalidCharHandler (Unicode and binary) #node-web", function () {

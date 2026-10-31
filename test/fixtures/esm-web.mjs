@@ -21,11 +21,19 @@ await entry.link((specifier, parent) => {
   return load(new URL(specifier, parent.identifier))
 })
 await entry.evaluate()
-const { default: iconv, encode, decode, encodeStream } = entry.namespace
+const { default: iconv, encode, decode } = entry.namespace
 assert.equal(iconv.encodings, null)
 assert.equal(Object.keys(iconv._codecDataCache).length, 0)
-assert.equal(iconv.supportsStreams, false)
-assert.throws(() => encodeStream("utf8"), /Streaming API is not enabled/)
+for (const name of ["encodeStream", "decodeStream", "enableStreamingAPI", "supportsStreams"]) {
+  assert.equal(name in iconv, false)
+  assert.equal(name in entry.namespace, false)
+}
+assert(!modules.has(new URL("../../lib/streams.js", import.meta.url).href))
+assert(!modules.has(new URL("../../lib/iconv-node.js", import.meta.url).href))
+// Importing the package and using synchronous codecs also works without Web Streams.
+assert.equal(iconv.supportsWebStreams, false)
+assert.throws(() => iconv.encodeWebStream("utf8"), /require a global TransformStream/)
+assert.throws(() => iconv.decodeWebStream("utf8"), /require a global TransformStream/)
 assert.equal(encode, iconv.encode)
 
 // A UTF-8 operation must not initialize a DBCS codec or request any DBCS table.

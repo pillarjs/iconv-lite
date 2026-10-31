@@ -81,7 +81,7 @@ export interface Backend<Bytes extends Uint8Array = Uint8Array> {
   copyBytes(bytes: Uint8Array): Uint8Array;
 }
 
-export interface Iconv<Bytes extends Uint8Array = Buffer> {
+export interface WebIconv<Bytes extends Uint8Array = Uint8Array> {
   /** Encodes a `string` into backend bytes, using the provided `encoding`. */
   encode (content: string, encoding: Encoding, options?: EncodeOptions & { invalidCharHandler?: undefined }): Bytes
   encode (content: string, encoding: Encoding, options?: EncodeOptions): Bytes | null
@@ -93,25 +93,16 @@ export interface Iconv<Bytes extends Uint8Array = Buffer> {
   encodingExists (encoding: string): encoding is Encoding
 
   /** Legacy alias for {@link iconv.encode}. */
-  readonly toEncoding: Iconv<Bytes>["encode"]
+  readonly toEncoding: WebIconv<Bytes>["encode"]
 
   /** Legacy alias for {@link iconv.decode}. */
-  readonly fromEncoding: Iconv<Bytes>["decode"]
+  readonly fromEncoding: WebIconv<Bytes>["decode"]
 
-  /** Creates a stream that decodes binary data from a given `encoding` into strings. */
-  decodeStream (encoding: Encoding, options?: DecodeOptions): NodeJS.ReadWriteStream
+  /** Creates a Web TransformStream from strings to encoded bytes. Available without setup. */
+  encodeWebStream (encoding: Encoding, options?: EncodeOptions): TransformStream<string, Bytes>
 
-  /** Creates a stream that encodes strings into binary data in a given `encoding`. */
-  encodeStream (encoding: Encoding, options?: EncodeOptions): NodeJS.ReadWriteStream
-
-  /**
-   * Explicitly enable Streaming API in browser environments by passing in:
-   * ```js
-   * import * as stream from "stream"
-   * ```
-   * @example iconv.enableStreamingAPI(stream);
-   */
-  enableStreamingAPI (stream_module: { Transform: typeof Stream.Transform }): void
+  /** Creates a Web TransformStream from encoded bytes to strings. Available without setup. */
+  decodeWebStream (encoding: Encoding, options?: DecodeOptions): TransformStream<Uint8Array, string>
 
   /** Creates and returns a low-level encoder stream. */
   getEncoder (encoding: Encoding, options?: EncodeOptions & { invalidCharHandler?: undefined }): EncoderStream<Bytes, false>
@@ -145,11 +136,25 @@ export interface Iconv<Bytes extends Uint8Array = Buffer> {
   /** The character used for untranslatable `single-byte` characters. @default "?" */
   defaultCharSingleByte: string
 
-  /** @readonly Whether or not, Streaming API is enabled. */
-  readonly supportsStreams: boolean
+  /** @readonly Whether the environment provides the TransformStream used by Web Streams. */
+  readonly supportsWebStreams: boolean
 
   backend: Backend<Bytes>;
   setBackend(backend: Backend<Bytes>): void;
+}
+
+export interface Iconv<Bytes extends Uint8Array = Buffer> extends WebIconv<Bytes> {
+  /** Creates a Node stream that decodes binary data into strings. */
+  decodeStream (encoding: Encoding, options?: DecodeOptions): NodeJS.ReadWriteStream
+
+  /** Creates a Node stream that encodes strings into bytes. */
+  encodeStream (encoding: Encoding, options?: EncodeOptions): NodeJS.ReadWriteStream
+
+  /** Enables Node-style streams. The Node entry point calls this automatically. */
+  enableStreamingAPI (stream_module: { Transform: typeof Stream.Transform }): void
+
+  /** @readonly Whether Node-style streams are enabled. */
+  readonly supportsStreams: boolean
 }
 
 declare const iconv: Iconv
@@ -166,5 +171,7 @@ export const getEncoder: Iconv["getEncoder"]
 export const getDecoder: Iconv["getDecoder"]
 export const encodeStream: Iconv["encodeStream"]
 export const decodeStream: Iconv["decodeStream"]
+export const encodeWebStream: Iconv["encodeWebStream"]
+export const decodeWebStream: Iconv["decodeWebStream"]
 export const enableStreamingAPI: Iconv["enableStreamingAPI"]
 export const setBackend: Iconv["setBackend"]

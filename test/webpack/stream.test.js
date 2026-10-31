@@ -1,24 +1,21 @@
 import { strict as assert } from "assert"
-import iconv from "iconv-lite"
-import * as stream from "stream"
+import iconv, { encodeWebStream, decodeWebStream } from "iconv-lite"
 
-describe("iconv-lite with streams", function () {
-  it("supports streams when explicitly enabled", function () {
-    iconv.enableStreamingAPI(stream)
-    assert(iconv.supportsStreams)
+describe("iconv-lite with Web Streams", function () {
+  it("exports the native Web Stream factories", function () {
+    assert.equal(encodeWebStream, iconv.encodeWebStream)
+    assert.equal(decodeWebStream, iconv.decodeWebStream)
+    assert(iconv.supportsWebStreams)
   })
 
-  it("can encode/decode in streaming mode", function (done) {
-    var stream1 = iconv.encodeStream("win1251")
-    var stream2 = iconv.decodeStream("win1251")
-    stream1.pipe(stream2)
-
-    stream1.end("abc")
-    stream2.collect(function (err, str) {
-      if (err) { return done(err) }
-
-      assert.equal(str, "abc")
-      done(null)
+  it("encodes and decodes in a browser pipeline without setup", async function () {
+    const input = new ReadableStream({
+      start (controller) { controller.enqueue("Привет"); controller.close() }
     })
+    const output = input.pipeThrough(encodeWebStream("win1251")).pipeThrough(decodeWebStream("win1251"))
+    const reader = output.getReader()
+    assert.equal((await reader.read()).value, "Привет")
+    assert.equal((await reader.read()).done, true)
+    reader.releaseLock()
   })
 })
