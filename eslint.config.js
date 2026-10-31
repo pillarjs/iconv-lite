@@ -6,9 +6,7 @@ export default [
     ignores: [
       "encodings/tables/*.js", // Generated lazy table factories
       "encodings/sbcs-data-generated.js", // This a generate file
-      "test/wpt/upstream", // Vendored upstream Web Platform Tests
-      // We need work on this
-      "generation"
+      "test/wpt/upstream" // Vendored upstream Web Platform Tests
     ],
     ts: true
   }),
