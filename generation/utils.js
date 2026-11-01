@@ -102,6 +102,65 @@ export function writeTable (name, table) {
   writeFile(name, "[\n" + table.map(function (a) { return JSON.stringify(a) }).join(",\n") + "\n]\n")
 }
 
+const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+function encodeVlq (n) {
+  // Zig-zag encoded, 5 data bits per base64 character with a continuation bit.
+  let v = n < 0 ? (-n << 1) | 1 : n << 1
+  let s = ""
+  do {
+    let digit = v & 31
+    v >>>= 5
+    if (v > 0) { digit |= 32 }
+    s += B64[digit]
+  } while (v > 0)
+  return s
+}
+
+// Convert a dbcs map into a VLQ-encoded run-length payload, decoded at load time by decodeVlqRuns in encodings/vlq-runs.js. 
+//
+// Consecutive dbcs codes with consecutive unicode code points collapse into a single run; 
+// gap columns hold the distance from the end of one run to the start of the next.
+export function generateVlqTable (dbcs) {
+  const codes = Object.keys(dbcs).map(Number).filter((code) => dbcs[code] !== undefined).sort((a, b) => a - b)
+  if (codes.length === 0) { throw new Error("Empty table") }
+  for (const code of codes) {
+    if (typeof dbcs[code] !== "number") { throw new Error("VLQ tables do not support sequences at 0x" + code.toString(16)) }
+  }
+
+  const uCodeGaps = []
+  const lengths = []
+  const dbcsGaps = []
+  let start = 0
+  for (let i = 1; i <= codes.length; i++) {
+    if (i < codes.length &&
+        codes[i] === codes[i - 1] + 1 &&
+        dbcs[codes[i]] === dbcs[codes[i - 1]] + 1) { continue } // Run continues.
+
+    lengths.push(i - start)
+    if (i < codes.length) {
+      uCodeGaps.push(dbcs[codes[i]] - (dbcs[codes[start]] + (i - start)))
+      dbcsGaps.push(codes[i] - (codes[start] + (i - start)))
+    } else {
+      uCodeGaps.push(0)
+      dbcsGaps.push(0)
+    }
+    start = i
+  }
+
+  return [
+    encodeVlq(dbcs[codes[0]]),
+    encodeVlq(codes[0]),
+    uCodeGaps.map(encodeVlq).join(""),
+    lengths.map(encodeVlq).join(""),
+    dbcsGaps.map(encodeVlq).join("")
+  ].join(".")
+}
+
+export function writeVlqTable (name, dbcs) {
+  writeFile(name, JSON.stringify(generateVlqTable(dbcs)))
+}
+
 export function writeFile (name, body) {
   fs.writeFileSync(path.join(import.meta.dirname, "../encodings/tables", name + ".js"),
     "// Generated encoding table. Allocate and cache its data on first use.\nlet table\n\n" +

@@ -95,7 +95,7 @@ export default {
   // GBK (~22000 chars) is an extension of CP936 that added user-mapped chars and some other.
   gbk: {
     type: "_dbcs",
-    table: function () { return cp936().concat(gbkAdded()) }
+    table: function () { return [cp936(), gbkAdded()] }
   },
   xgbk: "gbk",
   isoir58: "gbk",
@@ -107,7 +107,7 @@ export default {
   // http://www.khngai.com/chinese/charmap/tblgbk.php?page=0
   gb18030: {
     type: "_dbcs",
-    table: function () { return cp936().concat(gbkAdded()) },
+    table: function () { return [cp936(), gbkAdded()] },
     gb18030: gb18030Ranges,
     encodeSkipVals: [0x80],
     encodeAdd: { "€": 0xA2E3 }
@@ -169,7 +169,7 @@ export default {
   big5: "big5hkscs",
   big5hkscs: {
     type: "_dbcs",
-    table: function () { return cp950().concat(big5Added()) },
+    table: function () { return [cp950(), big5Added()] },
     encodeSkipVals: [
       // Although Encoding Standard says we should avoid encoding to HKSCS area (See Step 1 of
       // https://encoding.spec.whatwg.org/#index-big5-pointer), we still do it to increase compatibility with ICU.

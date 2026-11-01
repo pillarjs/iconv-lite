@@ -1,4 +1,4 @@
-import { getFile, parseText, generateTable, writeTable, writeFile } from "./utils.js"
+import { getFile, parseText, generateTable, writeTable, writeVlqTable, writeFile } from "./utils.js"
 
 const sources = {
   $big5: "https://encoding.spec.whatwg.org/index-big5.txt", // Encodings with $ are not saved. They are used to calculate other encs.
@@ -116,7 +116,7 @@ async function generate () {
     }
   }
 
-  writeTable("shiftjis", generateTable(shiftjis))
+  writeVlqTable("shiftjis", shiftjis)
 
   // Fill out EUC-JP table according to http://encoding.spec.whatwg.org/#euc-jp
   var eucJp = {}
@@ -129,7 +129,7 @@ async function generate () {
     }
   }
 
-  writeTable("eucjp", generateTable(eucJp, 3))
+  writeVlqTable("eucjp", eucJp)
 
   // Fill out EUC-KR Table and check that it is the same as cp949.
   var eucKr = {}
@@ -145,7 +145,7 @@ async function generate () {
 
   // Write all plain tables as-is.
   for (var enc in data) {
-    if (enc[0] != "$") { writeTable(enc, generateTable(data[enc])) }
+    if (enc[0] != "$") { writeVlqTable(enc, data[enc]) }
   }
 
   console.log("DBCS encodings regenerated.")
