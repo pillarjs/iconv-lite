@@ -1,4 +1,5 @@
 import { EncodingHandler, EncodingBuffer } from "../lib/encoding-handler.js"
+import { forEachVlqRun } from "./vlq-runs.js"
 
 // Multibyte codec. In this scheme, a character is represented by 1 or more bytes.
 // Our codec supports UTF-16 surrogates, extensions for GB18030 and unicode sequences.
@@ -44,8 +45,13 @@ class DBCSCodec {
     // Sometimes a MBCS char corresponds to a sequence of unicode chars. We store them as arrays of integers here.
     this.decodeTableSeq = []
 
-    // Actual mapping tables consist of chunks. Use them to fill up decode tables.
-    for (var i = 0; i < mappingTable.length; i++) { this._addDecodeChunk(mappingTable[i]) }
+    // A mapping table is a VLQ run-length payload string (see encodings/vlq-runs.js)
+    // or chunk rows, or a list mixing both when an encoding extends another one.
+    if (typeof mappingTable === "string") {
+      this._addMappingTable(mappingTable)
+    } else {
+      for (var i = 0; i < mappingTable.length; i++) { this._addMappingTable(mappingTable[i]) }
+    }
 
     // Load & create GB18030 tables when needed.
     if (typeof codecOptions.gb18030 === "function") {
@@ -157,6 +163,35 @@ class DBCSCodec {
       } else { throw new Error("Overwrite byte in " + this.encodingName + ", addr: " + addr.toString(16)) }
     }
     return node
+  }
+
+  // Adds one mapping table: a VLQ run-length payload string (see encodings/vlq-runs.js),
+  // or chunk rows for tables carrying sequences.
+  _addMappingTable (table) {
+    if (typeof table === "string") {
+      forEachVlqRun(table, this._addVlqRun.bind(this))
+    } else {
+      for (var j = 0; j < table.length; j++) { this._addDecodeChunk(table[j]) }
+    }
+  }
+
+  // Writes one VLQ payload run into the decode trie directly.
+  _addVlqRun (dbcs, uCode, length) {
+    while (length > 0) {
+      if ((dbcs & ~0xFF) !== this._vlqRunBlockAddr) {
+        this._vlqRunNode = this._getDecodeTrieNode(dbcs)
+        this._vlqRunBlockAddr = dbcs & ~0xFF
+      }
+      // node is cached per 256-address block.
+      // Consecutive runs usually land in the same block, and the block-to-node mapping is stable for this codec.
+      var node = this._vlqRunNode
+      var offset = dbcs & 0xFF
+      var count = Math.min(length, 0x100 - offset)
+      for (var i = 0; i < count; i++) { node[offset + i] = uCode + i }
+      dbcs += count
+      uCode += count
+      length -= count
+    }
   }
 
   _addDecodeChunk (chunk) {
