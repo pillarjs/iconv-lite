@@ -178,7 +178,13 @@ class DBCSCodec {
   // Writes one VLQ payload run into the decode trie directly.
   _addVlqRun (dbcs, uCode, length) {
     while (length > 0) {
-      var node = this._getDecodeTrieNode(dbcs)
+      if ((dbcs & ~0xFF) !== this._vlqRunBlockAddr) {
+        this._vlqRunNode = this._getDecodeTrieNode(dbcs)
+        this._vlqRunBlockAddr = dbcs & ~0xFF
+      }
+      // node is cached per 256-address block.
+      // Consecutive runs usually land in the same block, and the block-to-node mapping is stable for this codec.
+      var node = this._vlqRunNode
       var offset = dbcs & 0xFF
       var count = Math.min(length, 0x100 - offset)
       for (var i = 0; i < count; i++) { node[offset + i] = uCode + i }
