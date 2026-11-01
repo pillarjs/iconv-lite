@@ -117,9 +117,9 @@ function encodeVlq (n) {
   return s
 }
 
-// Convert a dbcs map into a VLQ-encoded run-length payload, decoded at load time by decodeVlqRuns in encodings/vlq-runs.js. 
+// Convert a dbcs map into a VLQ-encoded run-length payload, decoded at load time by decodeVlqRuns in encodings/vlq-runs.js.
 //
-// Consecutive dbcs codes with consecutive unicode code points collapse into a single run; 
+// Consecutive dbcs codes with consecutive unicode code points collapse into a single run;
 // gap columns hold the distance from the end of one run to the start of the next.
 export function generateVlqTable (dbcs) {
   const codes = Object.keys(dbcs).map(Number).filter((code) => dbcs[code] !== undefined).sort((a, b) => a - b)
