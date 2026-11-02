@@ -1,4 +1,5 @@
 // List of test files that are ready to be run in web environment.
+import "../add-encoding.test.js"
 import "../cyrillic.test.js"
 import "../dbcs-backends.test.js"
 import "../dbcs-streaming.test.js"

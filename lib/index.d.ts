@@ -11,7 +11,10 @@
 
 /// <reference types="node" />
 
-import type { Encoding } from "../types/encodings.js"
+import type { Encoding as BuiltinEncoding } from "../types/encodings.js"
+
+/** Built-in suggestions and labels supplied by external encoding packages. */
+export type Encoding = BuiltinEncoding | (string & {})
 
 export interface DecodeOptions {
   /**
@@ -62,13 +65,44 @@ export interface EncoderStream<Bytes extends Uint8Array = Buffer, CanCancel exte
 export interface DecoderStream {
   write(buf: Buffer | Uint8Array): string;
   end(): string | undefined;
+  /** Optional complete-input fast path, used by decode() instead of write()/end(). */
+  decode?(buf: Buffer | Uint8Array): string;
 }
 
-export interface Codec<Bytes extends Uint8Array = Buffer> {
-  encoder: new (options?: EncodeOptions, codec?: Codec<Bytes>) => EncoderStream<Bytes>;
-  decoder: new (options?: DecodeOptions, codec?: Codec<Bytes>) => DecoderStream;
+export interface FactoryCodec<Bytes extends Uint8Array = Uint8Array> {
+  createEncoder(options: EncodeOptions | undefined, iconv: WebIconv<Bytes>): EncoderStream<Bytes>;
+  createDecoder(options: DecodeOptions | undefined, iconv: WebIconv<Bytes>): DecoderStream;
   bomAware?: boolean;
-  [key: string]: any;
+}
+
+/** Constructor-based codecs remain supported alongside factory-based codecs. */
+export interface ConstructorCodec<Bytes extends Uint8Array = Uint8Array> {
+  encoder: new (options: EncodeOptions | undefined, codec: ConstructorCodec<Bytes>, backend: Backend<Bytes>) => EncoderStream<Bytes>;
+  decoder: new (options: DecodeOptions | undefined, codec: ConstructorCodec<Bytes>, backend: Backend<Bytes>) => DecoderStream;
+  bomAware?: boolean;
+}
+
+export type Codec<Bytes extends Uint8Array = Buffer> = FactoryCodec<Bytes> | ConstructorCodec<Bytes>
+
+export interface CodecOptions {
+  /** Canonical label of this codec or its configured variant. */
+  encodingName: string;
+  [key: string]: unknown;
+}
+
+export type CodecConstructor<Bytes extends Uint8Array = Uint8Array> =
+  new (options: CodecOptions, iconv: WebIconv<Bytes>) => Codec<Bytes>
+
+export type EncodingDefinition<Bytes extends Uint8Array = Uint8Array> =
+  | string
+  | { type: string; [key: string]: unknown }
+  | CodecConstructor<Bytes>
+
+export type EncodingDefinitions<Bytes extends Uint8Array = Uint8Array> = Record<string, EncodingDefinition<Bytes>>
+
+export interface AddEncodingOptions {
+  /** Allow replacing existing codecs and aliases. Defaults to false. */
+  replace?: boolean;
 }
 
 export interface Backend<Bytes extends Uint8Array = Uint8Array> {
@@ -77,8 +111,8 @@ export interface Backend<Bytes extends Uint8Array = Uint8Array> {
   concatByteResults(bufs: Bytes[]): Bytes;
   allocRawChars(numChars: number): Uint16Array;
   rawCharsToResult(rawChars: Uint16Array, finalLen: number): string;
-  encodeString(str: string, encoding: BufferEncoding): Bytes;
-  decodeBytes(bytes: Uint8Array, encoding: BufferEncoding): string;
+  encodeString(str: string, encoding: "utf8" | "binary" | "hex" | "base64"): Bytes;
+  decodeBytes(bytes: Uint8Array, encoding: "binary" | "hex" | "base64"): string;
   copyBytes(bytes: Uint8Array): Uint8Array;
 }
 
@@ -92,6 +126,9 @@ export interface WebIconv<Bytes extends Uint8Array = Uint8Array> {
 
   /** Checks if a given encoding is supported by `iconv-lite`. */
   encodingExists (encoding: string): encoding is Encoding
+
+  /** Registers codec definitions atomically. Repeating equivalent definitions is a no-op. */
+  addEncoding (definitions: EncodingDefinitions<Bytes>, options?: AddEncodingOptions): void
 
   /** Legacy alias for {@link iconv.encode}. */
   readonly toEncoding: WebIconv<Bytes>["encode"]
@@ -119,14 +156,7 @@ export interface WebIconv<Bytes extends Uint8Array = Uint8Array> {
   getCodec (encoding: Encoding): Codec<Bytes>
 
   /** A cache of all loaded encoding definitions. */
-  encodings: Record<
-    Encoding,
-    | string
-    | {
-      type: string;
-      [key: string]: any;
-    }
-  > | null
+  encodings: EncodingDefinitions<Bytes> | null
 
   /** A cache of initialized codec objects. */
   _codecDataCache: Record<string, Codec<Bytes>>
@@ -157,11 +187,12 @@ export interface Iconv<Bytes extends Uint8Array = Buffer> extends WebIconv<Bytes
 
 declare const iconv: Iconv
 export default iconv
-export type { Encoding }
+export type { BuiltinEncoding }
 
 export const encode: Iconv["encode"]
 export const decode: Iconv["decode"]
 export const encodingExists: Iconv["encodingExists"]
+export const addEncoding: Iconv["addEncoding"]
 export const toEncoding: Iconv["toEncoding"]
 export const fromEncoding: Iconv["fromEncoding"]
 export const getCodec: Iconv["getCodec"]

@@ -1,7 +1,7 @@
 /* eslint-disable import-x/no-duplicates -- Compare distinct entry points that the linter resolves with browser conditions. */
 import iconv, { encode, decode, getEncoder, encodeWebStream, decodeWebStream } from "iconv-lite"
 import { canonicalizeEncoding } from "../../lib/utils.js"
-import type { Encoding, EncodeOptions } from "iconv-lite"
+import type { Encoding, EncodeOptions, EncodingDefinitions } from "iconv-lite"
 import { expectTypeOf } from "expect-type"
 
 // Default and named ESM exports preserve the output type of each entry point.
@@ -33,14 +33,7 @@ expectTypeOf(iconv.defaultCharUnicode).toBeString()
 expectTypeOf(iconv.defaultCharSingleByte).toBeString()
 expectTypeOf(iconv.supportsStreams).toBeBoolean()
 expectTypeOf(iconv.supportsWebStreams).toBeBoolean()
-expectTypeOf(iconv.encodings).toEqualTypeOf<Record<
-  Encoding,
-  | string
-  | {
-    type: string
-    [key: string]: any
-  }
-> | null>()
+expectTypeOf(iconv.encodings).toEqualTypeOf<EncodingDefinitions<Buffer> | null>()
 
 expectTypeOf<Encoding>().toBeString()
 

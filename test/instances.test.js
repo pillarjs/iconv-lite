@@ -13,6 +13,22 @@ describe("Iconv instances", function () {
     webIconv = new Iconv(webBackend)
   })
 
+  it("keeps external definitions through backend changes and supports Node streams", async function () {
+    nodeIconv.addEncoding({ custom: "utf8" })
+    assert.equal(webIconv.encodingExists("custom"), false)
+    const encoder = nodeIconv.encodeStream("custom")
+    const decoder = nodeIconv.decodeStream("custom")
+    const output = new Promise((resolve, reject) => {
+      encoder.on("error", reject)
+      encoder.pipe(decoder).collect((error, text) => error ? reject(error) : resolve(text))
+    })
+    encoder.write("A\uD83D")
+    encoder.end("\uDE42")
+    assert.equal(await output, "A🙂")
+    nodeIconv.setBackend(webBackend)
+    assert.equal(nodeIconv.encode("A", "custom").constructor, Uint8Array)
+  })
+
   it("binds destructured methods to their instance", function () {
     const { encode: nodeEncode, decode: nodeDecode } = nodeIconv
     const { encode: webEncode, decode: webDecode } = webIconv
