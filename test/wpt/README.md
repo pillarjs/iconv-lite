@@ -9,6 +9,10 @@ installs iconv-lite-backed implementations of those globals, so the **unmodified
 upstream tests exercise iconv-lite via [`wpt-runner`](https://github.com/jsdom/wpt-runner)
 (jsdom).
 
+The decoder shim uses `getDecoder().write()` across `stream: true` calls and
+flushes with `end()` on the final call. This exercises iconv-lite's streaming
+state and end-of-input handling, including the `textdecoder-eof` tests.
+
 ## Running
 
 ```sh
@@ -22,11 +26,8 @@ the WHATWG Encoding Standard, e.g.:
 
 | Test | Why it fails |
 | --- | --- |
-| `textdecoder-fatal` | iconv-lite has no `{ fatal: true }` mode (it always replaces) |
-| `textdecoder-utf16-surrogates` | lone surrogates are passed through, not replaced with U+FFFD |
 | `textdecoder-labels` | some WHATWG labels are unrecognized (`x-cp1252`, `visual`, `x-mac-*`, …) |
 | `api-invalid-label` | iconv-lite's label matching is too lenient — it accepts labels with embedded junk that WHATWG rejects |
-| `textdecoder-eof` | no streaming (`stream: true`) |
 
 ## Layout
 
@@ -59,8 +60,8 @@ the WHATWG Encoding Standard, e.g.:
   through the shim (a `wpt serve` browser run would measure the browser instead).
   Single-byte and all six multi-byte mappings are covered via `single-byte-decoder`
   and `decode-compare.js`.
-- Streaming (`stream: true`) and `{ fatal: true }` — iconv-lite implements
-  neither, so those assertions fail by design.
+- `{ fatal: true }` for legacy encodings — these decoders still replace invalid
+  input; fatal decoding is supported for UTF-8 and UTF-16.
 
 ```sh
 node test/wpt/update.js   # refresh the vendored tests

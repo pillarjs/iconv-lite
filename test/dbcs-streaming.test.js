@@ -45,6 +45,13 @@ describe("DBCS streaming #node-web", function () {
   }
 
   const decodeCases = [
+    ["big5", "81", "�"],
+    ["big5", "81 40", "�@"],
+    ["big5", "81 81", "�"],
+    ["big5", "87 87 40", "�@"],
+    ["big5", "81 7f", "�\u007f"],
+    ["big5", "87 80", "�"],
+    ["big5", "87 ff", "�"],
     ["big5", "88 62", "Ê\u0304"],
     ["big5", "88 a5", "ê\u030C"],
     ["big5", "fa 40", "𠕇"],
@@ -56,6 +63,16 @@ describe("DBCS streaming #node-web", function () {
     ["eucjp", "8f a2 af", "\u02D8"],
     ["cp949", "b0 a1", "가"]
   ]
+
+  it("buffers every Big5 lead byte until a trail byte or end-of-input", function () {
+    for (let lead = 0x81; lead <= 0xFE; lead++) {
+      const decoder = iconv.getDecoder("big5")
+      assert.strictEqual(decoder.write(utils.bytes([lead])), "", `lead ${lead.toString(16)}`)
+      assert.strictEqual(decoder.write(utils.bytes([])), "")
+      assert.strictEqual(decoder.end(), "�")
+      assert.strictEqual(decoder.end(), "")
+    }
+  })
 
   for (const [encoding, hex, expected] of decodeCases) {
     it(`decodes ${hex} as ${encoding} while the caller reuses its input buffer`, function () {
