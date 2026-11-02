@@ -169,6 +169,7 @@ export default {
   big5: "big5hkscs",
   big5hkscs: {
     type: "_dbcs",
+    big5: true,
     table: function () { return [cp950(), big5Added()] },
     encodeSkipVals: [
       // Although Encoding Standard says we should avoid encoding to HKSCS area (See Step 1 of

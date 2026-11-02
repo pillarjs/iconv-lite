@@ -59,17 +59,26 @@ class IconvTextDecoder {
     this.encoding = whatwgLabels.get(normalized) || normalized
     this.fatal = Boolean(options.fatal)
     this.ignoreBOM = Boolean(options.ignoreBOM)
+    this._decoder = null
   }
 
   decode (input, options = {}) {
     const buf = Buffer.from(toUint8Array(input))
+    const stream = Boolean(options.stream)
     try {
-      return iconv.decode(buf, this._name, { stripBOM: !this.ignoreBOM, fatal: this.fatal })
+      if (!this._decoder) {
+        this._decoder = iconv.getDecoder(this._name, { stripBOM: !this.ignoreBOM, fatal: this.fatal })
+      }
+      const result = this._decoder.write(buf)
+      return stream ? result : result + (this._decoder.end() || "")
     } catch (e) {
       // In fatal mode iconv throws a TypeError; rethrow it as the test realm's TypeError so
       // assert_throws_js (which checks cross-realm instanceof) accepts it.
       if (e instanceof TypeError) throw new RealmTypeError(e.message)
       throw e
+    } finally {
+      // Final calls reset the decoder and BOM state, even when decoding throws.
+      if (!stream) this._decoder = null
     }
   }
 }
