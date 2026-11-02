@@ -47,11 +47,7 @@ class DBCSCodec {
 
     // A mapping table is a VLQ run-length payload string (see encodings/vlq-runs.js)
     // or chunk rows, or a list mixing both when an encoding extends another one.
-    if (typeof mappingTable === "string") {
-      this._addMappingTable(mappingTable)
-    } else {
-      for (var i = 0; i < mappingTable.length; i++) { this._addMappingTable(mappingTable[i]) }
-    }
+    this._addMappingTable(mappingTable)
 
     // Load & create GB18030 tables when needed.
     if (typeof codecOptions.gb18030 === "function") {
@@ -165,13 +161,14 @@ class DBCSCodec {
     return node
   }
 
-  // Adds one mapping table: a VLQ run-length payload string (see encodings/vlq-runs.js),
-  // or chunk rows for tables carrying sequences.
+  // Accept a VLQ payload, a legacy chunk row, or a list of either format.
   _addMappingTable (table) {
     if (typeof table === "string") {
       forEachVlqRun(table, this._addVlqRun.bind(this))
+    } else if (typeof table[0] === "string" && /^[0-9a-f]+$/i.test(table[0])) {
+      this._addDecodeChunk(table)
     } else {
-      for (var j = 0; j < table.length; j++) { this._addDecodeChunk(table[j]) }
+      for (const part of table) this._addMappingTable(part)
     }
   }
 

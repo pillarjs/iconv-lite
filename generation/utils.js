@@ -106,11 +106,12 @@ const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 function encodeVlq (n) {
   // Zig-zag encoded, 5 data bits per base64 character with a continuation bit.
-  let v = n < 0 ? (-n << 1) | 1 : n << 1
+  // Four-byte DBCS addresses need 33 bits after the sign bit is added.
+  let v = n < 0 ? -n * 2 + 1 : n * 2
   let s = ""
   do {
     let digit = v & 31
-    v >>>= 5
+    v = Math.floor(v / 32)
     if (v > 0) { digit |= 32 }
     s += B64[digit]
   } while (v > 0)

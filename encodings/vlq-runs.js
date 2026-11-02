@@ -16,14 +16,16 @@ function decodeVlqStream (stream) {
   let i = 0
   while (i < stream.length) {
     let value = 0
-    let shift = 0
+    let multiplier = 1
     let digit
     do {
       digit = B64_VALUE[stream.charCodeAt(i++)]
-      value += (digit & 31) << shift
-      shift += 5
+      // Keep the accumulator wider than 32 bits for four-byte DBCS addresses.
+      value += (digit & 31) * multiplier
+      multiplier *= 32
     } while ((digit & 32) !== 0)
-    values.push((value & 1) === 1 ? -(value >>> 1) : value >>> 1)
+    const magnitude = Math.floor(value / 2)
+    values.push((value & 1) === 1 ? -magnitude : magnitude)
   }
   return values
 }

@@ -12,6 +12,10 @@
 
 ### 🚀 Improvements
 
+- Compress dense DBCS tables with VLQ-encoded runs.
+
+    Reduce compressed table size while preserving existing mappings and support for traditional table rows.
+
 - Register external encoding packages with `addEncoding(definitions, options)`.
 
     Support codec constructors, aliases, and configured variants on the Node and Web instances. Registration is atomic and idempotent; replacements require `{ replace: true }` and invalidate dependent caches. Publish codec and backend contracts and types for external labels. Addresses [#253](https://github.com/pillarjs/iconv-lite/issues/253).
