@@ -1,12 +1,11 @@
-import mocha from "mocha"
 import assert from "assert"
 import { Buffer } from "buffer"
 import iconv from "../lib/index-node.js"
 
 import { Readable } from "stream"
-var describeMocha = mocha.describe
 
-var describe = describeMocha
+// Vitest's global `describe`, captured locally so it can be swapped for `describe.skip` below.
+var describe = globalThis.describe
 
 if (!iconv.supportsStreams) {
   describe = describe.skip
@@ -46,7 +45,7 @@ function feeder (chunks) {
 }
 
 function checkStreamOutput (options) {
-  return function (done) {
+  var run = function (done) {
     try {
       var stream = options.createStream()
     }
@@ -114,6 +113,12 @@ function checkStreamOutput (options) {
         done(e)
       }
     }
+  }
+
+  return function () {
+    return new Promise(function (resolve, reject) {
+      run(function (err) { err ? reject(err) : resolve() })
+    })
   }
 }
 
@@ -306,25 +311,33 @@ describe("Streaming mode", function () {
 })
 
 describe("Streaming sugar", function () {
-  it("decodeStream.collect()", function (done) {
-    feeder([[0x61, 0x81], [0x40, 0x61]])
-      .pipe(iconv.decodeStream("gbk"))
-      .collect(function (err, outp) {
-        assert.ifError(err)
-        assert.equal(outp, "a丂a")
-        done()
-      })
+  it("decodeStream.collect()", function () {
+    return new Promise(function (resolve, reject) {
+      feeder([[0x61, 0x81], [0x40, 0x61]])
+        .pipe(iconv.decodeStream("gbk"))
+        .collect(function (err, outp) {
+          try {
+            assert.ifError(err)
+            assert.equal(outp, "a丂a")
+            resolve()
+          } catch (e) { reject(e) }
+        })
+    })
   })
 
-  it("encodeStream.collect()", function (done) {
-    feeder(["абв", "где"])
-      .pipe(iconv.encodeStream("windows-1251"))
-      .collect(function (err, outp) {
-        assert.ifError(err)
-        assert(Buffer.isBuffer(outp))
-        assert.equal(outp.toString("hex"), "e0e1e2e3e4e5")
-        done()
-      })
+  it("encodeStream.collect()", function () {
+    return new Promise(function (resolve, reject) {
+      feeder(["абв", "где"])
+        .pipe(iconv.encodeStream("windows-1251"))
+        .collect(function (err, outp) {
+          try {
+            assert.ifError(err)
+            assert(Buffer.isBuffer(outp))
+            assert.equal(outp.toString("hex"), "e0e1e2e3e4e5")
+            resolve()
+          } catch (e) { reject(e) }
+        })
+    })
   })
 })
 
