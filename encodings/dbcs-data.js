@@ -7,6 +7,33 @@ import gb18030Ranges from "./tables/gb18030-ranges.js"
 import gbkAdded from "./tables/gbk-added.js"
 import shiftjis from "./tables/shiftjis.js"
 
+// The WHATWG gb18030 encoder side table. It is asymmetric with index gb18030:
+// it preserves the GB18030-2005 two-byte encodings of these PUA code points,
+// whose bytes index gb18030 assigns to other code points (GB18030-2022).
+// A null entry marks a code point that the encoder rejects.
+// https://encoding.spec.whatwg.org/#gb18030-encoder
+const gb18030EncoderTable = {
+  0xE5E5: null,
+  0xE78D: 0xA6D9,
+  0xE78E: 0xA6DA,
+  0xE78F: 0xA6DB,
+  0xE790: 0xA6DC,
+  0xE791: 0xA6DD,
+  0xE792: 0xA6DE,
+  0xE793: 0xA6DF,
+  0xE794: 0xA6EC,
+  0xE795: 0xA6ED,
+  0xE796: 0xA6F3,
+  0xE81E: 0xFE59,
+  0xE826: 0xFE61,
+  0xE82B: 0xFE66,
+  0xE82C: 0xFE67,
+  0xE832: 0xFE6D,
+  0xE843: 0xFE7E,
+  0xE854: 0xFE90,
+  0xE864: 0xFEA0
+}
+
 // Description of supported double byte encodings and aliases.
 // Table factories allocate and cache their data only when a codec needs it.
 
@@ -113,6 +140,7 @@ export default {
     type: "_dbcs",
     table: function () { return [cp936(), gbkAdded()] },
     gb18030: gb18030Ranges,
+    gb18030EncoderTable,
     encodeSkipVals: [0x80],
     encodeAdd: { "€": 0xA2E3 }
   },
