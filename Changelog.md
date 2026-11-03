@@ -2,6 +2,10 @@
 
 ### 🐞 Bug fixes
 
+- Stop GBK from encoding U+E7C7 - by [@b84330808](https://github.com/b84330808) in [#446](https://github.com/pillarjs/iconv-lite/pull/446)
+
+    `U+E7C7` only has the GB18030 four-byte code `81 35 F4 37`, which the Encoding Standard's GBK encoder does not produce. The GBK encoder only reserves three bytes per character, so depending on the space left in its output buffer the code came out whole, cut to `81 35 F4`, or as a `RangeError` from the Node backend. It now encodes as `?`, like other characters that GBK cannot represent. Decoding `81 35 F4 37` is unchanged.
+
 - Apply the WHATWG GB18030 asymmetric encoder table - by [@superbot-helper](https://github.com/superbot-helper) in [#443](https://github.com/pillarjs/iconv-lite/pull/443)
 
     Encode the 18 private-use characters in the table to their specified two-byte forms, including when `invalidCharHandler` is enabled. These mappings intentionally decode to different characters under the GB18030-2022 index. U+E5E5 now uses the configured replacement byte or invokes `invalidCharHandler`.

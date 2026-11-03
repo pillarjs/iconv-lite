@@ -99,6 +99,13 @@ describe("GBK tests", function () {
     }
   })
 
+  it("GBK does not encode U+E7C7, which only has a GB18030 four-byte code", function () {
+    assert.strictEqual(utils.hex(iconv.encode("\uE7C7", "GBK")), "3f")
+    assert.strictEqual(utils.hex(iconv.encode("a\uE7C7\uE7C7b", "GBK")), "61 3f 3f 62")
+    assert.strictEqual(utils.hex(iconv.encode("\uE7C7", "GB18030")), "81 35 f4 37")
+    assert.strictEqual(iconv.decode(utils.bytes("81 35 f4 37"), "GBK"), "\uE7C7")
+  })
+
   it("GB18030:2005 changes are applied", function () {
     // See https://github.com/whatwg/encoding/issues/22
     var chars = "\u1E3F\u0000\uE7C7"  // Use \u0000 as separator

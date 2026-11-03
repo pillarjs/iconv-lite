@@ -9,7 +9,8 @@ describe("DBCS streaming", function () {
     ["big5", "Ê\uD800", "88 66 3f"],
     ["big5", "Ê\u0304", "88 62"],
     ["eucjp", "\uD800\u02D8", "3f 8f a2 af"],
-    ["gb18030", "😱", "95 30 83 35"]
+    ["gb18030", "😱", "95 30 83 35"],
+    ["gbk", "a\uE7C7b", "61 3f 62"]
   ]
 
   for (const [encoding, text, expected] of encodeCases) {

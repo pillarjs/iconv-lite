@@ -126,7 +126,10 @@ export default {
   gbk: {
     type: "_dbcs",
     table: function () { return [cp936(), gbkAdded()] },
-    gb18030Decode: gb18030Ranges
+    gb18030Decode: gb18030Ranges,
+    // U+E7C7 only has the GB18030 four-byte code 8135F437, which GBK does not
+    // encode (https://encoding.spec.whatwg.org/#gb18030-encoder). It still decodes.
+    encodeSkipVals: [0x8135F437]
   },
   xgbk: "gbk",
   isoir58: "gbk",
