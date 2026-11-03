@@ -59,10 +59,45 @@ describe("DBCS streaming #node-web", function () {
     ["gb18030", "82 31 82 20", "�1� "],
     ["gb18030", "82 31 82", "�1�"],
     ["gbk", "d6 20", "� "],
+    ["gbk", "81 ff", "�"],
+    ["gb18030", "81 ff", "�"],
+    ["gb18030", "fe ff", "�"],
     ["shiftjis", "82 20", "� "],
+    ["shiftjis", "82 9b 41", "�A"],
+    ["shiftjis", "81 ad 41", "�A"],
+    ["shiftjis", "81 e9 41 42", "�AB"],
+    ["shiftjis", "85 81 41", "�A"],
+    ["shiftjis", "eb 40", "�@"],
     ["eucjp", "8f a2 af", "\u02D8"],
-    ["cp949", "b0 a1", "가"]
+    ["eucjp", "a1 ff 41", "�A"],
+    ["eucjp", "8e e0 41", "�A"],
+    ["eucjp", "a9 a1 41", "�A"],
+    ["cp949", "b0 a1", "가"],
+    ["cp949", "a5 ab 41", "�A"],
+    ["cp949", "81 80 41", "�A"],
+    ["cp949", "c9 a1 41", "�A"]
   ]
+
+  const leadBytes = [
+    ["shiftjis", [[0x81, 0x9F], [0xE0, 0xFC]]],
+    ["eucjp", [[0x8E, 0x8F], [0xA1, 0xFE]]],
+    ["cp949", [[0x81, 0xFE]]],
+    ["gbk", [[0x81, 0xFE]]],
+    ["gb18030", [[0x81, 0xFE]]]
+  ]
+
+  for (const [encoding, ranges] of leadBytes) {
+    it(`buffers every ${encoding} lead byte and consumes a non-ASCII trail byte with it`, function () {
+      for (const [from, to] of ranges) {
+        for (let lead = from; lead <= to; lead++) {
+          const decoder = iconv.getDecoder(encoding)
+          assert.strictEqual(decoder.write(utils.bytes([lead])), "", `lead ${lead.toString(16)}`)
+          assert.strictEqual(decoder.end(), "�")
+          assert.strictEqual(iconv.decode(utils.bytes([lead, 0xFF, 0x41]), encoding), "�A", `lead ${lead.toString(16)}`)
+        }
+      }
+    })
+  }
 
   it("buffers every Big5 lead byte until a trail byte or end-of-input", function () {
     for (let lead = 0x81; lead <= 0xFE; lead++) {

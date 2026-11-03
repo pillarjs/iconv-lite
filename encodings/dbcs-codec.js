@@ -49,10 +49,11 @@ class DBCSCodec {
     // or chunk rows, or a list mixing both when an encoding extends another one.
     this._addMappingTable(mappingTable)
 
-    this.big5 = !!codecOptions.big5
-    if (this.big5) {
-      // Big5 buffers every lead byte, including rows with no assigned mappings.
-      for (var lead = 0x81; lead <= 0xFE; lead++) this._getDecodeTrieNode(lead << 8)
+    // Buffer every lead byte the Encoding Standard decoder buffers, including
+    // rows with no assigned mappings, so a pair that starts with one of them
+    // is a single error instead of a stray byte followed by a new sequence.
+    for (const [from, to] of codecOptions.leadBytes || []) {
+      for (var lead = from; lead <= to; lead++) this._getDecodeTrieNode(lead << 8)
     }
 
     // Load & create GB18030 tables when needed.
@@ -615,7 +616,6 @@ class DBCSDecoder {
     this.decodeTableSeq = codec.decodeTableSeq
     this.defaultCharUnicode = codec.defaultCharUnicode
     this.gb18030 = codec.gb18030
-    this.big5 = codec.big5
   }
 
   write (buf) {
@@ -638,10 +638,11 @@ class DBCSDecoder {
       } else if (uCode === UNASSIGNED) { // Unknown char.
         // TODO: Callback with seq.
         uCode = this.defaultCharUnicode.charCodeAt(0)
-        // Big5 consumes a non-ASCII trail byte with its lead on error. ASCII
-        // trails must be reprocessed. Other codecs retry after the first byte.
-        // https://encoding.spec.whatwg.org/#big5-decoder
-        if (!this.big5 || nodeIdx === 0 || curByte < 0x80) i = seqStart
+        // On an invalid second byte, a non-ASCII byte is consumed with its
+        // lead and an ASCII byte is reprocessed, as in the Encoding Standard's
+        // shift_jis, euc-kr, big5, gb18030 and euc-jp decoders. An error later
+        // in a GB18030 four-byte sequence retries after the first byte.
+        if (i - seqStart !== 1 || curByte < 0x80) i = seqStart
       } else if (uCode === GB18030_CODE) {
         if (i >= 3) {
           var ptr = (buf[i - 3] - 0x81) * 12600 + (buf[i - 2] - 0x30) * 1260 + (buf[i - 1] - 0x81) * 10 + (curByte - 0x30)

@@ -47,6 +47,7 @@ export default {
   shiftjis: {
     type: "_dbcs",
     table: shiftjis,
+    leadBytes: [[0x81, 0x9F], [0xE0, 0xFC]],
     encodeAdd: { "\u00a5": 0x5C, "\u203E": 0x7E },
     encodeSkipVals: [{ from: 0xED40, to: 0xF940 }]
   },
@@ -64,6 +65,7 @@ export default {
   eucjp: {
     type: "_dbcs",
     table: eucjp,
+    leadBytes: [[0x8E, 0x8F], [0xA1, 0xFE]],
     encodeAdd: { "\u00a5": 0x5C, "\u203E": 0x7E }
   },
 
@@ -122,7 +124,8 @@ export default {
   949: "cp949",
   cp949: {
     type: "_dbcs",
-    table: cp949
+    table: cp949,
+    leadBytes: [[0x81, 0xFE]]
   },
 
   cseuckr: "cp949",
@@ -169,7 +172,7 @@ export default {
   big5: "big5hkscs",
   big5hkscs: {
     type: "_dbcs",
-    big5: true,
+    leadBytes: [[0x81, 0xFE]],
     table: function () { return [cp950(), big5Added()] },
     encodeSkipVals: [
       // Although Encoding Standard says we should avoid encoding to HKSCS area (See Step 1 of
