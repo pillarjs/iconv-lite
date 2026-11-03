@@ -110,7 +110,7 @@ async function generate () {
         var leadOffset = (lead < 0xA0) ? 0x81 : 0xC1
         if ((byte >= 0x40 && byte <= 0x7E) || (byte >= 0x80 && byte <= 0xFC)) {
           var pointer = (lead - leadOffset) * 188 + byte - offset
-          if (data.$jis0208[pointer]) { shiftjis[(lead << 8) + byte] = data.$jis0208[pointer] } else if (pointer >= 8836 && pointer <= 10528) { shiftjis[(lead << 8) + byte] = 0xE000 + pointer - 8836 } // Interoperable legacy from Windows known as EUDC
+          if (data.$jis0208[pointer]) { shiftjis[(lead << 8) + byte] = data.$jis0208[pointer] } else if (pointer >= 8836 && pointer <= 10715) { shiftjis[(lead << 8) + byte] = 0xE000 + pointer - 8836 } // Interoperable legacy from Windows known as EUDC
         }
       }
     }

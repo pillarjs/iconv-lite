@@ -27,6 +27,20 @@ describe("ShiftJIS tests", function () {
     assert.strictEqual(utils.hex(iconv.encode(str2, "shiftjis")), res2)
   })
 
+  it("ShiftJIS decodes the whole EUDC block, but does not encode it", function () {
+    // https://encoding.spec.whatwg.org/#shift_jis-decoder: pointers 8836 to 10715 (0xF040 to 0xF9FC)
+    // decode to U+E000 to U+E757.
+    for (var pointer = 8836; pointer <= 10715; pointer++) {
+      var lead = Math.floor(pointer / 188)
+      var trail = pointer % 188
+      var bytes = utils.bytes([lead + (lead < 0x1F ? 0x81 : 0xC1), trail + (trail < 0x3F ? 0x40 : 0x41)])
+      var char = String.fromCharCode(0xE000 + pointer - 8836)
+
+      assert.strictEqual(iconv.decode(bytes, "shiftjis"), char, utils.hex(bytes))
+      assert.strictEqual(utils.hex(iconv.encode(char, "shiftjis")), "3f", utils.hex(bytes))
+    }
+  })
+
   it("ShiftJIS includes extensions", function () {
     assert.strictEqual(iconv.decode(utils.bytes("8740"), "shiftjis"), "①")
     assert.strictEqual(utils.hex(iconv.encode("①", "shiftjis")), "87 40")

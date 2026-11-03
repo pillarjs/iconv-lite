@@ -2,6 +2,10 @@
 
 ### 🐞 Bug fixes
 
+- Decode the whole Shift_JIS EUDC block - by [@b84330808](https://github.com/b84330808) in [#445](https://github.com/pillarjs/iconv-lite/pull/445)
+
+    `F941` to `F9FC` now decode to `U+E69D` to `U+E757`, as the Encoding Standard specifies. Only `F940` was mapped before, so the other 187 byte pairs in that row decoded to `U+FFFD` and then re-read the trail byte as a new character. Like the rest of the EUDC block, these characters are still not encoded.
+
 - Stop GBK from encoding U+E7C7 - by [@b84330808](https://github.com/b84330808) in [#446](https://github.com/pillarjs/iconv-lite/pull/446)
 
     `U+E7C7` only has the GB18030 four-byte code `81 35 F4 37`, which the Encoding Standard's GBK encoder does not produce. The GBK encoder only reserves three bytes per character, so depending on the space left in its output buffer the code came out whole, cut to `81 35 F4`, or as a `RangeError` from the Node backend. It now encodes as `?`, like other characters that GBK cannot represent. Decoding `81 35 F4 37` is unchanged.
