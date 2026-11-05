@@ -59,7 +59,7 @@ try {
     fs.copyFileSync(path.join(tmp, file), dest)
   }
 
-  fs.writeFileSync(path.join(import.meta.dirname, "UPSTREAM"), `${WPT_REPO}\n${commit}\n`)
+  fs.writeFileSync(path.join(import.meta.dirname, "UPSTREAM_COMMIT"), `${WPT_REPO}\n${commit}\n`)
   console.log(`Updated ${FILES.length} files from web-platform-tests@${commit}`)
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true })
