@@ -97,10 +97,10 @@ describe("GBK tests", function () {
   })
 
   it("GB18030 correctly decodes incomplete 4 byte sequences", function () {
+    for (const bytes of [[0x82], [0x82, 0x31], [0x82, 0x31, 0x82]]) {
+      assert.strictEqual(iconv.decode(Buffer.from(bytes), "GB18030"), "�")
+    }
     var chars = {
-      "�": Buffer.from([0x82]),
-      "�1": Buffer.from([0x82, 0x31]),
-      "�1�": Buffer.from([0x82, 0x31, 0x82]),
       // eslint-disable-next-line
       "\u399f": Buffer.from([0x82, 0x31, 0x82, 0x31]),
       "� ": Buffer.from([0x82, 0x20]),
@@ -111,7 +111,7 @@ describe("GBK tests", function () {
       "�1\u5010\u0061": Buffer.from([0x82, 0x31, 0x82, 0x82, 0x61]),
       // eslint-disable-next-line
       '\u399f\u4fdb': Buffer.from([0x82, 0x31, 0x82, 0x31, 0x82, 0x61]),
-      "�1\u50101�1": Buffer.from([0x82, 0x31, 0x82, 0x82, 0x31, 0x82, 0x31])
+      "�1\u50101�": Buffer.from([0x82, 0x31, 0x82, 0x82, 0x31, 0x82, 0x31])
     }
     for (var uChar in chars) {
       var gbkBuf = chars[uChar]

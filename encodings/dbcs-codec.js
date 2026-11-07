@@ -56,10 +56,21 @@ class DBCSCodec {
       for (var lead = from; lead <= to; lead++) this._getDecodeTrieNode(lead << 8)
     }
 
-    // Load & create GB18030 tables when needed.
-    if (typeof codecOptions.gb18030 === "function") {
-      this.gb18030 = codecOptions.gb18030() // Load GB18030 ranges.
+    this.eucjp = !!codecOptions.eucjp
+    if (this.eucjp) {
+      // JIS X 0212 sequences buffer both prefix bytes, even for unassigned rows.
+      for (var lead = 0xA1; lead <= 0xFE; lead++) this._getDecodeTrieNode(0x8F0000 | (lead << 8))
+    }
 
+    // GBK uses GB18030 decoding without enabling its algorithmic encoder.
+    if (typeof codecOptions.gb18030 === "function") {
+      this.gb18030 = codecOptions.gb18030()
+    }
+    this.gb18030Decode = typeof codecOptions.gb18030Decode === "function"
+      ? codecOptions.gb18030Decode()
+      : this.gb18030
+
+    if (this.gb18030Decode) {
       // Add GB18030 common decode nodes.
       var commonThirdByteNodeIdx = this.decodeTables.length
       this.decodeTables.push(UNASSIGNED_NODE.slice(0))
@@ -615,7 +626,8 @@ class DBCSDecoder {
     this.decodeTables = codec.decodeTables
     this.decodeTableSeq = codec.decodeTableSeq
     this.defaultCharUnicode = codec.defaultCharUnicode
-    this.gb18030 = codec.gb18030
+    this.gb18030 = codec.gb18030Decode
+    this.eucjp = codec.eucjp
   }
 
   write (buf) {
@@ -638,11 +650,17 @@ class DBCSDecoder {
       } else if (uCode === UNASSIGNED) { // Unknown char.
         // TODO: Callback with seq.
         uCode = this.defaultCharUnicode.charCodeAt(0)
-        // On an invalid second byte, a non-ASCII byte is consumed with its
-        // lead and an ASCII byte is reprocessed, as in the Encoding Standard's
-        // shift_jis, euc-kr, big5, gb18030 and euc-jp decoders. An error later
-        // in a GB18030 four-byte sequence retries after the first byte.
-        if (i - seqStart !== 1 || curByte < 0x80) i = seqStart
+        // EUC-JP consumes a JIS X 0212 prefix together with an invalid third
+        // byte, restoring only an ASCII byte to the input queue.
+        if (this.eucjp && i - seqStart === 2) {
+          if (curByte < 0x80) i--
+        } else if (i - seqStart !== 1 || curByte < 0x80) {
+          // Other invalid pairs consume a non-ASCII second byte with the lead.
+          // Later errors in GB18030 retry after the first byte.
+          // seqStart is negative when the sequence began in a previous chunk,
+          // so i - seqStart === 1 also detects a second byte across chunks.
+          i = seqStart
+        }
       } else if (uCode === GB18030_CODE) {
         if (i >= 3) {
           var ptr = (buf[i - 3] - 0x81) * 12600 + (buf[i - 2] - 0x30) * 1260 + (buf[i - 1] - 0x81) * 10 + (curByte - 0x30)
@@ -704,6 +722,12 @@ class DBCSDecoder {
 
   end () {
     if (this.prevBytes.length === 0) return ""
+    if (this.gb18030 || this.eucjp) {
+      // End-of-input consumes the entire incomplete sequence as one error.
+      this.prevBytes.length = 0
+      this.nodeIdx = 0
+      return this.defaultCharUnicode
+    }
     var ret = ""
 
     // Try to parse all remaining chars.

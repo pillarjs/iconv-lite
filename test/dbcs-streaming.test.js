@@ -57,22 +57,44 @@ describe("DBCS streaming #node-web", function () {
     ["big5", "fa 40", "𠕇"],
     ["gb18030", "95 30 83 35", "😱"],
     ["gb18030", "82 31 82 20", "�1� "],
-    ["gb18030", "82 31 82", "�1�"],
+    ["gb18030", "82 31", "�"],
+    ["gb18030", "82 31 82", "�"],
+    ["gb18030", "81 30 ff 41", "�0�A"],
+    ["gb18030", "81 30 81 ff 41", "�0�A"],
+    ["cp936", "81 ff 41", "�A"],
+    ["cp950", "a1 ff 41", "�A"],
     ["gbk", "d6 20", "� "],
     ["gbk", "81 ff", "�"],
+    ["gbk", "95 30 83 35", "😱"],
+    ["gbk", "82 31", "�"],
+    ["gbk", "82 31 82", "�"],
+    ["gbk", "82 31 82 20", "�1� "],
+    ["gbk", "81 30 ff 41", "�0�A"],
+    ["gbk", "81 30 81 ff 41", "�0�A"],
     ["gb18030", "81 ff", "�"],
     ["gb18030", "fe ff", "�"],
     ["shiftjis", "82 20", "� "],
+    ["shiftjis", "81 00 41", "�\u0000A"],
     ["shiftjis", "82 9b 41", "�A"],
     ["shiftjis", "81 ad 41", "�A"],
     ["shiftjis", "81 e9 41 42", "�AB"],
     ["shiftjis", "85 81 41", "�A"],
     ["shiftjis", "eb 40", "�@"],
     ["eucjp", "8f a2 af", "\u02D8"],
+    ["eucjp", "8f a2", "�"],
+    ["eucjp", "8f a1", "�"],
+    ["eucjp", "8f a2 ff 41", "�A"],
+    ["eucjp", "8f a2 22 41", "�\"A"],
+    ["eucjp", "8f a2 a1 41", "�A"],
+    ["eucjp", "8f a1 a1 41", "�A"],
+    ["eucjp", "8f fe fe 41", "�A"],
+    ["eucjp", "8f a2 8e a4 a2", "�あ"],
+    ["eucjp", "a1 22 41", "�\"A"],
     ["eucjp", "a1 ff 41", "�A"],
     ["eucjp", "8e e0 41", "�A"],
     ["eucjp", "a9 a1 41", "�A"],
     ["cp949", "b0 a1", "가"],
+    ["cp949", "81 7f 41", "�\u007fA"],
     ["cp949", "a5 ab 41", "�A"],
     ["cp949", "81 80 41", "�A"],
     ["cp949", "c9 a1 41", "�A"]
@@ -109,6 +131,30 @@ describe("DBCS streaming #node-web", function () {
     }
   })
 
+  it("buffers every EUC-JP JIS X 0212 row until its third byte", function () {
+    for (let row = 0xA1; row <= 0xFE; row++) {
+      const decoder = iconv.getDecoder("eucjp")
+      assert.strictEqual(decoder.write(utils.bytes([0x8F, row])), "", `row ${row.toString(16)}`)
+      assert.strictEqual(decoder.write(utils.bytes([0xFF, 0x41])), "�A")
+      assert.strictEqual(decoder.end(), "")
+    }
+  })
+
+  for (const [encoding, pending, valid, expected] of [
+    ["gb18030", "82 31 82", "95 30 83 35", "😱"],
+    ["gbk", "82 31 82", "95 30 83 35", "😱"],
+    ["eucjp", "8f a2", "a4 a2", "あ"]
+  ]) {
+    it(`resets ${encoding} after replacing an incomplete sequence once`, function () {
+      const decoder = iconv.getDecoder(encoding)
+      assert.strictEqual(decoder.write(utils.bytes(pending)), "")
+      assert.strictEqual(decoder.end(), "�")
+      assert.strictEqual(decoder.end(), "")
+      assert.strictEqual(decoder.write(utils.bytes(valid)), expected)
+      assert.strictEqual(decoder.end(), "")
+    })
+  }
+
   for (const [encoding, hex, expected] of decodeCases) {
     it(`decodes ${hex} as ${encoding} while the caller reuses its input buffer`, function () {
       const decoder = iconv.getDecoder(encoding)
@@ -144,7 +190,7 @@ describe("DBCS exhaustive two-byte chunk boundaries #node-web", function () {
       const bytes = utils.bytes([0, 0])
       for (let b1 = 0x81; b1 <= 0xFE; b1++) {
         bytes[0] = b1
-        for (let b2 = 0x21; b2 <= 0xFE; b2++) {
+        for (let b2 = 0x00; b2 <= 0xFF; b2++) {
           bytes[1] = b2
           const whole = iconv.decode(bytes, encoding)
           const decoder = iconv.getDecoder(encoding)

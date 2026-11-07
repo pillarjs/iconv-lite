@@ -65,6 +65,7 @@ export default {
   eucjp: {
     type: "_dbcs",
     table: eucjp,
+    eucjp: true,
     leadBytes: [[0x8E, 0x8F], [0xA1, 0xFE]],
     encodeAdd: { "\u00a5": 0x5C, "\u203E": 0x7E }
   },
@@ -97,7 +98,8 @@ export default {
   // GBK (~22000 chars) is an extension of CP936 that added user-mapped chars and some other.
   gbk: {
     type: "_dbcs",
-    table: function () { return [cp936(), gbkAdded()] }
+    table: function () { return [cp936(), gbkAdded()] },
+    gb18030Decode: gb18030Ranges
   },
   xgbk: "gbk",
   isoir58: "gbk",

@@ -23,8 +23,8 @@ function pointerBytes (pointer, bytes) {
   return bytes
 }
 
-function decodeSplit (bytes, at) {
-  const decoder = iconv.getDecoder("gb18030")
+function decodeSplit (bytes, at, encoding = "gb18030") {
+  const decoder = iconv.getDecoder(encoding)
   return decoder.write(bytes.subarray(0, at)) + decoder.write(new Uint8Array(0)) +
     decoder.write(bytes.subarray(at)) + decoder.end()
 }
@@ -51,15 +51,17 @@ function forEachFourByteSequence (check) {
 describe("GB18030 pointer ranges #node-web", function () {
   this.timeout(30000)
 
-  it("decodes assigned and unassigned boundaries at every chunk split", function () {
-    for (const [pointer, hex, expected] of pointerBoundaries) {
-      const bytes = utils.bytes(hex)
-      assert.strictEqual(iconv.decode(bytes, "gb18030"), expected, `pointer ${pointer}`)
-      for (let split = 0; split <= bytes.length; split++) {
-        assert.strictEqual(decodeSplit(bytes, split), expected, `pointer ${pointer}, split ${split}`)
+  for (const encoding of ["gb18030", "gbk"]) {
+    it(`decodes assigned and unassigned ${encoding} boundaries at every chunk split`, function () {
+      for (const [pointer, hex, expected] of pointerBoundaries) {
+        const bytes = utils.bytes(hex)
+        assert.strictEqual(iconv.decode(bytes, encoding), expected, `pointer ${pointer}`)
+        for (let split = 0; split <= bytes.length; split++) {
+          assert.strictEqual(decodeSplit(bytes, split, encoding), expected, `pointer ${pointer}, split ${split}`)
+        }
       }
-    }
-  })
+    })
+  }
 
   it("consumes an invalid pointer once and continues decoding subsequent characters", function () {
     const bytes = utils.bytes("41 84 31 a5 30 e3 32 9a 36 fe 39 fe 39 90 30 81 30 42")
