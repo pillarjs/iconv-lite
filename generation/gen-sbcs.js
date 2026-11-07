@@ -83,6 +83,7 @@ fs.writeFileSync(path.join(import.meta.dirname, "..", destFileName),
 
 function generateCharsString (encoding) {
   console.log("Generate encoding for " + encoding)
+  const isWindows = encoding.startsWith("windows-")
   var iconvToUtf8 = new Iconv(encoding, "UTF-8")
   var iconvFromUtf8 = new Iconv("UTF-8", encoding)
   var chars = ""; var containsDiacritics = []
@@ -107,6 +108,12 @@ function generateCharsString (encoding) {
       } else {
         throw exception
       }
+    }
+
+    // WHATWG Windows indexes map otherwise unassigned C1 bytes to controls.
+    // Bytes outside 0x80..0x9F must keep their original mappings (or errors).
+    if (isWindows && b >= 0x80 && b <= 0x9F && convertedChar === "\uFFFD") {
+      convertedChar = String.fromCharCode(b)
     }
 
     chars += convertedChar

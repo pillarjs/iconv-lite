@@ -2,6 +2,10 @@
 
 ### 🐞 Bug fixes
 
+- Preserve the WHATWG C1 control mappings in Windows-874 and Windows-125x.
+
+    The 86 previously unassigned positions in the `0x80`–`0x9F` range now decode to their corresponding control characters and encode back to the same bytes. For example, Windows-1252 byte `81` now decodes to `U+0081` instead of `U+FFFD`, and `U+0081` encodes as `81` instead of `3F`. Encoding these controls no longer invokes `invalidCharHandler`, and they can be used in its replacements.
+
 - Decode the whole Shift_JIS EUDC block - by [@b84330808](https://github.com/b84330808) in [#445](https://github.com/pillarjs/iconv-lite/pull/445)
 
     The 187 valid byte pairs from `F941` to `F9FC` now decode to `U+E69D` to `U+E757`, as the Encoding Standard specifies. Previously, only `F940` was mapped in that row; the remaining pairs produced a replacement character, with an ASCII trail byte decoded again. For example, `F9 FC 41` now decodes to `U+E757 A` instead of `U+FFFD A`. EUDC characters remain decode-only: encoding uses the configured replacement byte or invokes `invalidCharHandler`.

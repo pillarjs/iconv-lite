@@ -15,11 +15,13 @@ var encodings = [
       ascii: ascii,
       turkish:
                 "€‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ¡¢£¤¥¦§¨©ª«¬®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ",
-      untranslatable: "\x81\x8d\x8e\x8f\x90\x9d\x9e"
+      c1Controls: "\x81\x8d\x8e\x8f\x90\x9d\x9e",
+      untranslatable: "\x80\x82\x83\x84\x85\x86\x87"
     },
     encodedStrings: {
       empty: utils.bytes([]),
       ascii: utils.bytes(ascii.split("").map((c) => c.charCodeAt(0))),
+      c1Controls: utils.bytes("81 8d 8e 8f 90 9d 9e"),
       turkish: utils.bytes(
         "80 82 83 84 85 86 87 88 89 8a 8b 8c 91 92 93 94 95 96 97 98 99 9a 9b 9c 9f " +
                     "a1 a2 a3 a4 a5 a6 a7 a8 a9 aa ab ac ae af b0 b1 b2 b3 b4 b5 b6 b7 b8 b9 ba bb bc bd be bf " +
