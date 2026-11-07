@@ -130,6 +130,8 @@ class SBCSDecoder {
   constructor (opts, codec, backend) {
     this.decodeBuf = codec.decodeBuf
     this.backend = backend
+    this.fatal = !!opts?.fatal
+    this.encodingName = codec.encodingName
   }
 
   write (buf) {
@@ -137,8 +139,16 @@ class SBCSDecoder {
     const decodeBuf = this.decodeBuf
     const chars = this.backend.allocRawChars(buf.length)
 
-    for (let i = 0; i < buf.length; i++) {
-      chars[i] = decodeBuf[buf[i]]
+    if (this.fatal) {
+      for (let i = 0; i < buf.length; i++) {
+        const code = decodeBuf[buf[i]]
+        if (code === 0xFFFD) throw new TypeError("Invalid byte in " + this.encodingName)
+        chars[i] = code
+      }
+    } else {
+      for (let i = 0; i < buf.length; i++) {
+        chars[i] = decodeBuf[buf[i]]
+      }
     }
     return this.backend.rawCharsToResult(chars, chars.length)
   }

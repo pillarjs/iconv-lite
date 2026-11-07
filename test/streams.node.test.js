@@ -149,6 +149,25 @@ function checkDecodeStream (opts) {
 }
 
 describe("Streaming mode", function () {
+  it("preserves Windows C1 controls in fatal mode", checkDecodeStream({
+    encoding: "windows-1252",
+    encodingOptions: { fatal: true },
+    input: [[0x81], [0x80, 0x41]],
+    output: "\u0081€A"
+  }))
+
+  for (const [encoding, byte] of [
+    ["windows-874", 0xDB], ["windows-1253", 0xAA],
+    ["windows-1255", 0xD9], ["windows-1257", 0xA1]
+  ]) {
+    it(encoding + " propagates fatal decoder errors", checkDecodeStream({
+      encoding,
+      encodingOptions: { fatal: true },
+      input: [[0x81], [0x41, byte, 0x42]],
+      checkError: error => assert(error instanceof TypeError)
+    }))
+  }
+
   it("Feeder outputs strings", checkStreamOutput({
     createStream: function () { return feeder(["abc", "def"]) },
     outputType: "string",

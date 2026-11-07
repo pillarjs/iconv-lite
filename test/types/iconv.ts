@@ -1,7 +1,7 @@
 /* eslint-disable import-x/no-duplicates -- Compare distinct entry points that the linter resolves with browser conditions. */
 import iconv, { encode, decode, getEncoder, encodeWebStream, decodeWebStream } from "iconv-lite"
 import { canonicalizeEncoding } from "../../lib/utils.js"
-import type { Encoding, EncodeOptions, EncodingDefinitions } from "iconv-lite"
+import type { Encoding, EncodeOptions, DecodeOptions, EncodingDefinitions } from "iconv-lite"
 import { expectTypeOf } from "expect-type"
 
 // Default and named ESM exports preserve the output type of each entry point.
@@ -44,6 +44,17 @@ expectTypeOf(decode(new Uint8Array(), "utf8")).toEqualTypeOf<string>()
 expectTypeOf(getEncoder("utf8").write("hello")).toEqualTypeOf<Buffer>()
 expectTypeOf(webEncode("hello", "utf8")).toEqualTypeOf<Uint8Array>()
 expectTypeOf(webEncoder("utf8").write("hello")).toEqualTypeOf<Uint8Array>()
+
+const fatalOptions: DecodeOptions = { fatal: true }
+expectTypeOf(decode(new Uint8Array(), "windows-1252", fatalOptions)).toEqualTypeOf<string>()
+expectTypeOf(iconv.getDecoder("windows-1253", fatalOptions).write(new Uint8Array())).toEqualTypeOf<string>()
+expectTypeOf(iconv.decodeStream("windows-874", fatalOptions)).toEqualTypeOf<NodeJS.ReadWriteStream>()
+expectTypeOf(decodeWebStream("windows-1255", fatalOptions)).toEqualTypeOf<TransformStream<Uint8Array, string>>()
+expectTypeOf(webIconv.decode(new Uint8Array(), "windows-1252", fatalOptions)).toEqualTypeOf<string>()
+expectTypeOf(webIconv.getDecoder("windows-1253", fatalOptions).write(new Uint8Array())).toEqualTypeOf<string>()
+expectTypeOf(webDecodeStream("windows-1257", fatalOptions)).toEqualTypeOf<TransformStream<Uint8Array, string>>()
+// @ts-expect-error The fatal option must be a boolean.
+decode(new Uint8Array(), "windows-1252", { fatal: "true" })
 
 // Supplying unrelated options or an explicitly absent handler cannot cancel encoding.
 expectTypeOf(encode("hello", "utf8", {})).toEqualTypeOf<Buffer>()

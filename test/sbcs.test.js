@@ -204,3 +204,13 @@ describe("SBCS encode maps U+FFFD to defaultCharSingleByte", function () {
     })
   })
 })
+
+describe("SBCS fatal decoding outside the Windows family", function () {
+  for (const [encoding, byte] of [["ascii", 0x80], ["iso88593", 0xA5]]) {
+    it(encoding + " rejects unassigned bytes only in fatal mode", function () {
+      assert.strictEqual(iconv.decode(utils.bytes([byte]), encoding), "\uFFFD")
+      assert.throws(() => iconv.decode(utils.bytes([byte]), encoding, { fatal: true }), TypeError)
+      assert.strictEqual(iconv.decode(utils.bytes([0x41]), encoding, { fatal: true }), "A")
+    })
+  }
+})

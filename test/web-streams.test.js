@@ -174,6 +174,36 @@ describe("Web Streams", function () {
     })
   }
 
+  it("preserves Windows C1 controls in fatal mode", async function () {
+    const output = source([Uint8Array.of(0x81), Uint8Array.of(0x80, 0x41)])
+      .pipeThrough(iconv.decodeWebStream("windows-1252", { fatal: true }))
+    assert.equal((await collect(output)).join(""), "\u0081€A")
+  })
+
+  for (const [encoding, byte] of [
+    ["windows-874", 0xDB], ["windows-1253", 0xAA],
+    ["windows-1255", 0xD9], ["windows-1257", 0xA1]
+  ]) {
+    it(encoding + " propagates fatal errors to both Web Stream sides", async function () {
+      const transform = iconv.decodeWebStream(encoding, { fatal: true })
+      const writer = transform.writable.getWriter()
+      const reader = transform.readable.getReader()
+      try {
+        const first = reader.read()
+        await writer.write(Uint8Array.of(0x81))
+        assert.equal((await first).value, "\u0081")
+        const readError = assert.rejects(reader.read(), TypeError)
+        await assert.rejects(writer.write(Uint8Array.of(0x41, byte, 0x42)), TypeError)
+        await readError
+        await assert.rejects(writer.closed, TypeError)
+        await assert.rejects(reader.closed, TypeError)
+      } finally {
+        writer.releaseLock()
+        reader.releaseLock()
+      }
+    })
+  }
+
   it("rejects chunks of the wrong type", async function () {
     for (const input of [null, 42, new Uint8Array()]) {
       await assert.rejects(collect(source([input]).pipeThrough(iconv.encodeWebStream("utf8"))), /needs strings/)

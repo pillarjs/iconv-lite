@@ -18,6 +18,11 @@ export type Encoding = BuiltinEncoding | (string & {})
 
 export interface DecodeOptions {
   /**
+   * Throw a TypeError on invalid input instead of inserting U+FFFD. @default false
+   * Supported by UTF-8, UTF-16, UTF-32 and table-based single-byte codecs.
+   */
+  fatal?: boolean;
+  /**
    * Strip the Byte Order Mark (BOM) from the input,
    * when decoding, if the codec is BOM-aware. @default true
    */

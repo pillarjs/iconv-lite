@@ -115,6 +115,24 @@ so they do not invoke the handler. `hex` and `base64` reject this option because
 they convert byte representations rather than text. Omitting the handler keeps
 the existing encoding behavior.
 
+### Rejecting invalid encoded input
+
+Pass `{ fatal: true }` to throw a `TypeError` when decoding invalid input.
+This is supported by UTF-8, UTF-16, UTF-32 and table-based single-byte encodings,
+including Windows-874 and Windows-125x. The default remains replacement decoding.
+
+```javascript
+iconv.decode(Uint8Array.of(0x81), 'windows-1252', { fatal: true }); // '\u0081'
+iconv.decode(Uint8Array.of(0xAA), 'windows-1253'); // '\uFFFD'
+iconv.decode(Uint8Array.of(0xAA), 'windows-1253', { fatal: true }); // Throws TypeError.
+```
+
+The option also applies to `getDecoder()`, `decodeStream()` and `decodeWebStream()`.
+A fatal single-byte decoder rejects the failing write and can process a later
+valid write. Stream errors propagate through the stream's error mechanism.
+Legacy multibyte encodings such as Shift_JIS, GB18030 and Big5 do not yet support
+this option.
+
 ### Browsers
 
 Bundlers select the Web backend automatically. You can also select it explicitly:

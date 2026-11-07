@@ -1,10 +1,11 @@
-// Vendors the WHATWG multi-byte index tables needed by decode-compare.js, from
+// Vendors the WHATWG indexes needed by decode-compare.js and Windows SBCS tests, from
 // the canonical source the spec (and WPT) derive from:
 //   https://encoding.spec.whatwg.org/indexes.json
 //
 // These drive a `new TextDecoder(enc).decode(canonicalBytes)` conformance check
 // for shift_jis / euc-jp / euc-kr / big5 — the legacy multi-byte encodings that
-// ship no TextDecoder `.any.js` test upstream (only iframe/XHR ones).
+// ship no TextDecoder `.any.js` test upstream (only iframe/XHR ones), and full
+// Windows single-byte encode/decode checks in Node.js and webpack/Chrome.
 //
 //   node test/wpt/gen-indexes.js
 
@@ -12,23 +13,29 @@ import fs from "fs"
 import path from "path"
 
 const URL = "https://encoding.spec.whatwg.org/indexes.json"
-const KEYS = ["jis0208", "jis0212", "big5", "euc-kr"]
-const dest = path.join(import.meta.dirname, "data", "whatwg-multibyte-indexes.json")
+const TABLES = {
+  "whatwg-multibyte-indexes.json": ["jis0208", "jis0212", "big5", "euc-kr"],
+  "whatwg-windows-indexes.json": [874, 1250, 1251, 1252, 1253, 1254, 1255, 1256, 1257, 1258]
+    .map(cp => "windows-" + cp)
+}
 
 async function main () {
   const res = await fetch(URL)
   if (!res.ok) throw new Error(`GET ${URL} -> ${res.status}`)
   const indexes = await res.json()
 
-  const out = {}
-  for (const k of KEYS) {
-    if (!Array.isArray(indexes[k])) throw new Error(`missing index: ${k}`)
-    out[k] = indexes[k]
-  }
+  for (const [file, keys] of Object.entries(TABLES)) {
+    const out = {}
+    for (const k of keys) {
+      if (!Array.isArray(indexes[k])) throw new Error(`missing index: ${k}`)
+      out[k] = indexes[k]
+    }
 
-  fs.mkdirSync(path.dirname(dest), { recursive: true })
-  fs.writeFileSync(dest, JSON.stringify(out) + "\n")
-  console.log(`Wrote ${KEYS.join(", ")} to ${path.relative(process.cwd(), dest)}`)
+    const dest = path.join(import.meta.dirname, "data", file)
+    fs.mkdirSync(path.dirname(dest), { recursive: true })
+    fs.writeFileSync(dest, JSON.stringify(out) + "\n")
+    console.log(`Wrote ${keys.join(", ")} to ${path.relative(process.cwd(), dest)}`)
+  }
 }
 
 main().catch((err) => { console.error(err); process.exit(1) })
