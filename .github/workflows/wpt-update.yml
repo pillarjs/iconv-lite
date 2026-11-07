@@ -24,7 +24,7 @@ jobs:
       - name: Refresh vendored WPT encoding/ tests
         run: node test/wpt/update.js
 
-      - name: Refresh WHATWG multi-byte index tables
+      - name: Refresh WHATWG index tables
         run: node test/wpt/gen-indexes.js
 
       - name: Check for changes in the vendored tests/data

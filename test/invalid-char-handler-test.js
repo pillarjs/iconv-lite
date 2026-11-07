@@ -36,19 +36,32 @@ describe("invalidCharHandler (SBCS)", function () {
   })
 
   it("reports U+FFFD when the replacement byte is unassigned", function () {
-    iconv.defaultCharSingleByte = "\x81"
+    iconv.defaultCharSingleByte = "\xAA"
     const calls = []
-    const result = iconv.encode("�A?", "windows1252", {
+    const result = iconv.encode("�A?", "windows1253", {
       invalidCharHandler (char, index) {
         calls.push({ char, index })
       }
     })
 
-    assert.deepStrictEqual(Array.from(result), [0x81, 0x41, 0x3F])
+    assert.deepStrictEqual(Array.from(result), [0xAA, 0x41, 0x3F])
     assert.deepStrictEqual(calls, [{ char: "�", index: 0 }])
-    assert.strictEqual(iconv.encode("�", "windows1252", {
+    assert.strictEqual(iconv.encode("�", "windows1253", {
       invalidCharHandler () { return true }
     }), null)
+  })
+
+  it("allows a C1 control at the configured replacement byte", function () {
+    iconv.defaultCharSingleByte = "\x81"
+    const calls = []
+    const result = iconv.encode("\u0081�", "windows1252", {
+      invalidCharHandler (char, index) {
+        calls.push({ char, index })
+      }
+    })
+
+    assert.deepStrictEqual(Array.from(result), [0x81, 0x81])
+    assert.deepStrictEqual(calls, [{ char: "�", index: 1 }])
   })
 
   it("allows the valid character at the configured replacement byte", function () {

@@ -18,6 +18,11 @@ export type Encoding = BuiltinEncoding | (string & {})
 
 export interface DecodeOptions {
   /**
+   * Throw a TypeError on invalid input instead of inserting U+FFFD. @default false
+   * Supported by UTF-8, UTF-16, UTF-32 and table-based single-byte codecs.
+   */
+  fatal?: boolean;
+  /**
    * Strip the Byte Order Mark (BOM) from the input,
    * when decoding, if the codec is BOM-aware. @default true
    */
@@ -164,7 +169,12 @@ export interface WebIconv<Bytes extends Uint8Array = Uint8Array> {
   /** The character used for untranslatable `Unicode` characters. @default "�" */
   defaultCharUnicode: string
 
-  /** The character used for untranslatable `single-byte` characters. @default "?" */
+  /**
+   * The fallback byte for untranslatable characters. @default "?"
+   * Table-based single-byte encoders require one code unit in 0x00–0xFF and
+   * capture its byte value at creation, including when the codec is cached.
+   * Existing encoders and streams retain their setting.
+   */
   defaultCharSingleByte: string
 
   /** @readonly Whether the environment provides the TransformStream used by Web Streams. */

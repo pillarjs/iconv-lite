@@ -92,6 +92,12 @@ codec and backend contracts, and TypeScript types.
 
 ### Handling unrepresentable characters
 
+For table-based single-byte encodings, `iconv.defaultCharSingleByte` selects the
+fallback byte (`"?"` by default). It must be a one-character string with a code
+unit between `0x00` and `0xFF`; the code unit is the byte value, not a character
+to encode. Each new encoder or stream validates and captures the current setting,
+even when the codec is cached. Existing encoders and streams keep their setting.
+
 `invalidCharHandler(char, index)` runs when encoding would replace or truncate an
 input character. Its result controls what happens:
 
@@ -114,6 +120,30 @@ UTF-16, CESU-8, and UTF-7 preserve UTF-16 code units, including unpaired surroga
 so they do not invoke the handler. `hex` and `base64` reject this option because
 they convert byte representations rather than text. Omitting the handler keeps
 the existing encoding behavior.
+
+### Rejecting invalid encoded input
+
+Pass `{ fatal: true }` to throw a `TypeError` when decoding invalid input.
+This is supported by UTF-8, UTF-16, UTF-32 and table-based single-byte encodings,
+including Windows-874 and Windows-125x. The default remains replacement decoding.
+
+```javascript
+iconv.decode(Uint8Array.of(0x81), 'windows-1252', { fatal: true }); // '\u0081'
+iconv.decode(Uint8Array.of(0xAA), 'windows-1253'); // '\uFFFD'
+iconv.decode(Uint8Array.of(0xAA), 'windows-1253', { fatal: true }); // Throws TypeError.
+```
+
+The option also applies to `getDecoder()`, `decodeStream()` and `decodeWebStream()`.
+A fatal single-byte decoder rejects the failing write and can process a later
+valid write. Stream errors propagate through the stream's error mechanism.
+Legacy multibyte encodings such as Shift_JIS, GB18030 and Big5 do not yet support
+this option.
+
+For table-based single-byte encodings, `iconv.defaultCharUnicode` sets the text
+inserted for each undefined byte in replacement mode. Each new decoder or stream
+captures the current setting, even when its encoding table is already cached.
+Existing decoders keep their replacement text. The text is inserted literally;
+`{ fatal: true }` takes precedence and throws instead.
 
 ### Browsers
 

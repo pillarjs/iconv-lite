@@ -106,6 +106,7 @@ const res = Object.fromEntries(
       return [encoding, false]
     }
     console.log(`Processing ${encoding}`)
+    const isWindows = encoding.startsWith("windows-")
 
     // Create decode data
     const decoder = new Iconv(encoding, "utf-8")
@@ -118,6 +119,10 @@ const res = Object.fromEntries(
         assert(typeof str === "string" && str.length > 0)
       } catch (e) {
         if (e.code !== "EILSEQ") throw e
+      }
+      // WHATWG preserves unassigned Windows C1 bytes as control characters.
+      if (isWindows && i >= 0x80 && i <= 0x9F && str === "") {
+        str = String.fromCharCode(i)
       }
       decodeArr.push(str)
     }
@@ -147,6 +152,10 @@ const res = Object.fromEntries(
       } catch (e) {
         if (e.code !== "EILSEQ") throw e
       }
+      // These controls also have a pointer in the WHATWG single-byte encoder.
+      if (isWindows && i >= 0x80 && i <= 0x9F && decodeArr[i] === String.fromCharCode(i)) {
+        str = String.fromCharCode(i)
+      }
       encodeArr.push(str)
     }
 
@@ -170,5 +179,5 @@ assert.deepEqual(skipEncodings, {}, "Some skipped encodings are not found in 'en
 const resFile = path.join(import.meta.dirname, "../test/tables/sbcs-data.json")
 
 fs.mkdirSync(path.dirname(resFile), { recursive: true })
-fs.writeFileSync(resFile, JSON.stringify(res, null, 2))
+fs.writeFileSync(resFile, JSON.stringify(res, null, 4) + "\n")
 console.log(`Successfully written ${resFile}`)

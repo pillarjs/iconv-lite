@@ -2,6 +2,7 @@ import mocha from "mocha"
 import assert from "assert"
 import { Buffer } from "buffer"
 import utils from "./helpers/utils.js"
+import NodeIconv from "../lib/iconv-node.js"
 import { Readable } from "stream"
 
 const iconv = utils.requireIconv()
@@ -149,6 +150,54 @@ function checkDecodeStream (opts) {
 }
 
 describe("Streaming mode", function () {
+  for (const withHandler of [false, true]) {
+    it(`captures the SBCS encoder replacement in Node streams (handler: ${withHandler})`, async function () {
+      const instance = new NodeIconv(iconv.backend)
+      instance.encodingExists("windows1252")
+      instance.defaultCharSingleByte = "!"
+      const stream = instance.encodeStream("cp1252", withHandler ? { invalidCharHandler () {} } : undefined)
+      instance.defaultCharSingleByte = "#"
+      assert.deepStrictEqual(instance.encode("\uFFFD", "windows1252"), utils.bytes([0x23]))
+      stream.write("A\uFFFD\uD83D")
+      stream.end("\uDE42\uD800")
+      const chunks = []
+      for await (const chunk of stream) chunks.push(chunk)
+      assert.deepStrictEqual(Array.from(Buffer.concat(chunks)), [0x41, 0x21, 0x21, 0x21, 0x21])
+    })
+  }
+
+  it("captures the SBCS replacement when a Node stream is created", async function () {
+    const instance = new NodeIconv(iconv.backend)
+    instance.getCodec("windows-1253")
+    instance.defaultCharUnicode = "🙂"
+    const stream = instance.decodeStream("windows-1253")
+    instance.defaultCharUnicode = "!"
+    stream.write(utils.bytes([0x41, 0xAA]))
+    stream.end(utils.bytes([0x81, 0xAA]))
+    let output = ""
+    for await (const chunk of stream) output += chunk
+    assert.strictEqual(output, "A🙂\u0081🙂")
+  })
+
+  it("preserves Windows C1 controls in fatal mode", checkDecodeStream({
+    encoding: "windows-1252",
+    encodingOptions: { fatal: true },
+    input: [[0x81], [0x80, 0x41]],
+    output: "\u0081€A"
+  }))
+
+  for (const [encoding, byte] of [
+    ["windows-874", 0xDB], ["windows-1253", 0xAA],
+    ["windows-1255", 0xD9], ["windows-1257", 0xA1]
+  ]) {
+    it(encoding + " propagates fatal decoder errors", checkDecodeStream({
+      encoding,
+      encodingOptions: { fatal: true },
+      input: [[0x81], [0x41, byte, 0x42]],
+      checkError: error => assert(error instanceof TypeError)
+    }))
+  }
+
   it("Feeder outputs strings", checkStreamOutput({
     createStream: function () { return feeder(["abc", "def"]) },
     outputType: "string",

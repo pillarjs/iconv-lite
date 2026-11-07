@@ -2,6 +2,22 @@
 
 ### 🐞 Bug fixes
 
+- Respect changes to `defaultCharSingleByte` after a single-byte codec is cached - by [@bjohansebas](https://github.com/bjohansebas) in [#451](https://github.com/pillarjs/iconv-lite/pull/451)
+
+    New encoders and streams validate and capture the current replacement byte, including after `encodingExists()` or decoding has initialized the codec. Existing encoders retain their original table and fallback, including during handler callbacks and finalization. The codec reuses its latest encoding table until the replacement changes.
+
+- Respect `defaultCharUnicode` when decoding table-based single-byte encodings - by [@bjohansebas](https://github.com/bjohansebas) in [#451](https://github.com/pillarjs/iconv-lite/pull/451)
+
+    Undefined bytes in Windows-874, Windows-1253, Windows-1255, Windows-1257 and other SBCS encodings now use the configured replacement instead of always producing `U+FFFD`. Each decoder captures its instance's setting at creation, including when its table is already cached. Replacement text is inserted literally and in full; valid mappings and encoding are unaffected, and `{ fatal: true }` still throws.
+
+- Preserve the WHATWG C1 control mappings in Windows-874 and Windows-125x - by [@bjohansebas](https://github.com/bjohansebas) in [#451](https://github.com/pillarjs/iconv-lite/pull/451)
+
+    The 86 previously unassigned positions in the `0x80`–`0x9F` range now decode to their corresponding control characters and encode back to the same bytes. For example, Windows-1252 byte `81` now decodes to `U+0081` instead of `U+FFFD`, and `U+0081` encodes as `81` instead of `3F`. Encoding these controls no longer invokes `invalidCharHandler`, and they can be used in its replacements.
+
+- Support opt-in fatal decoding for table-based single-byte encodings - by [@bjohansebas](https://github.com/bjohansebas) in [#451](https://github.com/pillarjs/iconv-lite/pull/451)
+
+    `{ fatal: true }` now throws `TypeError` for undefined bytes, including the 23 undefined positions in Windows-874, Windows-1253, Windows-1255 and Windows-1257. Valid C1 controls remain accepted, and the default remains replacement decoding. The option works with direct decoding, incremental decoders, Node streams and Web Streams, and is declared in `DecodeOptions`.
+
 - Decode the whole Shift_JIS EUDC block - by [@b84330808](https://github.com/b84330808) in [#445](https://github.com/pillarjs/iconv-lite/pull/445)
 
     The 187 valid byte pairs from `F941` to `F9FC` now decode to `U+E69D` to `U+E757`, as the Encoding Standard specifies. Previously, only `F940` was mapped in that row; the remaining pairs produced a replacement character, with an ASCII trail byte decoded again. For example, `F9 FC 41` now decodes to `U+E757 A` instead of `U+FFFD A`. EUDC characters remain decode-only: encoding uses the configured replacement byte or invokes `invalidCharHandler`.

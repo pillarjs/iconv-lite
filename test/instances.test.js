@@ -34,8 +34,10 @@ describe("Iconv instances", function () {
   it("keeps decoder replacement characters separate", function () {
     webInstance.defaultCharUnicode = "!"
 
-    assert.equal(webInstance.decode(Uint8Array.of(0xff), "cesu8"), "!")
-    assert.equal(defaultInstance.decode(Uint8Array.of(0xff), "cesu8"), "�")
+    for (const [encoding, byte] of [["cesu8", 0xFF], ["ascii", 0x80], ["windows1253", 0xAA]]) {
+      assert.equal(webInstance.decode(Uint8Array.of(byte), encoding), "!")
+      assert.equal(defaultInstance.decode(Uint8Array.of(byte), encoding), "�")
+    }
   })
 
   it("registers encoding aliases only on the selected instance", function () {

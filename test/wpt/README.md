@@ -48,7 +48,11 @@ the WHATWG Encoding Standard, e.g.:
 - [`update.js`](./update.js) — refreshes `upstream/` from a sparse checkout of
   web-platform-tests. Edit its `FILES` list to add/remove coverage.
 - [`gen-indexes.js`](./gen-indexes.js) — refreshes `data/whatwg-multibyte-indexes.json`
-  (jis0208/jis0212/big5/euc-kr) from `encoding.spec.whatwg.org/indexes.json`.
+  (jis0208/jis0212/big5/euc-kr) and `data/whatwg-windows-indexes.json`
+  (Windows-874 and Windows-1250–1258) from `encoding.spec.whatwg.org/indexes.json`.
+  The Windows indexes also drive [`../windows-sbcs.test.js`](../windows-sbcs.test.js)
+  in both Node backends and webpack/Chrome: all 256 bytes, both decoding error
+  modes, every BMP scalar for encoding, aliases and incremental decoding.
 - [`upstream/`](./upstream) — **unmodified** vendored WPT files (BSD-3-Clause / W3C
   licensed), curated to the TextDecoder/TextEncoder behaviour relevant to
   iconv-lite. Source commit recorded in [`UPSTREAM_COMMIT`](./UPSTREAM_COMMIT).
@@ -61,8 +65,9 @@ the WHATWG Encoding Standard, e.g.:
   through the shim (a `wpt serve` browser run would measure the browser instead).
   Single-byte and all six multi-byte mappings are covered via `single-byte-decoder`
   and `decode-compare.js`.
-- `{ fatal: true }` for legacy encodings — these decoders still replace invalid
-  input; fatal decoding is supported for UTF-8 and UTF-16.
+- `{ fatal: true }` for legacy multibyte encodings — these decoders still replace
+  invalid input; fatal decoding is supported for UTF-8, UTF-16, UTF-32 and
+  table-based single-byte encodings.
 
 ```sh
 node test/wpt/update.js   # refresh the vendored tests
