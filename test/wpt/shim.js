@@ -28,9 +28,9 @@ function loadWhatwgLabels () {
 const whatwgLabels = loadWhatwgLabels()
 
 // https://encoding.spec.whatwg.org/#concept-encoding-get — strip leading/trailing
-// ASCII whitespace, then lowercase.
+// ASCII whitespace, then lowercase ASCII letters only.
 function normalizeLabel (label) {
-  return String(label).replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, "").toLowerCase()
+  return String(label).replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, "").replace(/[A-Z]/g, c => c.toLowerCase())
 }
 
 // The thrown error must be an instance of the *test realm's* RangeError/TypeError for

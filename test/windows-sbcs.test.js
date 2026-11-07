@@ -4,6 +4,20 @@ import Iconv from "../lib/iconv.js"
 import indexes from "./wpt/data/whatwg-windows-indexes.json" with { type: "json" }
 const iconv = utils.requireIconv()
 
+// Legacy labels from https://encoding.spec.whatwg.org/encodings.json.
+const legacyLabels = {
+  "windows-1252": [
+    "ansi_x3.4-1968", "ascii", "cp819", "csisolatin1", "ibm819", "iso-8859-1",
+    "iso-ir-100", "iso8859-1", "iso88591", "iso_8859-1", "iso_8859-1:1987",
+    "l1", "latin1", "us-ascii"
+  ],
+  "windows-1254": [
+    "csisolatin5", "iso-8859-9", "iso-ir-148", "iso8859-9", "iso88599",
+    "iso_8859-9", "iso_8859-9:1989", "l5", "latin5"
+  ],
+  "windows-874": ["iso-8859-11", "iso8859-11", "iso885911", "tis-620"]
+}
+
 // Independent WHATWG indexes, refreshed by test/wpt/gen-indexes.js.
 // Include 0xFF, which the upstream single-byte-decoder test omits.
 describe("Windows single-byte WHATWG mappings", function () {
@@ -14,7 +28,8 @@ describe("Windows single-byte WHATWG mappings", function () {
     const cp = encoding.slice("windows-".length)
     const aliases = [
       encoding, "win" + cp, "cp" + cp, cp,
-      cp === "874" ? "dos-874" : "x-cp" + cp
+      cp === "874" ? "dos-874" : "x-cp" + cp,
+      ...(legacyLabels[encoding] || [])
     ]
     const codePoints = allBytes.map(byte => byte < 0x80 ? byte : index[byte - 0x80])
     const expected = String.fromCodePoint(...codePoints.map(code => code ?? 0xFFFD))
@@ -22,6 +37,22 @@ describe("Windows single-byte WHATWG mappings", function () {
     const validText = String.fromCodePoint(...validBytes.map(byte => codePoints[byte]))
     const unassignedBytes = allBytes.filter(byte => codePoints[byte] === null)
     const c1Text = expected.slice(0x80, 0xA0)
+
+    if (legacyLabels[encoding]) {
+      it(encoding + " shares its codec with legacy labels regardless of lookup order or spelling", function () {
+        for (const alias of legacyLabels[encoding]) {
+          for (const first of [alias, encoding]) {
+            const instance = new Iconv(iconv.backend)
+            const codec = instance.getCodec(first)
+            assert.strictEqual(instance.getCodec(encoding), codec)
+            assert.strictEqual(instance.getCodec(" \t\n\f\r" + alias.toUpperCase() + " \t\n\f\r"), codec)
+            instance.defaultCharSingleByte = "!"
+            assert.deepStrictEqual(instance.encode("\uFFFD", alias), utils.bytes([0x21]))
+            assert.deepStrictEqual(instance.encode("\uFFFD", encoding), utils.bytes([0x21]))
+          }
+        }
+      })
+    }
 
     it(encoding + " only replaces unassigned bytes with the instance setting", function () {
       const instance = new Iconv(iconv.backend)
@@ -72,29 +103,33 @@ describe("Windows single-byte WHATWG mappings", function () {
     })
 
     it(encoding + " streams C1 mappings one byte at a time in fatal mode", function () {
-      const decoder = iconv.getDecoder(encoding, { fatal: true })
-      const encoder = iconv.getEncoder(encoding)
-      assert.strictEqual(decoder.write(utils.bytes([])), "")
-      for (let i = 0; i < c1Bytes.length; i++) {
-        assert.strictEqual(decoder.write(utils.bytes([c1Bytes[i]])), c1Text[i])
-        assert.deepStrictEqual(encoder.write(c1Text[i]), utils.bytes([c1Bytes[i]]))
+      for (const alias of aliases) {
+        const decoder = iconv.getDecoder(alias, { fatal: true })
+        const encoder = iconv.getEncoder(alias)
+        assert.strictEqual(decoder.write(utils.bytes([])), "")
+        for (let i = 0; i < c1Bytes.length; i++) {
+          assert.strictEqual(decoder.write(utils.bytes([c1Bytes[i]])), c1Text[i], alias)
+          assert.deepStrictEqual(encoder.write(c1Text[i]), utils.bytes([c1Bytes[i]]), alias)
+        }
+        assert.ok(!decoder.end())
+        assert.ok(!encoder.end())
       }
-      assert.ok(!decoder.end())
-      assert.ok(!encoder.end())
     })
 
     it(encoding + " accepts C1 mappings in input and handler replacements", function () {
-      const calls = []
-      const input = "A" + c1Text + "B\uFFFD"
-      const actual = iconv.encode(input, encoding, {
-        invalidCharHandler (char, index) {
-          calls.push({ char, index })
-          return c1Text
-        }
-      })
+      for (const alias of aliases) {
+        const calls = []
+        const input = "A" + c1Text + "B\uFFFD"
+        const actual = iconv.encode(input, alias, {
+          invalidCharHandler (char, index) {
+            calls.push({ char, index })
+            return c1Text
+          }
+        })
 
-      assert.deepStrictEqual(calls, [{ char: "\uFFFD", index: 34 }])
-      assert.deepStrictEqual(actual, utils.bytes([0x41, ...c1Bytes, 0x42, ...c1Bytes]))
+        assert.deepStrictEqual(calls, [{ char: "\uFFFD", index: 34 }], alias)
+        assert.deepStrictEqual(actual, utils.bytes([0x41, ...c1Bytes, 0x42, ...c1Bytes]), alias)
+      }
     })
 
     if (unassignedBytes.length) {
