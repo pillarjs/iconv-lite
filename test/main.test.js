@@ -165,6 +165,28 @@ describe("Encoding label normalization", function () {
     })
   })
 
+  it("does not fold non-ASCII characters into encoding labels", function () {
+    // Kelvin sign and dotted capital I can become ASCII after Unicode lowercasing
+    // and punctuation stripping. WHATWG only ignores ASCII letter case.
+    for (const label of ["\u212Aoi8-r", "\u212Aoi8-u", "euc-\u212Ar", "w\u0130ndows-1252", "\u0130SO-8859-1"]) {
+      assert.strictEqual(iconv.encodingExists(label), false, label)
+      assert.throws(() => iconv.decode(utils.bytes([0x80]), label))
+      assert.throws(() => iconv.encode("A", label))
+    }
+  })
+
+  it("does not discard non-ASCII characters inside or around Windows labels", function () {
+    const invalidChars = [0x1680, 0x180E, 0x2003, 0x200B, 0x2011, 0x202F, 0x205F, 0x3000, 0xFEFF, 0xD800, 0x1F642]
+    for (const code of invalidChars) {
+      const char = String.fromCodePoint(code)
+      for (const label of [char + "windows-1252", "windows-1252" + char, "windows" + char + "1252"]) {
+        assert.strictEqual(iconv.encodingExists(label), false, label)
+        assert.throws(() => iconv.getDecoder(label))
+        assert.throws(() => iconv.getEncoder(label))
+      }
+    }
+  })
+
   it("rejects empty and whitespace-only labels", function () {
     assert.strictEqual(iconv.encodingExists(""), false)
     assert.strictEqual(iconv.encodingExists("   "), false)

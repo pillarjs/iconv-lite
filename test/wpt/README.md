@@ -29,6 +29,12 @@ the WHATWG Encoding Standard, e.g.:
 | `textdecoder-labels` | labels for unsupported encodings such as `iso-2022-jp` and `x-user-defined` are unrecognized |
 | `textdecoder-mistakes` | unsupported encodings, non-Windows mapping differences and legacy multibyte error handling |
 
+`api-invalid-label` passes, as does the `textdecoder-mistakes` check for invalid
+non-ASCII labels. The shim lowercases only ASCII letters so it does not hide
+invalid input from iconv-lite. Numeric code pages and lenient ASCII separator
+matching remain iconv-lite extensions beyond WHATWG's label table; passing these
+tests does not imply identical label acceptance to the native `TextDecoder` API.
+
 `single-byte-decoder` passes all Windows label variants, including ASCII/Latin-1,
 Latin-5 and Thai aliases. Its seven remaining failures concern KOI8/Macintosh
 table mappings. The shared Windows suite also checks every byte (including

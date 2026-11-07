@@ -278,6 +278,11 @@ Thus `cp28591` still decodes `0x80` to U+0080, while the web label `iso-8859-1`
 decodes it to `€`. Code pages `1200`/`1201` and `12000`/`12001` use fixed byte
 order, without the autodetection of `utf16` or `utf32`.
 
+Encoding labels reject non-ASCII characters, including Unicode whitespace and
+letters that Unicode lowercasing would turn into ASCII. Surrounding ASCII
+whitespace and ASCII letter case are accepted. Numeric code pages and lenient
+ASCII separator matching are iconv-lite extensions, not WHATWG `TextDecoder` labels.
+
 Most singlebyte encodings are generated automatically from [node-iconv](https://github.com/bnoordhuis/node-iconv). Thank you Ben Noordhuis and libiconv authors!
 
 Multibyte encodings are generated from [Unicode.org mappings](http://www.unicode.org/Public/MAPPINGS/) and [WHATWG Encoding Standard mappings](http://encoding.spec.whatwg.org/). Thank you, respective authors!
