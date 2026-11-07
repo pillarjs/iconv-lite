@@ -1,4 +1,5 @@
 import assert from "assert"
+import Iconv from "../lib/iconv.js"
 import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
 
@@ -100,10 +101,53 @@ describe("GBK tests", function () {
   })
 
   it("GBK does not encode U+E7C7, which only has a GB18030 four-byte code", function () {
-    assert.strictEqual(utils.hex(iconv.encode("\uE7C7", "GBK")), "3f")
-    assert.strictEqual(utils.hex(iconv.encode("a\uE7C7\uE7C7b", "GBK")), "61 3f 3f 62")
-    assert.strictEqual(utils.hex(iconv.encode("\uE7C7", "GB18030")), "81 35 f4 37")
+    for (const encoding of ["GBK", "x-gbk", "iso-ir-58"]) {
+      for (const [text, expected] of [
+        ["\uE7C7", "3f"],
+        ["\uE7C7\uE7C7", "3f 3f"],
+        ["a\uE7C7\uE7C7b", "61 3f 3f 62"]
+      ]) {
+        assert.strictEqual(utils.hex(iconv.encode(text, encoding)), expected, encoding)
+      }
+    }
+    for (const options of [undefined, { invalidCharHandler () { assert.fail("GB18030 can encode U+E7C7") } }]) {
+      assert.strictEqual(utils.hex(iconv.encode("\uE7C7", "GB18030", options)), "81 35 f4 37")
+    }
     assert.strictEqual(iconv.decode(utils.bytes("81 35 f4 37"), "GBK"), "\uE7C7")
+  })
+
+  it("GBK reports U+E7C7 to the handler and respects its replacement or cancellation", function () {
+    for (const [replacement, expected] of [
+      [undefined, "61 80 3f 62"],
+      [false, "61 80 3f 62"],
+      ["!", "61 80 21 62"],
+      ["", "61 80 62"],
+      ["中", "61 80 d6 d0 62"],
+      [true, null]
+    ]) {
+      const calls = []
+      const encoded = iconv.encode("a€\uE7C7b", "GBK", {
+        invalidCharHandler (char, index) { calls.push([char, index]); return replacement }
+      })
+      assert.deepStrictEqual(calls, [["\uE7C7", 2]])
+      assert.strictEqual(encoded === null ? null : utils.hex(encoded), expected)
+    }
+  })
+
+  it("GBK uses the configured replacement byte for U+E7C7 in both encoder paths", function () {
+    const custom = new Iconv(iconv.backend)
+    custom.defaultCharSingleByte = "!"
+    for (const options of [undefined, { invalidCharHandler () {} }]) {
+      assert.strictEqual(utils.hex(custom.encode("a\uE7C7b", "GBK", options)), "61 21 62")
+    }
+  })
+
+  it("GBK rejects U+E7C7 in replacement text without calling the handler recursively", function () {
+    const calls = []
+    assert.throws(() => iconv.encode("a\uE7C7b", "GBK", {
+      invalidCharHandler (char, index) { calls.push([char, index]); return "\uE7C7" }
+    }), /Replacement .* cannot be encoded in gbk at index 1/)
+    assert.deepStrictEqual(calls, [["\uE7C7", 1]])
   })
 
   it("GB18030:2005 changes are applied", function () {
