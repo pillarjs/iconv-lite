@@ -22,7 +22,7 @@ describe("Encoding Existence - Prototype Properties", function () {
   })
 
   it("should detect all available encodings", function () {
-    assert.strictEqual(Object.keys(iconv.encodings).length, 451)
+    assert.strictEqual(Object.keys(iconv.encodings).length, 453)
   })
 })
 
@@ -61,6 +61,18 @@ describe("Generic UTF8-UCS2 tests", function () {
   it("Latin1 correctly encoded/decoded", function () {
     assert.deepStrictEqual(iconv.encode(testStringLatin1, "latin1"), utils.bytes(Buffer.from(testStringLatin1, "binary")))
     assert.strictEqual(iconv.decode(Buffer.from(testStringLatin1, "binary"), "latin1"), testStringLatin1)
+  })
+
+  it("keeps binary byte-preserving while ASCII and Latin-1 use Windows-1252", function () {
+    const bytes = utils.bytes(Array.from({ length: 256 }, (_, byte) => byte))
+    const text = String.fromCharCode(...bytes)
+    assert.strictEqual(iconv.decode(bytes, "binary"), text)
+    assert.deepStrictEqual(iconv.encode(text, "binary"), bytes)
+    for (const alias of ["ascii", "latin1", "iso-8859-1"]) {
+      assert.strictEqual(iconv.decode(utils.bytes([0x80, 0x81, 0x9F]), alias, { fatal: true }), "€\u0081Ÿ")
+      assert.deepStrictEqual(iconv.encode("€\u0081Ÿ", alias), utils.bytes([0x80, 0x81, 0x9F]))
+      assert.deepStrictEqual(iconv.encode("\u0080\u009F", alias), utils.bytes([0x3F, 0x3F]))
+    }
   })
 
   it("Convert to string, not buffer (utf8 used)", function () {

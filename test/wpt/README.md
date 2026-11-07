@@ -26,8 +26,13 @@ the WHATWG Encoding Standard, e.g.:
 
 | Test | Why it fails |
 | --- | --- |
-| `textdecoder-labels` | some WHATWG labels are unrecognized (`x-cp1252`, `visual`, `x-mac-*`, …) |
-| `api-invalid-label` | iconv-lite's label matching is too lenient — it accepts labels with embedded junk that WHATWG rejects |
+| `textdecoder-labels` | labels for unsupported encodings such as `iso-2022-jp` and `x-user-defined` are unrecognized |
+| `textdecoder-mistakes` | unsupported encodings, non-Windows mapping differences and legacy multibyte error handling |
+
+`single-byte-decoder` passes all Windows label variants, including ASCII/Latin-1,
+Latin-5 and Thai aliases. Its seven remaining failures concern KOI8/Macintosh
+table mappings. The shared Windows suite also checks every byte (including
+`0xFF`), encoding, fatal errors, label spelling and codec caching for these aliases.
 
 ## Layout
 

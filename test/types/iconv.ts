@@ -46,6 +46,8 @@ expectTypeOf(webEncode("hello", "utf8")).toEqualTypeOf<Uint8Array>()
 expectTypeOf(webEncoder("utf8").write("hello")).toEqualTypeOf<Uint8Array>()
 
 const fatalOptions: DecodeOptions = { fatal: true }
+expectTypeOf(webEncode("hello", "cp20127")).toEqualTypeOf<Uint8Array>()
+expectTypeOf(decode(new Uint8Array(), "cp28591")).toEqualTypeOf<string>()
 expectTypeOf(decode(new Uint8Array(), "windows-1252", fatalOptions)).toEqualTypeOf<string>()
 expectTypeOf(iconv.getDecoder("windows-1253", fatalOptions).write(new Uint8Array())).toEqualTypeOf<string>()
 expectTypeOf(iconv.decodeStream("windows-874", fatalOptions)).toEqualTypeOf<NodeJS.ReadWriteStream>()

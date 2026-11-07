@@ -180,6 +180,47 @@ describe("Web Streams", function () {
     assert.equal((await collect(output)).join(""), "\u0081€A")
   })
 
+  for (const [alias, text, bytes] of [
+    ["ascii", "€\u0081Ÿ", [0x80, 0x81, 0x9F]],
+    ["latin1", "€\u0081Ÿ", [0x80, 0x81, 0x9F]],
+    ["iso-8859-9", "€Ğİş", [0x80, 0xD0, 0xDD, 0xFE]],
+    ["tis-620", "€\u0081ก", [0x80, 0x81, 0xA1]]
+  ]) {
+    it(alias + " uses Windows mappings in both Web Stream directions", async function () {
+      const encoded = await collect(source(Array.from(text)).pipeThrough(iconv.encodeWebStream(alias)))
+      assert.deepStrictEqual(Array.from(iconv.backend.concatByteResults(encoded)), bytes)
+      const decoded = await collect(source(bytes.map(byte => Uint8Array.of(byte)))
+        .pipeThrough(iconv.decodeWebStream(alias, { fatal: true })))
+      assert.strictEqual(decoded.join(""), text)
+    })
+  }
+
+  for (const [encoding, byte, expected] of [
+    ["cp20127", 0x80, "\uFFFD"],
+    ["28591", 0x80, "\u0080"],
+    ["cp28599", 0x80, "\u0080"],
+    ["cp28601", 0x80, "\u0080"]
+  ]) {
+    it(encoding + " preserves its original mapping in Web Streams", async function () {
+      const decoded = await collect(source([Uint8Array.of(0x41), Uint8Array.of(byte)])
+        .pipeThrough(iconv.decodeWebStream(encoding)))
+      assert.strictEqual(decoded.join(""), "A" + expected)
+      const encoded = await collect(source(["A", expected]).pipeThrough(iconv.encodeWebStream(encoding)))
+      assert.deepStrictEqual(Array.from(iconv.backend.concatByteResults(encoded)), [0x41, encoding === "cp20127" ? 0x3F : byte])
+    })
+  }
+
+  it("preserves strict ASCII fatal decoding through a Windows code page Web Stream", async function () {
+    const output = source([Uint8Array.of(0x80)]).pipeThrough(iconv.decodeWebStream("20127", { fatal: true }))
+    await assert.rejects(collect(output), TypeError)
+  })
+
+  it("propagates fatal errors through a Windows-874 alias in Web Streams", async function () {
+    const output = source([Uint8Array.of(0x80), Uint8Array.of(0xDB)])
+      .pipeThrough(iconv.decodeWebStream("tis-620", { fatal: true }))
+    await assert.rejects(collect(output), TypeError)
+  })
+
   it("captures the SBCS replacement when a Web Stream is created", async function () {
     iconv.getCodec("windows-1253")
     iconv.defaultCharUnicode = "🙂"
