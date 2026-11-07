@@ -65,6 +65,7 @@ class DBCSCodec {
     // GBK uses GB18030 decoding without enabling its algorithmic encoder.
     if (typeof codecOptions.gb18030 === "function") {
       this.gb18030 = codecOptions.gb18030()
+      this.gb18030EncoderTable = codecOptions.gb18030EncoderTable
     }
     this.gb18030Decode = typeof codecOptions.gb18030Decode === "function"
       ? codecOptions.gb18030Decode()
@@ -332,6 +333,7 @@ class DBCSEncoder {
     this.encodeTableSeq = codec.encodeTableSeq
     this.defaultCharSingleByte = codec.defCharSB
     this.gb18030 = codec.gb18030
+    this.gb18030EncoderTable = codec.gb18030EncoderTable
   }
 
   write (str) {
@@ -412,15 +414,22 @@ class DBCSEncoder {
         }
 
         if (dbcsCode == UNASSIGNED && this.gb18030) {
-          // Use GB18030 algorithm to find character(s) to write.
-          var idx = findIdx(this.gb18030.uChars, uCode)
-          if (idx != -1) {
-            var dbcsCode = this.gb18030.gbChars[idx] + (uCode - this.gb18030.uChars[idx])
-            newBuf[j++] = 0x81 + Math.floor(dbcsCode / 12600); dbcsCode = dbcsCode % 12600
-            newBuf[j++] = 0x30 + Math.floor(dbcsCode / 1260); dbcsCode = dbcsCode % 1260
-            newBuf[j++] = 0x81 + Math.floor(dbcsCode / 10); dbcsCode = dbcsCode % 10
-            newBuf[j++] = 0x30 + dbcsCode
-            continue
+          // The WHATWG encoder side table overrides the ranges algorithm.
+          var tableCode = this.gb18030EncoderTable?.[uCode]
+          if (tableCode !== undefined) {
+            // A null entry uses the configured fallback in the common writer.
+            dbcsCode = tableCode ?? UNASSIGNED
+          } else {
+            // Use GB18030 algorithm to find character(s) to write.
+            var idx = findIdx(this.gb18030.uChars, uCode)
+            if (idx != -1) {
+              var dbcsCode = this.gb18030.gbChars[idx] + (uCode - this.gb18030.uChars[idx])
+              newBuf[j++] = 0x81 + Math.floor(dbcsCode / 12600); dbcsCode = dbcsCode % 12600
+              newBuf[j++] = 0x30 + Math.floor(dbcsCode / 1260); dbcsCode = dbcsCode % 1260
+              newBuf[j++] = 0x81 + Math.floor(dbcsCode / 10); dbcsCode = dbcsCode % 10
+              newBuf[j++] = 0x30 + dbcsCode
+              continue
+            }
           }
         }
       }
@@ -503,6 +512,8 @@ class DBCSHandlerEncoder {
     if (code >= 0xD800 && code <= 0xDFFF) return UNASSIGNED
     const mapped = this.#codec.encodeTable[code >> 8]?.[code & 0xFF] ?? UNASSIGNED
     if (mapped !== UNASSIGNED || !this.#codec.gb18030) return mapped
+    const tableCode = this.#codec.gb18030EncoderTable?.[code]
+    if (tableCode !== undefined) return tableCode ?? UNASSIGNED
     const ranges = this.#codec.gb18030
     const index = findIdx(ranges.uChars, code)
     if (index === -1) return UNASSIGNED
