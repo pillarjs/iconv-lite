@@ -3,7 +3,15 @@ import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { readFileSync } from "node:fs"
 import { Suite } from "bench-node"
-const iconvPath = path.resolve(process.argv[2] || path.join(import.meta.dirname, ".."))
+import { parseArgs } from "node:util"
+import { canonicalEncoding, competitors } from "./competitors.js"
+
+const { values, positionals } = parseArgs({
+  options: { check: { type: "boolean", default: false } },
+  allowPositionals: true
+})
+if (positionals.length > 1) throw new Error("Usage: performance/index.js [checkout] [--check]")
+const iconvPath = path.resolve(positionals[0] || path.join(import.meta.dirname, ".."))
 const pkg = JSON.parse(readFileSync(path.join(iconvPath, "package.json"), "utf8"))
 const { default: iconvLite } = await import(pathToFileURL(path.resolve(iconvPath, pkg.main || "index.js")))
 
@@ -40,7 +48,37 @@ function textDecoderSupports (encoding) {
 // string; "large" approximates bulk payloads, where native/SIMD paths and per-call overhead differ.
 const sizes = { small: 1, large: 100 }
 
+// Validation and fixture preparation must stay outside the measured operation.
+function addChecked (suite, name, run, expected) {
+  if (!run) {
+    console.error(`Skipping ${name}: unsupported operation`)
+    return
+  }
+  try {
+    const actual = run()
+    const equal = typeof expected === "string"
+      ? actual === expected
+      : actual instanceof Uint8Array && Buffer.from(actual).equals(Buffer.from(expected))
+    if (!equal) {
+      console.error(`Skipping ${name}: ${typeof expected === "string" ? "decoded text differs" : "encoded bytes differ"}`)
+      return
+    }
+  } catch (error) {
+    console.error(`Skipping ${name}: ${error.message}`)
+    return
+  }
+  suite.add(name, run)
+  if (values.check) console.log(`OK ${name}`)
+}
+
 async function main () {
+  console.log(`iconv-lite: ${pkg.version} (${iconvPath})`)
+  for (const [name, packageURL] of [
+    ["@exodus/bytes", new URL("./package.json", import.meta.resolve("@exodus/bytes/encoding.js"))],
+    ["iconv-nano", new URL(import.meta.resolve("iconv-nano/package.json"))]
+  ]) {
+    console.log(`${name}: ${JSON.parse(readFileSync(packageURL, "utf8")).version}`)
+  }
   for (const backend of ["node", "web"]) {
     const { default: implementation } = await import(pathToFileURL(path.join(iconvPath, "backends", backend + ".js")))
     iconvLite.setBackend(implementation)
@@ -54,36 +92,37 @@ async function main () {
 
     for (const [label, baseString] of Object.entries(encodingStrings)) {
       const encoding = label === "gbk-ascii" ? "gbk" : label.startsWith("gb18030-") ? "gb18030" : label
+      const alternatives = competitors(encoding)
+      const nativeEncoding = canonicalEncoding(encoding)
       for (const [size, repeat] of Object.entries(sizes)) {
         const string = baseString.repeat(repeat)
+        const buffer = iconvLite.encode(string, encoding)
+        const nativeBuffer = Buffer.from(buffer)
 
-        suite.add(`${label}/${size}/encode/iconv-lite`, function () {
-          iconvLite.encode(string, encoding)
-        })
-        suite.add(`${label}/${size}/encode/iconv`, function () {
+        addChecked(suite, `${label}/${size}/encode/iconv-lite`, function () {
+          return iconvLite.encode(string, encoding)
+        }, buffer)
+        addChecked(suite, `${label}/${size}/encode/iconv`, function () {
           const converter = new iconv.Iconv("utf8", encoding)
-          converter.convert(string)
-        })
-        suite.add(`${label}/${size}/decode/iconv-lite`, function (timer) {
-          const buffer = iconvLite.encode(string, encoding)
-          timer.start()
-          iconvLite.decode(buffer, encoding)
-          timer.end()
-        })
-        suite.add(`${label}/${size}/decode/iconv`, function (timer) {
-          const buffer = Buffer.from(iconvLite.encode(string, encoding))
-          timer.start()
+          return converter.convert(string)
+        }, buffer)
+        addChecked(suite, `${label}/${size}/decode/iconv-lite`, function () {
+          return iconvLite.decode(buffer, encoding)
+        }, string)
+        addChecked(suite, `${label}/${size}/decode/iconv`, function () {
           const converter = new iconv.Iconv(encoding, "utf8")
-          converter.convert(buffer).toString()
-          timer.end()
-        })
-        if (textDecoderSupports(encoding)) {
-          suite.add(`${label}/${size}/decode/native-TextDecoder`, function (timer) {
-            const buffer = iconvLite.encode(string, encoding)
-            timer.start()
-            new TextDecoder(encoding).decode(buffer)
-            timer.end()
-          })
+          return converter.convert(nativeBuffer).toString()
+        }, string)
+        if (textDecoderSupports(nativeEncoding)) {
+          addChecked(suite, `${label}/${size}/decode/native-TextDecoder`, function () {
+            return new TextDecoder(nativeEncoding).decode(buffer)
+          }, string)
+        }
+        for (const codec of alternatives) {
+          addChecked(suite, `${label}/${size}/encode/${codec.name}`,
+            codec.encode && (() => codec.encode(string)), buffer)
+          addChecked(suite, `${label}/${size}/decode/${codec.name}`,
+            codec.decode && (() => codec.decode(buffer)), string)
         }
       }
     }
@@ -96,13 +135,14 @@ async function main () {
       for (const [size, repeat] of Object.entries(sizes)) {
         const buffer = new Uint8Array(bytes.length * repeat)
         for (let i = 0; i < repeat; i++) buffer.set(bytes, i * bytes.length)
-        if (iconvLite.decode(buffer, "gb18030") !== "�".repeat(repeat)) {
-          console.error(`Skipping ${label}/${size}/decode: incorrect output`)
-          continue
+        const expected = "�".repeat(repeat)
+        addChecked(suite, `${label}/${size}/decode/iconv-lite`, function () {
+          return iconvLite.decode(buffer, "gb18030")
+        }, expected)
+        for (const codec of competitors("gb18030")) {
+          addChecked(suite, `${label}/${size}/decode/${codec.name}`,
+            () => codec.decode(buffer), expected)
         }
-        suite.add(`${label}/${size}/decode/iconv-lite`, function () {
-          iconvLite.decode(buffer, "gb18030")
-        })
       }
     }
 
@@ -112,16 +152,16 @@ async function main () {
         const decoder = iconvLite.getDecoder(encoding)
         let result = ""
         for (let i = 0; i < buffer.length; i++) result += decoder.write(buffer.subarray(i, i + 1))
-        return result + decoder.end()
+        return result + (decoder.end() || "")
       }
-      if (decodeChunks() === encodingStrings[encoding]) {
-        suite.add(`${encoding}/byte-chunks/decode/iconv-lite`, decodeChunks)
-      } else {
-        console.error(`Skipping ${encoding}/byte-chunks/decode: incorrect output`)
+      addChecked(suite, `${encoding}/byte-chunks/decode/iconv-lite`, decodeChunks, encodingStrings[encoding])
+      for (const codec of competitors(encoding)) {
+        addChecked(suite, `${encoding}/byte-chunks/decode/${codec.name}`,
+          codec.decodeChunks && (() => codec.decodeChunks(buffer)), encodingStrings[encoding])
       }
     }
 
-    await suite.run()
+    if (!values.check) await suite.run()
   }
 }
 
