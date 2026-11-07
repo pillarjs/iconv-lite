@@ -214,3 +214,13 @@ describe("SBCS fatal decoding outside the Windows family", function () {
     })
   }
 })
+
+describe("SBCS decoder constructor compatibility", function () {
+  it("retains the default replacement and fatal mode when constructed directly", function () {
+    const codec = iconv.getCodec("windows1253")
+    const loose = new codec.decoder({}, codec, iconv.backend)
+    const fatal = new codec.decoder({ fatal: true }, codec, iconv.backend)
+    assert.strictEqual(loose.write(utils.bytes([0xAA])), "\uFFFD")
+    assert.throws(() => fatal.write(utils.bytes([0xAA])), TypeError)
+  })
+})

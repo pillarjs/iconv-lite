@@ -1,5 +1,6 @@
 import assert from "assert"
 import utils from "./helpers/utils.js"
+import Iconv from "../lib/iconv.js"
 import indexes from "./wpt/data/whatwg-windows-indexes.json" with { type: "json" }
 const iconv = utils.requireIconv()
 
@@ -21,6 +22,19 @@ describe("Windows single-byte WHATWG mappings", function () {
     const validText = String.fromCodePoint(...validBytes.map(byte => codePoints[byte]))
     const unassignedBytes = allBytes.filter(byte => codePoints[byte] === null)
     const c1Text = expected.slice(0x80, 0xA0)
+
+    it(encoding + " only replaces unassigned bytes with the instance setting", function () {
+      const instance = new Iconv(iconv.backend)
+      const codec = instance.getCodec(encoding)
+      instance.defaultCharUnicode = "!"
+      const customExpected = codePoints.map(code => code === null ? "!" : String.fromCodePoint(code)).join("")
+
+      assert.strictEqual(instance.decode(utils.bytes(allBytes), encoding), customExpected)
+      assert.strictEqual(instance.getCodec(encoding), codec)
+      assert.strictEqual(instance.decode(utils.bytes(validBytes), encoding, { fatal: true }), validText)
+      assert.deepStrictEqual(instance.encode("!\uFFFD", encoding), utils.bytes([0x21, 0x3F]))
+      assert.strictEqual(iconv.decode(utils.bytes(allBytes), encoding), expected)
+    })
 
     it(encoding + " matches all 256 bytes and roundtrips assigned bytes through aliases", function () {
       for (const alias of aliases) {
@@ -84,6 +98,41 @@ describe("Windows single-byte WHATWG mappings", function () {
     })
 
     if (unassignedBytes.length) {
+      it(encoding + " inserts custom replacements literally across chunk boundaries", function () {
+        const instance = new Iconv(iconv.backend)
+        for (const replacement of ["!", "🙂", "<bad>", "$&$`$'$$", "", "\u0000"]) {
+          instance.defaultCharUnicode = replacement
+          const decoder = instance.getDecoder(encoding)
+          for (const byte of unassignedBytes) {
+            assert.strictEqual(decoder.write(utils.bytes([0x41, byte])), "A" + replacement)
+            assert.strictEqual(decoder.write(utils.bytes([])), "")
+            assert.strictEqual(decoder.write(utils.bytes([byte, 0x81])), replacement + "\u0081")
+            assert.throws(() => instance.decode(utils.bytes([byte]), encoding, { fatal: true }), TypeError)
+          }
+          assert.ok(!decoder.end())
+        }
+      })
+
+      it(encoding + " snapshots the replacement for each decoder without changing cached tables", function () {
+        const instance = new Iconv(iconv.backend)
+        const defaultDecoder = instance.getDecoder(encoding)
+        const codec = instance.getCodec(encoding)
+        const originalTable = Array.from(codec.decodeBuf)
+        instance.defaultCharUnicode = "!"
+        const customDecoder = instance.getDecoder(aliases[1])
+        const fatalDecoder = instance.getDecoder(encoding, { fatal: true })
+        instance.defaultCharUnicode = "?"
+        const input = utils.bytes(unassignedBytes)
+
+        assert.strictEqual(defaultDecoder.write(input), "\uFFFD".repeat(input.length))
+        assert.strictEqual(customDecoder.write(input), "!".repeat(input.length))
+        assert.strictEqual(instance.decode(input, encoding), "?".repeat(input.length))
+        assert.throws(() => fatalDecoder.write(input), TypeError)
+        assert.strictEqual(fatalDecoder.write(utils.bytes([0x41, 0x81])), "A\u0081")
+        assert.deepStrictEqual(Array.from(codec.decodeBuf), originalTable)
+        assert.strictEqual(instance.getCodec(encoding), codec)
+      })
+
       it(encoding + " preserves replacement decoding and rejects invalid bytes through aliases", function () {
         for (const alias of aliases) {
           for (const byte of unassignedBytes) {

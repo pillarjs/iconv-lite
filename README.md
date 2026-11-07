@@ -133,6 +133,12 @@ valid write. Stream errors propagate through the stream's error mechanism.
 Legacy multibyte encodings such as Shift_JIS, GB18030 and Big5 do not yet support
 this option.
 
+For table-based single-byte encodings, `iconv.defaultCharUnicode` sets the text
+inserted for each undefined byte in replacement mode. Each new decoder or stream
+captures the current setting, even when its encoding table is already cached.
+Existing decoders keep their replacement text. The text is inserted literally;
+`{ fatal: true }` takes precedence and throws instead.
+
 ### Browsers
 
 Bundlers select the Web backend automatically. You can also select it explicitly:

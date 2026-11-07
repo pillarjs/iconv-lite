@@ -57,6 +57,10 @@ export const _sbcs = class SBCSCodec {
 
   get encoder () { return SBCSEncoder }
   get decoder () { return SBCSDecoder }
+
+  createDecoder (options, iconv) {
+    return new SBCSDecoder(options, this, iconv.backend, iconv.defaultCharUnicode)
+  }
 }
 
 class SBCSEncoder {
@@ -127,11 +131,12 @@ class SBCSEncoder {
 }
 
 class SBCSDecoder {
-  constructor (opts, codec, backend) {
+  constructor (opts, codec, backend, defaultCharUnicode = "\uFFFD") {
     this.decodeBuf = codec.decodeBuf
     this.backend = backend
     this.fatal = !!opts?.fatal
     this.encodingName = codec.encodingName
+    this.defaultCharUnicode = defaultCharUnicode
   }
 
   write (buf) {
@@ -150,7 +155,12 @@ class SBCSDecoder {
         chars[i] = decodeBuf[buf[i]]
       }
     }
-    return this.backend.rawCharsToResult(chars, chars.length)
+    const result = this.backend.rawCharsToResult(chars, chars.length)
+    // Keep unassigned markers in the shared table for fatal decoding and encoding.
+    // A callback inserts replacement text literally, including '$' patterns.
+    return this.fatal || this.defaultCharUnicode === "\uFFFD"
+      ? result
+      : result.replace(/\uFFFD/g, () => this.defaultCharUnicode)
   }
 
   end () {}

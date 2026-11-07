@@ -180,11 +180,22 @@ describe("Web Streams", function () {
     assert.equal((await collect(output)).join(""), "\u0081€A")
   })
 
+  it("captures the SBCS replacement when a Web Stream is created", async function () {
+    iconv.getCodec("windows-1253")
+    iconv.defaultCharUnicode = "🙂"
+    const transform = iconv.decodeWebStream("windows-1253")
+    iconv.defaultCharUnicode = "!"
+    const output = source([Uint8Array.of(0x41, 0xAA), Uint8Array.of(0x81, 0xAA)])
+      .pipeThrough(transform)
+    assert.equal((await collect(output)).join(""), "A🙂\u0081🙂")
+  })
+
   for (const [encoding, byte] of [
     ["windows-874", 0xDB], ["windows-1253", 0xAA],
     ["windows-1255", 0xD9], ["windows-1257", 0xA1]
   ]) {
     it(encoding + " propagates fatal errors to both Web Stream sides", async function () {
+      iconv.defaultCharUnicode = "!"
       const transform = iconv.decodeWebStream(encoding, { fatal: true })
       const writer = transform.writable.getWriter()
       const reader = transform.readable.getReader()

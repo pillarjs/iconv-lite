@@ -2,6 +2,10 @@
 
 ### 🐞 Bug fixes
 
+- Respect `defaultCharUnicode` when decoding table-based single-byte encodings.
+
+    Undefined bytes in Windows-874, Windows-1253, Windows-1255, Windows-1257 and other SBCS encodings now use the configured replacement instead of always producing `U+FFFD`. Each decoder captures its instance's setting at creation, including when its table is already cached. Replacement text is inserted literally and in full; valid mappings and encoding are unaffected, and `{ fatal: true }` still throws.
+
 - Preserve the WHATWG C1 control mappings in Windows-874 and Windows-125x.
 
     The 86 previously unassigned positions in the `0x80`–`0x9F` range now decode to their corresponding control characters and encode back to the same bytes. For example, Windows-1252 byte `81` now decodes to `U+0081` instead of `U+FFFD`, and `U+0081` encodes as `81` instead of `3F`. Encoding these controls no longer invokes `invalidCharHandler`, and they can be used in its replacements.

@@ -2,6 +2,7 @@ import mocha from "mocha"
 import assert from "assert"
 import { Buffer } from "buffer"
 import utils from "./helpers/utils.js"
+import NodeIconv from "../lib/iconv-node.js"
 import { Readable } from "stream"
 
 const iconv = utils.requireIconv()
@@ -149,6 +150,19 @@ function checkDecodeStream (opts) {
 }
 
 describe("Streaming mode", function () {
+  it("captures the SBCS replacement when a Node stream is created", async function () {
+    const instance = new NodeIconv(iconv.backend)
+    instance.getCodec("windows-1253")
+    instance.defaultCharUnicode = "🙂"
+    const stream = instance.decodeStream("windows-1253")
+    instance.defaultCharUnicode = "!"
+    stream.write(utils.bytes([0x41, 0xAA]))
+    stream.end(utils.bytes([0x81, 0xAA]))
+    let output = ""
+    for await (const chunk of stream) output += chunk
+    assert.strictEqual(output, "A🙂\u0081🙂")
+  })
+
   it("preserves Windows C1 controls in fatal mode", checkDecodeStream({
     encoding: "windows-1252",
     encodingOptions: { fatal: true },
