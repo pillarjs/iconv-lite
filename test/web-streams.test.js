@@ -190,6 +190,19 @@ describe("Web Streams", function () {
     assert.equal((await collect(output)).join(""), "A🙂\u0081🙂")
   })
 
+  for (const withHandler of [false, true]) {
+    it(`captures the SBCS encoder replacement in Web Streams (handler: ${withHandler})`, async function () {
+      iconv.encodingExists("windows1252")
+      iconv.defaultCharSingleByte = "!"
+      const transform = iconv.encodeWebStream("cp1252", withHandler ? { invalidCharHandler () {} } : undefined)
+      iconv.defaultCharSingleByte = "#"
+      assert.deepStrictEqual(Array.from(iconv.encode("\uFFFD", "windows1252")), [0x23])
+      const output = source(["A\uFFFD\uD83D", "", "\uDE42\uD800"]).pipeThrough(transform)
+      const chunks = await collect(output)
+      assert.deepStrictEqual(Array.from(iconv.backend.concatByteResults(chunks)), [0x41, 0x21, 0x21, 0x21, 0x21])
+    })
+  }
+
   for (const [encoding, byte] of [
     ["windows-874", 0xDB], ["windows-1253", 0xAA],
     ["windows-1255", 0xD9], ["windows-1257", 0xA1]

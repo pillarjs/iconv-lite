@@ -150,6 +150,22 @@ function checkDecodeStream (opts) {
 }
 
 describe("Streaming mode", function () {
+  for (const withHandler of [false, true]) {
+    it(`captures the SBCS encoder replacement in Node streams (handler: ${withHandler})`, async function () {
+      const instance = new NodeIconv(iconv.backend)
+      instance.encodingExists("windows1252")
+      instance.defaultCharSingleByte = "!"
+      const stream = instance.encodeStream("cp1252", withHandler ? { invalidCharHandler () {} } : undefined)
+      instance.defaultCharSingleByte = "#"
+      assert.deepStrictEqual(instance.encode("\uFFFD", "windows1252"), utils.bytes([0x23]))
+      stream.write("A\uFFFD\uD83D")
+      stream.end("\uDE42\uD800")
+      const chunks = []
+      for await (const chunk of stream) chunks.push(chunk)
+      assert.deepStrictEqual(Array.from(Buffer.concat(chunks)), [0x41, 0x21, 0x21, 0x21, 0x21])
+    })
+  }
+
   it("captures the SBCS replacement when a Node stream is created", async function () {
     const instance = new NodeIconv(iconv.backend)
     instance.getCodec("windows-1253")

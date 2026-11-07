@@ -92,6 +92,12 @@ codec and backend contracts, and TypeScript types.
 
 ### Handling unrepresentable characters
 
+For table-based single-byte encodings, `iconv.defaultCharSingleByte` selects the
+fallback byte (`"?"` by default). It must be a one-character string with a code
+unit between `0x00` and `0xFF`; the code unit is the byte value, not a character
+to encode. Each new encoder or stream validates and captures the current setting,
+even when the codec is cached. Existing encoders and streams keep their setting.
+
 `invalidCharHandler(char, index)` runs when encoding would replace or truncate an
 input character. Its result controls what happens:
 

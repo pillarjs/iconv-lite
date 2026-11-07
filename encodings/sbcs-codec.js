@@ -29,9 +29,23 @@ export const _sbcs = class SBCSCodec {
     }
 
     this.decodeBuf = decodeBuf
+    this.encodingName = codecOptions.encodingName
+    this.#setDefaultChar(iconv.defaultCharSingleByte, iconv.backend)
+  }
 
-    // Encoding buffer.
-    const defaultCharSingleByte = iconv.defaultCharSingleByte
+  get encoder () { return SBCSEncoder }
+  get decoder () { return SBCSDecoder }
+
+  createEncoder (options, iconv) {
+    this.#setDefaultChar(iconv.defaultCharSingleByte, iconv.backend)
+    return new SBCSEncoder(options, this, iconv.backend)
+  }
+
+  createDecoder (options, iconv) {
+    return new SBCSDecoder(options, this, iconv.backend, iconv.defaultCharUnicode)
+  }
+
+  #setDefaultChar (defaultCharSingleByte, backend) {
     const defaultCharByte = typeof defaultCharSingleByte === "string" &&
       defaultCharSingleByte.length === 1
       ? defaultCharSingleByte.charCodeAt(0)
@@ -39,27 +53,22 @@ export const _sbcs = class SBCSCodec {
     if (defaultCharByte > 0xFF || Number.isNaN(defaultCharByte)) {
       throw new TypeError("defaultCharSingleByte must be a single-byte character")
     }
-    const encodeBuf = iconv.backend.allocBytes(65536, defaultCharByte)
+    if (defaultCharByte === this.defaultCharByte) return
 
-    for (let i = 0; i < codecOptions.chars.length; i++) {
-      const code = codecOptions.chars.charCodeAt(i)
+    // Cache the latest replacement table. Existing encoders retain their table;
+    // never change it in place or retain a table for every possible replacement.
+    const encodeBuf = backend.allocBytes(65536, defaultCharByte)
+    for (let i = 0; i < this.decodeBuf.length; i++) {
+      const code = this.decodeBuf[i]
       // U+FFFD marks unassigned bytes in decode tables, not an encodable character.
       // Keep defaultCharSingleByte for it instead of mapping it to an unassigned byte.
       if (code === 0xFFFD) continue
       encodeBuf[code] = i
     }
 
-    this.encodingName = codecOptions.encodingName
     this.encodeBuf = encodeBuf
     this.defaultCharByte = defaultCharByte
-    this.defaultCharCode = codecOptions.chars.charCodeAt(defaultCharByte)
-  }
-
-  get encoder () { return SBCSEncoder }
-  get decoder () { return SBCSDecoder }
-
-  createDecoder (options, iconv) {
-    return new SBCSDecoder(options, this, iconv.backend, iconv.defaultCharUnicode)
+    this.defaultCharCode = this.decodeBuf[defaultCharByte]
   }
 }
 
