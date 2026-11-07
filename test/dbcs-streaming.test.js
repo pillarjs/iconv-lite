@@ -9,7 +9,8 @@ describe("DBCS streaming", function () {
     ["big5", "Ê\uD800", "88 66 3f"],
     ["big5", "Ê\u0304", "88 62"],
     ["eucjp", "\uD800\u02D8", "3f 8f a2 af"],
-    ["gb18030", "😱", "95 30 83 35"]
+    ["gb18030", "😱", "95 30 83 35"],
+    ["gbk", "a\uE7C7b", "61 3f 62"]
   ]
 
   for (const [encoding, text, expected] of encodeCases) {
@@ -24,6 +25,24 @@ describe("DBCS streaming", function () {
       }
     })
   }
+
+  it("handles GBK U+E7C7 errors and positions at every chunk boundary", function () {
+    const text = "a\uE7C7\uE7C7中b"
+    for (let split = 0; split <= text.length; split++) {
+      const calls = []
+      const encoder = iconv.getEncoder("gbk", {
+        invalidCharHandler (char, index) { calls.push([char, index]); return "!" }
+      })
+      const chunks = [encoder.write(text.slice(0, split)), encoder.write(""), encoder.write(text.slice(split))]
+      const tail = encoder.end()
+      if (tail) chunks.push(tail)
+      assert.strictEqual(utils.hex(utils.concatBufs(chunks)), "61 21 21 d6 d0 62", `split at ${split}`)
+      // Handler positions are relative to the write where each character starts.
+      const expectedCalls = [1, 2].map(index => ["\uE7C7", index < split ? index : index - split])
+      assert.deepStrictEqual(calls, expectedCalls, `split at ${split}`)
+      assert.strictEqual(encoder.end(), undefined)
+    }
+  })
 
   const chunkedEncodeCases = [
     ["big5", ["Ê", "中", "ABC"], "88 66 a4 a4 41 42 43", "Ê中ABC"],
