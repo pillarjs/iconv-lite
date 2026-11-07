@@ -3,7 +3,7 @@ import { pathToFileURL } from "node:url"
 // `.any.js` test upstream (shift_jis / euc-jp / euc-kr / big5 — only iframe/XHR
 // tests exist). Following how TextDecoder polyfills are compared in practice, it
 // generates the canonical bytes for every assigned pointer from the WHATWG index
-// tables (spec encoder arithmetic) and asserts
+// tables and the Shift_JIS EUDC decoder range (spec byte arithmetic) and asserts
 //   new TextDecoder(enc).decode(bytes) === String.fromCodePoint(codePoint)
 // against the iconv-lite-backed shim. gbk/gb18030 are already covered by the
 // vendored `*-decoder.any.js` tests.
@@ -14,7 +14,7 @@ import indexes from "./data/whatwg-multibyte-indexes.json" with { type: "json" }
 // Pointers whose big5 decode yields two code points (special-cased; skipped here).
 const BIG5_DUAL = new Set([1133, 1135, 1164, 1166])
 
-// Returns canonical [{ bytes, cp }] pairs per the WHATWG encoder arithmetic.
+// Returns canonical [{ bytes, cp }] pairs, including decode-only mappings.
 function pairs (enc) {
   const out = []
   const push = (bytes, cp) => out.push({ bytes, cp })
@@ -36,10 +36,13 @@ function pairs (enc) {
   } else if (enc === "shift_jis") {
     const a = indexes.jis0208
     for (let p = 0; p < a.length; p++) {
-      if (a[p] == null) continue
+      // EUDC is defined by the decoder algorithm, not by index jis0208.
+      // https://encoding.spec.whatwg.org/#shift_jis-decoder
+      const cp = p >= 8836 && p <= 10715 ? 0xE000 + p - 8836 : a[p]
+      if (cp == null) continue
       const lead = p / 188 | 0
       const trail = p % 188
-      push([lead + (lead < 0x1F ? 0x81 : 0xC1), trail + (trail < 0x3F ? 0x40 : 0x41)], a[p])
+      push([lead + (lead < 0x1F ? 0x81 : 0xC1), trail + (trail < 0x3F ? 0x40 : 0x41)], cp)
     }
     for (let b = 0xA1; b <= 0xDF; b++) push([b], 0xFF61 + (b - 0xA1)) // half-width katakana
   } else if (enc === "euc-jp") {

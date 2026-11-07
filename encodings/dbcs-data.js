@@ -76,7 +76,7 @@ export default {
     table: shiftjis,
     leadBytes: [[0x81, 0x9F], [0xE0, 0xFC]],
     encodeAdd: { "\u00a5": 0x5C, "\u203E": 0x7E },
-    encodeSkipVals: [{ from: 0xED40, to: 0xF940 }]
+    encodeSkipVals: [{ from: 0xED40, to: 0xF9FC }]
   },
   csshiftjis: "shiftjis",
   mskanji: "shiftjis",

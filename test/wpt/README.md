@@ -41,6 +41,7 @@ the WHATWG Encoding Standard, e.g.:
 - [`decode-compare.js`](./decode-compare.js) — for the legacy multi-byte encodings
   with no upstream TextDecoder test (shift_jis / euc-jp / euc-kr / big5), generates
   the canonical bytes for every assigned pointer from the WHATWG index tables and
+  for the 1,880 Shift_JIS EUDC mappings defined by the decoder algorithm, then
   asserts `new TextDecoder(enc).decode(bytes)` against the shim. This is how
   TextDecoder polyfills are compared in practice. (gbk/gb18030 use upstream tests.)
 - [`report.js`](./report.js) — combines all runners into a Markdown report.
