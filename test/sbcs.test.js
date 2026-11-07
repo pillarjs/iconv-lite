@@ -39,9 +39,7 @@ const iconvEquivChars = {
 // Generate tests for all SBCS encodings.
 iconv.encode("", "utf8") // Load all encodings.
 
-describe("Full SBCS encoding tests", function () {
-  this.timeout(10000)
-
+describe("Full SBCS encoding tests", { timeout: 10000 }, function () {
   for (const enc in iconv.encodings) {
     if (iconv.encodings[enc].type === "_sbcs") {
       (function (enc) {
@@ -54,9 +52,9 @@ describe("Full SBCS encoding tests", function () {
                     `Encoding ${iconvName} doesn't have test data in sbcs-data.json file`
         )
 
-        it("Decode SBCS encoding " + testEncName, function () {
+        it("Decode SBCS encoding " + testEncName, function ({ skip }) {
           if (charData === false) {
-            this.skip()
+            skip()
           }
 
           const errors = []
@@ -92,9 +90,9 @@ describe("Full SBCS encoding tests", function () {
           }
         })
 
-        it("Encode SBCS encoding " + testEncName, function () {
+        it("Encode SBCS encoding " + testEncName, function ({ skip }) {
           if (charData === false) {
-            this.skip()
+            skip()
           }
 
           const errors = []

@@ -64,10 +64,14 @@ describe("ES module entry points", function () {
     assert.ok("utf8" in getEncodings())
   })
 
-  it("blocks imports of internal package paths", async function () {
-    for (const path of ["utils", "lib/index.js", "lib/iconv.js", "lib/utils.js", "backends/node.js", "backends/web.js", "package.json"]) {
-      await assert.rejects(import(`iconv-lite/${path}`), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" })
-    }
+  it("blocks imports of internal package paths", function () {
+    // Check Node's package exports directly, outside Vitest's module resolver.
+    execFileSync(process.execPath, ["--input-type=module", "-e", `
+      import assert from "node:assert/strict"
+      for (const path of ["utils", "lib/index.js", "lib/iconv.js", "lib/utils.js", "backends/node.js", "backends/web.js", "package.json"]) {
+        await assert.rejects(import("iconv-lite/" + path), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" })
+      }
+    `], { cwd: fileURLToPath(new URL("..", import.meta.url)), stdio: "pipe" })
   })
 
   it("loads the web module graph without Node globals and initializes DBCS codecs on demand", function () {

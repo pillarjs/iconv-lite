@@ -353,8 +353,8 @@ npm test
 npm run test:node
 npm run test:web
 
-# To pass Mocha arguments to a specific backend:
-npm run test:web -- --grep "GB18030" --reporter dot
+# To pass Vitest arguments to a specific backend:
+npm run test:web -- -t "GB18030" --reporter dot
 
 # To run all shared tests in Chrome through webpack:
 npm run test:webpack
@@ -367,9 +367,31 @@ npm run test:cov
 open coverage/index.html
 ```
 
-Webpack automatically discovers shared suites in `test/*test.js`. Tests that need
+Webpack automatically discovers shared suites in `test/*.test.js`. Tests that need
 Node streams, native bindings, the filesystem, or Node's module loader use the
 `*.node.test.js` suffix and run with both backends through `npm test`.
+
+Vitest runs the complete Node.js suite as two isolated projects, `node` and `web`,
+and combines their V8 coverage into one report. Browser tests use Vitest with
+Playwright to execute the webpack bundle in headless Chrome, including the packed
+package and every shared suite.
+
+The default development dependencies track current Vitest and Vite releases.
+CI selects Vitest 3 and Vite 6 before installing dependencies on Node.js 22
+(including 22.0), 23 and 25, which keeps the library's Node.js >=22 support.
+Node.js 24 and 26 use the current versions. Coverage and browser packages are
+selected together with Vitest; Dependabot groups updates to the current toolchain.
+
+To use the same compatibility versions locally, before `npm install`:
+
+```sh
+npm pkg delete 'devDependencies.@vitest/browser-playwright'
+npm pkg set 'devDependencies.vitest=^3.2.7' 'devDependencies.@vitest/coverage-v8=^3.2.7' 'devDependencies.@vitest/browser=^3.2.7' 'devDependencies.vite=^6.4.5'
+npm install
+```
+
+These commands adjust the local development manifest; the committed manifest
+continues to track the current toolchain.
 
 [npm-downloads-image]: https://badgen.net/npm/dm/iconv-lite
 [npm-downloads-url]: https://npmcharts.com/compare/iconv-lite?minimal=true

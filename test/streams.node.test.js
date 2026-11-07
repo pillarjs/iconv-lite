@@ -1,4 +1,4 @@
-import mocha from "mocha"
+import { describe as describeVitest } from "vitest"
 import assert from "assert"
 import { Buffer } from "buffer"
 import utils from "./helpers/utils.js"
@@ -6,13 +6,7 @@ import NodeIconv from "../lib/iconv-node.js"
 import { Readable } from "stream"
 
 const iconv = utils.requireIconv()
-var describeMocha = mocha.describe
-
-var describe = describeMocha
-
-if (!iconv.supportsStreams) {
-  describe = describe.skip
-};
+const describe = describeVitest.skipIf(!iconv.supportsStreams)
 
 // Create a source stream that feeds given array of chunks.
 function feeder (chunks) {
@@ -48,74 +42,76 @@ function feeder (chunks) {
 }
 
 function checkStreamOutput (options) {
-  return function (done) {
-    try {
-      var stream = options.createStream()
-    }
-    catch (e) {
-      check(e)
-      return
-    }
-    var res = []
-    stream.on("readable", function () {
-      var chunk
+  return function () {
+    return new Promise((resolve, reject) => {
       try {
-        while ((chunk = stream.read()) != null) {
-          if (options.outputType) {
-            if (/^buffer/.test(options.outputType)) {
-              assert(Buffer.isBuffer(chunk))
-            } else {
-              assert.strictEqual(typeof chunk, options.outputType)
-            }
-          }
-          res.push(chunk)
-        }
+        var stream = options.createStream()
       }
       catch (e) {
-        stream.emit("error", e)
+        check(e)
+        return
       }
-    })
-    stream.on("error", check)
-    stream.on("end", check)
-
-    function check (err) {
-      try {
-        if (options.checkError) {
-          assert(err, "Expected error, but got success")
-          if (Object.prototype.toString.call(options.checkError) == "[object RegExp]") {
-            assert(options.checkError.test(err.message), "Wrong error message: " + err.message)
+      var res = []
+      stream.on("readable", function () {
+        var chunk
+        try {
+          while ((chunk = stream.read()) != null) {
+            if (options.outputType) {
+              if (/^buffer/.test(options.outputType)) {
+                assert(Buffer.isBuffer(chunk))
+              } else {
+                assert.strictEqual(typeof chunk, options.outputType)
+              }
+            }
+            res.push(chunk)
           }
-          else if (typeof options.checkError == "function") {
-            options.checkError(err)
+        }
+        catch (e) {
+          stream.emit("error", e)
+        }
+      })
+      stream.on("error", check)
+      stream.on("end", check)
+
+      function check (err) {
+        try {
+          if (options.checkError) {
+            assert(err, "Expected error, but got success")
+            if (Object.prototype.toString.call(options.checkError) == "[object RegExp]") {
+              assert(options.checkError.test(err.message), "Wrong error message: " + err.message)
+            }
+            else if (typeof options.checkError == "function") {
+              options.checkError(err)
+            }
+            else {
+              assert.fail(null, null, "Invalid type of options.checkError: " + typeof options.checkError)
+            }
           }
           else {
-            assert.fail(null, null, "Invalid type of options.checkError: " + typeof options.checkError)
-          }
-        }
-        else {
-          assert.ifError(err)
+            assert.ifError(err)
 
-          if (options.checkOutput) {
-            if (options.outputType) { var r }
-            // Why is this variable assigned in a conditional, what side effects does it have?
-            // eslint-disable-next-line no-cond-assign
-            if (r = /^buffer-?(.*)/.exec(options.outputType)) {
-              res = Buffer.concat(res)
-              if (r[1]) {
-                res = res.toString(r[1]) // Convert to string to make comparing buffers easier.
+            if (options.checkOutput) {
+              if (options.outputType) { var r }
+              // Why is this variable assigned in a conditional, what side effects does it have?
+              // eslint-disable-next-line no-cond-assign
+              if (r = /^buffer-?(.*)/.exec(options.outputType)) {
+                res = Buffer.concat(res)
+                if (r[1]) {
+                  res = res.toString(r[1]) // Convert to string to make comparing buffers easier.
+                }
+              } else if (options.outputType == "string") {
+                res = res.join("")
               }
-            } else if (options.outputType == "string") {
-              res = res.join("")
-            }
 
-            options.checkOutput(res)
+              options.checkOutput(res)
+            }
           }
+          resolve()
+        } catch (e) {
+          reject(e)
         }
-        done()
-      } catch (e) {
-        done(e)
       }
-    }
+    })
   }
 }
 
@@ -413,25 +409,23 @@ describe("Streaming mode", function () {
 })
 
 describe("Streaming sugar", function () {
-  it("decodeStream.collect()", function (done) {
-    feeder([[0x61, 0x81], [0x40, 0x61]])
-      .pipe(iconv.decodeStream("gbk"))
-      .collect(function (err, outp) {
-        assert.ifError(err)
-        assert.equal(outp, "a丂a")
-        done()
-      })
+  it("decodeStream.collect()", async function () {
+    const output = await new Promise((resolve, reject) => {
+      feeder([[0x61, 0x81], [0x40, 0x61]])
+        .pipe(iconv.decodeStream("gbk"))
+        .collect((error, text) => error ? reject(error) : resolve(text))
+    })
+    assert.equal(output, "a丂a")
   })
 
-  it("encodeStream.collect()", function (done) {
-    feeder(["абв", "где"])
-      .pipe(iconv.encodeStream("windows-1251"))
-      .collect(function (err, outp) {
-        assert.ifError(err)
-        assert.strictEqual(outp.constructor, utils.BytesType)
-        assert.equal(utils.hex(outp), "e0 e1 e2 e3 e4 e5")
-        done()
-      })
+  it("encodeStream.collect()", async function () {
+    const output = await new Promise((resolve, reject) => {
+      feeder(["абв", "где"])
+        .pipe(iconv.encodeStream("windows-1251"))
+        .collect((error, bytes) => error ? reject(error) : resolve(bytes))
+    })
+    assert.strictEqual(output.constructor, utils.BytesType)
+    assert.equal(utils.hex(output), "e0 e1 e2 e3 e4 e5")
   })
 })
 

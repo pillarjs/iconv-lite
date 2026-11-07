@@ -2,15 +2,21 @@ import neostandard from "neostandard"
 
 export default [
   ...neostandard({
-    env: ["mocha"],
     ignores: [
       "encodings/tables/*.js", // Generated lazy table factories
       "encodings/sbcs-data-generated.js", // This a generate file
-      "test/wpt/upstream" // Vendored upstream Web Platform Tests
+      "test/wpt/upstream", // Vendored upstream Web Platform Tests
+      "test/webpack/dist" // Compiled browser tests
     ],
     ts: true,
     filesTs: ["**/*.mts"]
   }),
+  {
+    files: ["test/**/*.test.js"],
+    languageOptions: {
+      globals: { describe: "readonly", it: "readonly", beforeEach: "readonly", afterEach: "readonly" }
+    }
+  },
   {
     languageOptions: { ecmaVersion: "latest" },
     rules: {

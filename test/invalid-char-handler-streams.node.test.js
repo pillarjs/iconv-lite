@@ -6,9 +6,8 @@ describe("invalidCharHandler (Node streams)", function () {
   let iconv
   beforeEach(function () { iconv = new Iconv(defaultIconv.backend) })
 
-  it("continues encoding after handler stops a stream chunk", function (done) {
+  it("continues encoding after handler stops a stream chunk", async function () {
     var calls = []
-    var chunks = []
     var stream = iconv.encodeStream("latin1", {
       invalidCharHandler: function (char, index) {
         calls.push({ char: char, index: index })
@@ -16,18 +15,13 @@ describe("invalidCharHandler (Node streams)", function () {
       }
     })
 
-    stream.on("data", function (chunk) { chunks.push(chunk) })
-    stream.on("end", function () {
-      try {
-        assert.strictEqual(Buffer.concat(chunks).toString("binary"), "B")
-        assert.strictEqual(calls.length, 1)
-        done()
-      } catch (e) {
-        done(e)
-      }
+    const collected = new Promise((resolve, reject) => {
+      stream.collect((error, bytes) => error ? reject(error) : resolve(bytes))
     })
     stream.write("A世")
     stream.end("B")
+    assert.strictEqual(Buffer.from(await collected).toString("binary"), "B")
+    assert.strictEqual(calls.length, 1)
   })
 
   it("replaces malformed UTF-8 input in streams without changing BOM or source positions", async function () {

@@ -48,9 +48,7 @@ function forEachFourByteSequence (check) {
   assert.strictEqual(pointer, 1587600)
 }
 
-describe("GB18030 pointer ranges", function () {
-  this.timeout(30000)
-
+describe("GB18030 pointer ranges", { timeout: 30000 }, function () {
   for (const encoding of ["gb18030", "gbk"]) {
     it(`decodes assigned and unassigned ${encoding} boundaries at every chunk split`, function () {
       for (const [pointer, hex, expected] of pointerBoundaries) {
@@ -107,12 +105,12 @@ describe("GB18030 pointer ranges", function () {
     assert.strictEqual(unassigned, 499604)
   })
 
-  it("decodes every four-byte sequence like the platform decoder", function () {
+  it("decodes every four-byte sequence like the platform decoder", function ({ skip }) {
     let native
-    try { native = new TextDecoder("gb18030") } catch { return this.skip() }
+    try { native = new TextDecoder("gb18030") } catch { return skip() }
     // Some small-ICU builds accept the label without providing the right decoder.
     for (const [, hex, expected] of pointerBoundaries) {
-      if (native.decode(utils.bytes(hex)) !== expected) return this.skip()
+      if (native.decode(utils.bytes(hex)) !== expected) return skip()
     }
     forEachFourByteSequence(bytes => {
       const actual = iconv.decode(bytes, "gb18030")

@@ -214,8 +214,7 @@ describe("DBCS streaming", function () {
   }
 })
 
-describe("DBCS exhaustive two-byte chunk boundaries", function () {
-  this.timeout(30000)
+describe("DBCS exhaustive two-byte chunk boundaries", { timeout: 30000 }, function () {
   for (const encoding of ["shiftjis", "eucjp", "cp936", "gbk", "gb18030", "cp949", "cp950", "big5hkscs"]) {
     it(`decodes ${encoding} identically when split`, function () {
       const bytes = utils.bytes([0, 0])

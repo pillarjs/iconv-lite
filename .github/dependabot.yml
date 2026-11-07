@@ -20,5 +20,10 @@ updates:
     groups:
       production:
         dependency-type: production
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "vite"
       development:
         dependency-type: development

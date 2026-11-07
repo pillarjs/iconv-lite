@@ -2,7 +2,7 @@
 // Node streams and Node module-loader checks live in *.node.test.js.
 const tests = import.meta.webpackContext("..", {
   recursive: false,
-  regExp: /^(?!.*\.node\.test\.js$).*test\.js$/
+  regExp: /^(?!.*\.node\.test\.js$).*\.test\.js$/
 })
 
 tests.keys().sort().forEach(tests)
