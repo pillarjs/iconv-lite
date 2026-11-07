@@ -340,66 +340,6 @@ Untranslatable characters are set to � or ?. When encoding, `invalidCharHandle
 
 Node versions 0.10.31 and 0.11.13 are buggy, don't use them (see [#65](https://github.com/ashtuchkin/iconv-lite/issues/65), [#77](https://github.com/ashtuchkin/iconv-lite/issues/77)).  
 
-## Testing
-
-```sh
-git clone git@github.com:ashtuchkin/iconv-lite.git
-cd iconv-lite
-npm install
-# Runs the complete suite twice in Node.js: once with each backend.
-npm test
-
-# To run one backend:
-npm run test:node
-npm run test:web
-
-# To pass Vitest arguments to a specific backend:
-npm run test:web -- -t "GB18030" --reporter dot
-
-# Install Chromium once, then run all shared tests in Vitest Browser Mode:
-npx playwright install chromium
-npm run test:browser
-
-# To view performance:
-npm run test:performance
-
-# To view combined coverage from both backends:
-npm run test:cov
-open coverage/index.html
-```
-
-Browser Mode automatically discovers shared suites in `test/*.test.js`. Tests that need
-Node streams, native bindings, the filesystem, or Node's module loader use the
-`*.node.test.js` suffix and run with both backends through `npm test`.
-
-Vitest runs the complete Node.js suite as two isolated projects, `node` and `web`,
-and combines their V8 coverage into one report. Browser tests run directly in
-headless Chromium through Vitest's Playwright provider, including the browser
-entry point, Web Streams integration tests, and every shared suite.
-Browser tests use native `Uint8Array` values without a Buffer polyfill. Buffer
-compatibility checks run only in Node.js.
-Assertions use Vitest directly, without Node assertion or process polyfills.
-CI runs the browser suite on the latest Node.js LTS with the current Vitest version.
-On Linux, use `npx playwright install --with-deps chromium` to also install system
-dependencies. Set `CHROME_BIN` to use an existing Chrome or Chromium executable.
-
-The default development dependencies track current Vitest and Vite releases.
-CI selects Vitest 3 and Vite 6 before installing dependencies on Node.js 22
-(including 22.0), 23 and 25, which keeps the library's Node.js >=22 support.
-Node.js 24 and 26 use the current versions. Coverage and browser packages are
-selected together with Vitest; Dependabot groups updates to the current toolchain.
-
-To use the same compatibility versions locally, before `npm install`:
-
-```sh
-npm pkg delete 'devDependencies.@vitest/browser-playwright'
-npm pkg set 'devDependencies.vitest=^3.2.7' 'devDependencies.@vitest/coverage-v8=^3.2.7' 'devDependencies.@vitest/browser=^3.2.7' 'devDependencies.vite=^6.4.5'
-npm install
-```
-
-These commands adjust the local development manifest; the committed manifest
-continues to track the current toolchain.
-
 [npm-downloads-image]: https://badgen.net/npm/dm/iconv-lite
 [npm-downloads-url]: https://npmcharts.com/compare/iconv-lite?minimal=true
 [npm-url]: https://npmjs.org/package/iconv-lite
