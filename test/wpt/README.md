@@ -50,7 +50,7 @@ the WHATWG Encoding Standard, e.g.:
   (jis0208/jis0212/big5/euc-kr) from `encoding.spec.whatwg.org/indexes.json`.
 - [`upstream/`](./upstream) — **unmodified** vendored WPT files (BSD-3-Clause / W3C
   licensed), curated to the TextDecoder/TextEncoder behaviour relevant to
-  iconv-lite. Source commit recorded in [`UPSTREAM`](./UPSTREAM).
+  iconv-lite. Source commit recorded in [`UPSTREAM_COMMIT`](./UPSTREAM_COMMIT).
 
 ## Not yet covered (future work)
 

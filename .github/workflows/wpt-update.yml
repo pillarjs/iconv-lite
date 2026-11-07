@@ -35,7 +35,7 @@ jobs:
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
             # No test content changed — discard a lone upstream-commit bump.
-            git checkout -- test/wpt/UPSTREAM
+            git checkout -- test/wpt/UPSTREAM_COMMIT
           fi
 
       - name: Create Pull Request
