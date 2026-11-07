@@ -1,102 +1,59 @@
-import assert from "node:assert/strict"
+import { strict as assert } from "assert"
 import Iconv from "../lib/iconv.js"
-import NodeIconv from "../lib/iconv-node.js"
-import nodeBackend from "../backends/node.js"
 import webBackend from "../backends/web.js"
+import utils from "./helpers/utils.js"
+
+const defaultIconv = utils.requireIconv()
 
 describe("Iconv instances", function () {
-  let nodeIconv
-  let webIconv
+  let defaultInstance
+  let webInstance
 
   beforeEach(function () {
-    nodeIconv = new NodeIconv(nodeBackend)
-    webIconv = new Iconv(webBackend)
-  })
-
-  it("keeps external definitions through backend changes and supports Node streams", async function () {
-    nodeIconv.addEncoding({ custom: "utf8" })
-    assert.equal(webIconv.encodingExists("custom"), false)
-    const encoder = nodeIconv.encodeStream("custom")
-    const decoder = nodeIconv.decodeStream("custom")
-    const output = new Promise((resolve, reject) => {
-      encoder.on("error", reject)
-      encoder.pipe(decoder).collect((error, text) => error ? reject(error) : resolve(text))
-    })
-    encoder.write("A\uD83D")
-    encoder.end("\uDE42")
-    assert.equal(await output, "A🙂")
-    nodeIconv.setBackend(webBackend)
-    assert.equal(nodeIconv.encode("A", "custom").constructor, Uint8Array)
+    defaultInstance = new Iconv(defaultIconv.backend)
+    webInstance = new Iconv(webBackend)
   })
 
   it("binds destructured methods to their instance", function () {
-    const { encode: nodeEncode, decode: nodeDecode } = nodeIconv
-    const { encode: webEncode, decode: webDecode } = webIconv
+    const { encode: defaultEncode, decode: defaultDecode } = defaultInstance
+    const { encode: webEncode, decode: webDecode } = webInstance
 
-    assert(Buffer.isBuffer(nodeEncode("hello", "utf8")))
+    assert.equal(defaultEncode("hello", "utf8").constructor, utils.BytesType)
     assert.equal(webEncode("hello", "utf8").constructor, Uint8Array)
-    assert.equal(nodeDecode(nodeEncode("hello", "utf8"), "utf8"), "hello")
+    assert.equal(defaultDecode(defaultEncode("hello", "utf8"), "utf8"), "hello")
     assert.equal(webDecode(webEncode("hello", "utf8"), "utf8"), "hello")
   })
 
   it("keeps encoder replacement characters separate", function () {
-    webIconv.defaultCharSingleByte = "!"
+    webInstance.defaultCharSingleByte = "!"
 
-    assert.deepEqual(webIconv.encode("\ufffd", "ascii"), Uint8Array.of(0x21))
-    assert.deepEqual(nodeIconv.encode("\ufffd", "ascii"), Buffer.from([0x3f]))
+    assert.deepEqual(webInstance.encode("\ufffd", "ascii"), Uint8Array.of(0x21))
+    assert.deepEqual(defaultInstance.encode("\ufffd", "ascii"), utils.bytes([0x3f]))
   })
 
   it("keeps decoder replacement characters separate", function () {
-    webIconv.defaultCharUnicode = "!"
+    webInstance.defaultCharUnicode = "!"
 
-    assert.equal(webIconv.decode(Uint8Array.of(0xff), "cesu8"), "!")
-    assert.equal(nodeIconv.decode(Uint8Array.of(0xff), "cesu8"), "�")
+    assert.equal(webInstance.decode(Uint8Array.of(0xff), "cesu8"), "!")
+    assert.equal(defaultInstance.decode(Uint8Array.of(0xff), "cesu8"), "�")
   })
 
   it("registers encoding aliases only on the selected instance", function () {
-    webIconv.encodingExists("utf8")
-    webIconv.encodings.customutf8 = "utf8"
+    webInstance.encodingExists("utf8")
+    webInstance.encodings.customutf8 = "utf8"
 
-    assert.equal(webIconv.encodingExists("customutf8"), true)
-    assert.equal(nodeIconv.encodingExists("customutf8"), false)
+    assert.equal(webInstance.encodingExists("customutf8"), true)
+    assert.equal(defaultInstance.encodingExists("customutf8"), false)
   })
 
   it("changes the backend and resets codecs only on the selected instance", function () {
-    const nodeCodec = nodeIconv.getCodec("windows1251")
-    const webCodec = webIconv.getCodec("windows1251")
+    const defaultCodec = defaultInstance.getCodec("windows1251")
+    const webCodec = webInstance.getCodec("windows1251")
 
-    webIconv.setBackend(nodeBackend)
+    webInstance.setBackend(defaultIconv.backend)
 
-    assert.notEqual(webIconv.getCodec("windows1251"), webCodec)
-    assert.equal(nodeIconv.getCodec("windows1251"), nodeCodec)
-    assert(Buffer.isBuffer(webIconv.encode("hello", "windows1251")))
-  })
-
-  it("keeps Node stream support out of the Web instance", function () {
-    assert.equal(nodeIconv.supportsStreams, true)
-    assert.equal("enableStreamingAPI" in nodeIconv, false)
-    for (const method of ["encodeStream", "decodeStream", "enableStreamingAPI", "supportsStreams"]) {
-      assert.equal(method in webIconv, false)
-    }
-    assert.equal(webIconv.supportsWebStreams, true)
-  })
-
-  it("collects Node stream chunks using the configured Web backend", function (done) {
-    const customIconv = new NodeIconv(webBackend)
-    const { encodeStream } = customIconv
-    const encoder = encodeStream("utf8")
-
-    encoder.collect(function (error, bytes) {
-      if (error) return done(error)
-      try {
-        assert.equal(bytes.constructor, Uint8Array)
-        assert.equal(webIconv.decode(bytes, "utf8"), "hello")
-        done()
-      } catch (error) {
-        done(error)
-      }
-    })
-    encoder.write("hel")
-    encoder.end("lo")
+    assert.notEqual(webInstance.getCodec("windows1251"), webCodec)
+    assert.equal(defaultInstance.getCodec("windows1251"), defaultCodec)
+    assert.equal(webInstance.encode("hello", "windows1251").constructor, utils.BytesType)
   })
 })

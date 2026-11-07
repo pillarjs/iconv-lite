@@ -40,8 +40,7 @@ module.exports = function (config) {
       target: ["web"],
       resolve: {
         alias: {
-          "iconv-lite": path.dirname(path.dirname(require.resolve("iconv-lite"))),
-          iconv: false // Native binding used only by Node-only libiconv cross-checks.
+          "iconv-lite": path.dirname(path.dirname(require.resolve("iconv-lite")))
         },
         fallback: {
           stream: require.resolve("stream-browserify"),

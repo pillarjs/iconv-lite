@@ -1,18 +1,8 @@
-// List of test files that are ready to be run in web environment.
-import "../add-encoding.test.js"
-import "../cyrillic.test.js"
-import "../dbcs-backends.test.js"
-import "../dbcs-streaming.test.js"
-import "../dbcs-tables.test.js"
-import "../gb18030-encoder.test.js"
-import "../gb18030.test.js"
-import "../gbk.test.js"
-import "../greek.test.js"
-import "../internal.test.js"
-import "../sbcs.test.js"
-import "../turkish.test.js"
-import "../utf16.test.js"
-import "../utf32.test.js"
-import "../utf7.test.js"
-import "../utils.test.js"
-import "../web-streams.test.js"
+// Include every shared suite, including newly added files. Native bindings,
+// Node streams and Node module-loader checks live in *.node.test.js.
+const tests = import.meta.webpackContext("..", {
+  recursive: false,
+  regExp: /^(?!.*\.node\.test\.js$).*test\.js$/
+})
+
+tests.keys().sort().forEach(tests)

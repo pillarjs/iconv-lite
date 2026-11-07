@@ -290,6 +290,9 @@ npm run test:web
 # To pass Mocha arguments to a specific backend:
 npm run test:web -- --grep "GB18030" --reporter dot
 
+# To run all shared tests in Chrome through webpack:
+npm run test:webpack
+
 # To view performance:
 npm run test:performance
 
@@ -297,6 +300,10 @@ npm run test:performance
 npm run test:cov
 open coverage/index.html
 ```
+
+Webpack automatically discovers shared suites in `test/*test.js`. Tests that need
+Node streams, native bindings, the filesystem, or Node's module loader use the
+`*.node.test.js` suffix and run with both backends through `npm test`.
 
 [npm-downloads-image]: https://badgen.net/npm/dm/iconv-lite
 [npm-downloads-url]: https://npmcharts.com/compare/iconv-lite?minimal=true
