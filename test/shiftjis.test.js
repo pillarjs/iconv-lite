@@ -1,4 +1,5 @@
 import assert from "assert"
+import Iconv from "../lib/iconv.js"
 import utils from "./helpers/utils.js"
 
 const iconv = utils.requireIconv()
@@ -38,6 +39,31 @@ describe("ShiftJIS tests", function () {
 
       assert.strictEqual(iconv.decode(bytes, "shiftjis"), char, utils.hex(bytes))
       assert.strictEqual(utils.hex(iconv.encode(char, "shiftjis")), "3f", utils.hex(bytes))
+    }
+  })
+
+  it("ShiftJIS reports EUDC characters to the handler and encodes or skips replacements", function () {
+    const text = "A\uE000\uE69D\uE757B"
+    for (const [replacement, expected] of [
+      [undefined, "41 3f 3f 3f 42"],
+      ["!", "41 21 21 21 42"],
+      ["", "41 42"],
+      ["①", "41 87 40 87 40 87 40 42"]
+    ]) {
+      const calls = []
+      const encoded = iconv.encode(text, "shiftjis", {
+        invalidCharHandler (char, index) { calls.push([char, index]); return replacement }
+      })
+      assert.strictEqual(utils.hex(encoded), expected)
+      assert.deepStrictEqual(calls, [["\uE000", 1], ["\uE69D", 2], ["\uE757", 3]])
+    }
+  })
+
+  it("ShiftJIS uses the configured replacement byte for EUDC in both encoder paths", function () {
+    const custom = new Iconv(iconv.backend)
+    custom.defaultCharSingleByte = "!"
+    for (const options of [undefined, { invalidCharHandler () {} }]) {
+      assert.strictEqual(utils.hex(custom.encode("A\uE000\uE69D\uE757B", "shiftjis", options)), "41 21 21 21 42")
     }
   })
 
