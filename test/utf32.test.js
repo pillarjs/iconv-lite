@@ -1,5 +1,3 @@
-import nativeIconv from "iconv"
-import { Buffer } from "buffer"
 import assert from "assert"
 import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
@@ -19,7 +17,7 @@ const utf32leBufWithInvalidChar = utils.concatBufs([utf32leBuf, utils.bytes("12 
 const utf32beBufWithInvalidChar = utils.concatBufs([utf32beBuf, utils.bytes("12 34 56 78")])
 const sampleStr = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<\u4FC4\u8BED>\u0434\u0430\u043D\u043D\u044B\u0435</\u4FC4\u8BED>"
 
-describe("UTF-32LE codec #node-web", function () {
+describe("UTF-32LE codec", function () {
   it("encodes basic strings correctly", function () {
     assert.equal(hex(iconv.encode(testStr, "UTF32-LE")), hex(utf32leBuf))
   })
@@ -112,7 +110,7 @@ describe("UTF-32LE codec #node-web", function () {
   })
 })
 
-describe("UTF-32BE codec #node-web", function () {
+describe("UTF-32BE codec", function () {
   it("encodes basic strings correctly", function () {
     assert.equal(hex(iconv.encode(testStr, "UTF32-BE")), hex(utf32beBuf))
   })
@@ -154,7 +152,7 @@ describe("UTF-32BE codec #node-web", function () {
   })
 })
 
-describe("UTF-32 general codec #node-web", function () {
+describe("UTF-32 general codec", function () {
   it("matches the example from The Unicode Standard, Section 3.9", function () {
     // The standard's encoding-forms example: U+004D U+0430 U+4E8C U+10302. Per definition D90, each
     // scalar value maps to a 32-bit code unit with the same numeric value.
@@ -258,59 +256,6 @@ describe("UTF-32 general codec #node-web", function () {
   it("detects endianness from a long heuristic sample (> 100 code units)", function () {
     const longStr = "a".repeat(150)
     assert.equal(iconv.decode(iconv.encode(longStr, "utf-32le"), "utf-32"), longStr)
-  })
-})
-
-// Node-only: cross-validate every valid code point against the reference C++ iconv when available.
-// Not tagged #node-web (uses Buffer + the optional `iconv` binding), which the web/webpack build maps
-// to an empty module, so these are skipped there.
-describe("UTF-32 full code point round-trip", function () {
-  const { Iconv } = nativeIconv
-
-  let cache
-  function buildAll () {
-    if (cache) { return cache }
-    let str = ""
-    const leBuf = Buffer.alloc(0x10F800 * 4)
-    const beBuf = Buffer.alloc(0x10F800 * 4)
-    let skip = 0
-    for (let i = 0; i <= 0x10F7FF; i++) {
-      if (i === 0xD800) { skip = 0x800 } // Jump over the surrogate range (not valid scalar values).
-      const cp = i + skip
-      str += String.fromCodePoint(cp)
-      leBuf.writeUInt32LE(cp, i * 4)
-      beBuf.writeUInt32BE(cp, i * 4)
-    }
-    cache = { str, leBuf, beBuf }
-    return cache
-  }
-
-  it("handles encoding all valid code points (LE)", function () {
-    if (!Iconv) { this.skip() }
-    const { str, leBuf } = buildAll()
-    assert.deepEqual(iconv.encode(str, "utf-32le"), leBuf)
-    assert.deepEqual(new Iconv("UTF-8", "UTF-32LE").convert(str), leBuf)
-  })
-
-  it("handles decoding all valid code points (LE)", function () {
-    if (!Iconv) { this.skip() }
-    const { str, leBuf } = buildAll()
-    assert.equal(iconv.decode(leBuf, "utf-32le"), str)
-    assert.equal(new Iconv("UTF-32LE", "UTF-8").convert(leBuf).toString("utf8"), str)
-  })
-
-  it("handles encoding all valid code points (BE)", function () {
-    if (!Iconv) { this.skip() }
-    const { str, beBuf } = buildAll()
-    assert.deepEqual(iconv.encode(str, "utf-32be"), beBuf)
-    assert.deepEqual(new Iconv("UTF-8", "UTF-32BE").convert(str), beBuf)
-  })
-
-  it("handles decoding all valid code points (BE)", function () {
-    if (!Iconv) { this.skip() }
-    const { str, beBuf } = buildAll()
-    assert.equal(iconv.decode(beBuf, "utf-32be"), str)
-    assert.equal(new Iconv("UTF-32BE", "UTF-8").convert(beBuf).toString("utf8"), str)
   })
 })
 

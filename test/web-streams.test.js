@@ -25,7 +25,7 @@ async function collect (readable) {
   }
 }
 
-describe("Web Streams #node-web", function () {
+describe("Web Streams", function () {
   let iconv
   beforeEach(function () { iconv = new Iconv(defaultIconv.backend) })
 

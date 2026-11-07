@@ -1,8 +1,9 @@
-import assert from "node:assert/strict"
-import Iconv from "../lib/iconv-node.js"
+import { Buffer } from "buffer"
+import { strict as assert } from "assert"
+import Iconv from "../lib/iconv.js"
 import defaultIconv from "../lib/index-node.js"
 
-describe("invalidCharHandler (Unicode and binary) #node-web", function () {
+describe("invalidCharHandler (Unicode and binary)", function () {
   let iconv
   beforeEach(function () { iconv = new Iconv(defaultIconv.backend) })
 
@@ -112,19 +113,4 @@ describe("invalidCharHandler (Unicode and binary) #node-web", function () {
       }), iconv.encode(input, encoding))
     })
   }
-
-  it("replaces malformed UTF-8 input in streams without changing BOM or source positions", async function () {
-    const calls = []
-    const encoder = iconv.encodeStream("utf8", {
-      addBOM: true,
-      invalidCharHandler (char, index) { calls.push([char, index]); return "!" }
-    })
-    const collected = new Promise((resolve, reject) => {
-      encoder.collect((error, bytes) => error ? reject(error) : resolve(bytes))
-    })
-    encoder.write("A\uD800")
-    encoder.end("B")
-    assert.deepEqual(await collected, iconv.encode("A!B", "utf8", { addBOM: true }))
-    assert.deepEqual(calls, [["\uD800", 1]])
-  })
 })

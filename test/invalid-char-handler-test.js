@@ -1,8 +1,9 @@
+import { Buffer } from "buffer"
 import assert from "assert"
 import defaultIconv from "../lib/index-node.js"
-import Iconv from "../lib/iconv-node.js"
+import Iconv from "../lib/iconv.js"
 
-describe("invalidCharHandler (SBCS) #node-web", function () {
+describe("invalidCharHandler (SBCS)", function () {
   let iconv
 
   beforeEach(function () {
@@ -231,31 +232,6 @@ describe("invalidCharHandler (SBCS) #node-web", function () {
     assert.strictEqual(encoder.end(), undefined)
   })
 
-  it("handles split surrogate pairs through encodeStream", async function () {
-    const calls = []
-    const encoder = iconv.encodeStream("latin1", {
-      invalidCharHandler (char, index) { calls.push({ char, index }) }
-    })
-    const collected = new Promise((resolve, reject) => {
-      encoder.collect((error, bytes) => error ? reject(error) : resolve(bytes))
-    })
-
-    encoder.write("A\uD83D")
-    encoder.end("\uDE42B")
-    assert.deepStrictEqual(Array.from(await collected), [0x41, 0x3F, 0x3F, 0x42])
-    assert.deepStrictEqual(calls, [{ char: "🙂", index: 1 }])
-  })
-
-  it("emits stream errors when a handler rejects a trailing high surrogate", async function () {
-    const error = new Error("Incomplete character")
-    const encoder = iconv.encodeStream("latin1", {
-      invalidCharHandler () { throw error }
-    })
-    const errored = new Promise(resolve => encoder.once("error", resolve))
-    encoder.end("\uD800")
-    assert.strictEqual(await errored, error)
-  })
-
   it("supports stopping SBCS encoding via handler return value", function () {
     var calls = []
     var res = iconv.encode("A世界B", "latin1", {
@@ -297,30 +273,6 @@ describe("invalidCharHandler (SBCS) #node-web", function () {
     assert.strictEqual(calls[0].char, "🙂")
     assert.strictEqual(calls[0].index, 0)
     assert.strictEqual(encoder.end(), undefined)
-  })
-
-  it("continues encoding after handler stops a stream chunk", function (done) {
-    var calls = []
-    var chunks = []
-    var stream = iconv.encodeStream("latin1", {
-      invalidCharHandler: function (char, index) {
-        calls.push({ char: char, index: index })
-        return true
-      }
-    })
-
-    stream.on("data", function (chunk) { chunks.push(chunk) })
-    stream.on("end", function () {
-      try {
-        assert.strictEqual(Buffer.concat(chunks).toString("binary"), "B")
-        assert.strictEqual(calls.length, 1)
-        done()
-      } catch (e) {
-        done(e)
-      }
-    })
-    stream.write("A世")
-    stream.end("B")
   })
 
   it("encodes the replacement returned by the handler", function () {

@@ -50,7 +50,7 @@ var encodings = [
   }
 ]
 
-describe("Test Turkish encodings #node-web", function () {
+describe("Test Turkish encodings", function () {
   encodings.forEach(function (encoding) {
     var enc = encoding.variations[0]
     var key = "turkish"

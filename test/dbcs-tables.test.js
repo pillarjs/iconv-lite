@@ -11,7 +11,7 @@ function codecFor (table) {
   return new DBCSCodec({ encodingName: "test", table: () => table }, iconv)
 }
 
-describe("DBCS table formats #node-web", function () {
+describe("DBCS table formats", function () {
   for (const [name, table] of [
     ["traditional rows", [asciiRow, ["8140", "中"]]],
     ["nested row tables", [[asciiRow], [["8140", "中"]]]],

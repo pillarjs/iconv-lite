@@ -35,7 +35,7 @@ const iconvEquivChars = {
 // Generate tests for all SBCS encodings.
 iconv.encode("", "utf8") // Load all encodings.
 
-describe("Full SBCS encoding tests #node-web", function () {
+describe("Full SBCS encoding tests", function () {
   this.timeout(10000)
 
   for (const enc in iconv.encodings) {
@@ -193,7 +193,7 @@ describe("Full SBCS encoding tests #node-web", function () {
       })(enc) } }
 })
 
-describe("SBCS encode maps U+FFFD to defaultCharSingleByte #node-web", function () {
+describe("SBCS encode maps U+FFFD to defaultCharSingleByte", function () {
   const encodings = ["windows1252", "windows874", "iso88593", "koi8r"]
 
   encodings.forEach(function (enc) {

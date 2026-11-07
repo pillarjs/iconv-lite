@@ -2,7 +2,7 @@ import assert from "assert"
 import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
 
-describe("DBCS backends #node-web", function () {
+describe("DBCS backends", function () {
   const cases = [
     ["shiftjis", "中文abc", "92 86 95 b6 61 62 63"],
     ["eucjp", "日本", "c6 fc cb dc"],

@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url)
 
 // This reference check needs Node's native binding and filesystem, but runs
 // against either iconv-lite backend. Portable cases live in gbk.test.js.
-describe("GBK native reference #node-web", function () {
+describe("GBK native reference", function () {
   it("decodes the GBK fixture like native iconv", function () {
     let Iconv
     try { ({ Iconv } = require("iconv")) } catch { return this.skip() }

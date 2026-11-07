@@ -1,8 +1,10 @@
 import whatwgAliases from "../encodings/whatwg-aliases.js"
 import assert from "assert"
 import { Buffer } from "buffer"
-import iconv from "../lib/index-node.js"
+import utils from "./helpers/utils.js"
 import { canonicalizeEncoding } from "../lib/utils.js"
+
+const iconv = utils.requireIconv()
 
 var testString = "Hello123!"
 var testStringLatin1 = "Hello123!£Å÷×çþÿ¿®"
@@ -33,7 +35,7 @@ describe("Encoding Existence - Codec Data Cache", function () {
 
 describe("Generic UTF8-UCS2 tests", function () {
   it("Return values are of correct types", function () {
-    assert.ok(Buffer.isBuffer(iconv.encode(testString, "utf8")))
+    assert.strictEqual(iconv.encode(testString, "utf8").constructor, utils.BytesType)
 
     var s = iconv.decode(Buffer.from(testString), "utf8")
     assert.strictEqual(Object.prototype.toString.call(s), "[object String]")
@@ -41,23 +43,23 @@ describe("Generic UTF8-UCS2 tests", function () {
 
   it("Internal encodings all correctly encoded/decoded", function () {
     ["utf8", "UTF-8", "UCS2", "binary"].forEach(function (enc) {
-      assert.strictEqual(iconv.encode(testStringLatin1, enc).toString(enc), testStringLatin1)
+      assert.deepStrictEqual(iconv.encode(testStringLatin1, enc), utils.bytes(Buffer.from(testStringLatin1, enc)))
       assert.strictEqual(iconv.decode(Buffer.from(testStringLatin1, enc), enc), testStringLatin1)
     })
   })
 
   it("Base64 correctly encoded/decoded", function () {
-    assert.strictEqual(iconv.encode(testStringBase64, "base64").toString("binary"), testString)
+    assert.deepStrictEqual(iconv.encode(testStringBase64, "base64"), utils.bytes(Buffer.from(testString, "binary")))
     assert.strictEqual(iconv.decode(Buffer.from(testString, "binary"), "base64"), testStringBase64)
   })
 
   it("Hex correctly encoded/decoded", function () {
-    assert.strictEqual(iconv.encode(testStringHex, "hex").toString("binary"), testString)
+    assert.deepStrictEqual(iconv.encode(testStringHex, "hex"), utils.bytes(testStringHex))
     assert.strictEqual(iconv.decode(Buffer.from(testString, "binary"), "hex"), testStringHex)
   })
 
   it("Latin1 correctly encoded/decoded", function () {
-    assert.strictEqual(iconv.encode(testStringLatin1, "latin1").toString("binary"), testStringLatin1)
+    assert.deepStrictEqual(iconv.encode(testStringLatin1, "latin1"), utils.bytes(Buffer.from(testStringLatin1, "binary")))
     assert.strictEqual(iconv.decode(Buffer.from(testStringLatin1, "binary"), "latin1"), testStringLatin1)
   })
 
@@ -92,7 +94,7 @@ describe("Generic UTF8-UCS2 tests", function () {
   })
 
   it("Aliases toEncoding and fromEncoding work the same as encode and decode", function () {
-    assert.strictEqual(iconv.toEncoding(testString, "latin1").toString("binary"), iconv.encode(testString, "latin1").toString("binary"))
+    assert.deepStrictEqual(iconv.toEncoding(testString, "latin1"), iconv.encode(testString, "latin1"))
     assert.strictEqual(iconv.fromEncoding(Buffer.from(testStringLatin1), "latin1"), iconv.decode(Buffer.from(testStringLatin1), "latin1"))
   })
 
@@ -102,25 +104,24 @@ describe("Generic UTF8-UCS2 tests", function () {
     // eslint-disable-next-line  no-extend-native
     Array.prototype.sample2 = function () {}
 
-    iconv._codecDataCache = { __proto__: null } // Clean up cache so that all encodings are loaded.
+    const previousCache = iconv._codecDataCache
+    try {
+      iconv._codecDataCache = { __proto__: null } // Clean up cache so that all encodings are loaded.
 
-    assert.strictEqual(iconv.decode(Buffer.from("abc"), "gbk"), "abc")
-    assert.strictEqual(iconv.decode(Buffer.from("abc"), "win1251"), "abc")
-    assert.strictEqual(iconv.decode(Buffer.from("abc"), "utf7"), "abc")
-    assert.strictEqual(iconv.decode(Buffer.from("abc"), "utf8"), "abc")
-
-    assert.strictEqual(iconv.encode("abc", "gbk").toString(), "abc")
-    assert.strictEqual(iconv.encode("abc", "win1251").toString(), "abc")
-    assert.strictEqual(iconv.encode("abc", "utf7").toString(), "abc")
-    assert.strictEqual(iconv.encode("abc", "utf8").toString(), "abc")
-
-    delete Object.prototype.permits
-    delete Array.prototype.sample2
+      for (const encoding of ["gbk", "win1251", "utf7", "utf8"]) {
+        assert.strictEqual(iconv.decode(utils.bytes("61 62 63"), encoding), "abc")
+        assert.deepStrictEqual(iconv.encode("abc", encoding), utils.bytes("61 62 63"))
+      }
+    } finally {
+      delete Object.prototype.permits
+      delete Array.prototype.sample2
+      iconv._codecDataCache = previousCache
+    }
   })
 
   it("handles encoding untranslatable characters correctly", function () {
     // Regression #162
-    assert.strictEqual(iconv.encode("外国人", "latin1").toString(), "???")
+    assert.deepStrictEqual(iconv.encode("外国人", "latin1"), utils.bytes("3f 3f 3f"))
   })
 })
 

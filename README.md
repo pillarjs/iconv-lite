@@ -280,15 +280,30 @@ Node versions 0.10.31 and 0.11.13 are buggy, don't use them (see [#65](https://g
 git clone git@github.com:ashtuchkin/iconv-lite.git
 cd iconv-lite
 npm install
+# Runs the complete suite twice in Node.js: once with each backend.
 npm test
-    
+
+# To run one backend:
+npm run test:node
+npm run test:web
+
+# To pass Mocha arguments to a specific backend:
+npm run test:web -- --grep "GB18030" --reporter dot
+
+# To run all shared tests in Chrome through webpack:
+npm run test:webpack
+
 # To view performance:
 npm run test:performance
 
-# To view test coverage: 
+# To view combined coverage from both backends:
 npm run test:cov
 open coverage/index.html
 ```
+
+Webpack automatically discovers shared suites in `test/*test.js`. Tests that need
+Node streams, native bindings, the filesystem, or Node's module loader use the
+`*.node.test.js` suffix and run with both backends through `npm test`.
 
 [npm-downloads-image]: https://badgen.net/npm/dm/iconv-lite
 [npm-downloads-url]: https://npmcharts.com/compare/iconv-lite?minimal=true

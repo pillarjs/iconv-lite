@@ -12,7 +12,7 @@ const utf16beBOM = utils.bytes("fe ff")
 const sampleStr = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<数据>נְתוּנִים</数据>"
 const weirdBuf = utils.bytes("15 16 17 18") // Can't automatically detect whether it's LE or BE.
 
-describe("ucs2 alias #node-web", function () {
+describe("ucs2 alias", function () {
   it("decodes identically to utf-16le", function () {
     assert.equal(iconv.decode(utf16leBuf, "ucs2"), iconv.decode(utf16leBuf, "utf-16le"))
   })
@@ -26,7 +26,7 @@ describe("ucs2 alias #node-web", function () {
   })
 })
 
-describe("WHATWG utf-16 label aliases #node-web", function () {
+describe("WHATWG utf-16 label aliases", function () {
   for (const label of ["unicode", "csunicode", "iso-10646-ucs-2", "unicodefeff"]) {
     it(`'${label}' decodes as UTF-16LE`, function () {
       assert.equal(iconv.decode(utf16leBuf, label), iconv.decode(utf16leBuf, "utf-16le"))
@@ -38,7 +38,7 @@ describe("WHATWG utf-16 label aliases #node-web", function () {
   })
 })
 
-describe("UTF-16LE encoder #node-web", function () {
+describe("UTF-16LE encoder", function () {
   const enc = "utf16-le"
   it("encodes basic strings correctly", function () {
     assert.equal(hex(iconv.encode("", enc)), "")
@@ -80,7 +80,7 @@ describe("UTF-16LE encoder #node-web", function () {
   })
 })
 
-describe("UTF-16LE decoder #node-web", function () {
+describe("UTF-16LE decoder", function () {
   const enc = "utf16-le"
   it("decodes basic buffers correctly", function () {
     assert.equal(iconv.decode(utf16leBuf, enc), testStr)
@@ -169,7 +169,7 @@ describe("UTF-16LE decoder #node-web", function () {
   )
 })
 
-describe("UTF-16BE encoder #node-web", function () {
+describe("UTF-16BE encoder", function () {
   const enc = "utf16-be"
   it("encodes basic strings correctly", function () {
     assert.equal(hex(iconv.encode("", enc)), "")
@@ -199,7 +199,7 @@ describe("UTF-16BE encoder #node-web", function () {
   })
 })
 
-describe("UTF-16BE decoder #node-web", function () {
+describe("UTF-16BE decoder", function () {
   const enc = "utf16-be"
   it("decodes basic buffers correctly", function () {
     assert.equal(iconv.decode(utf16beBuf, enc), testStr)
@@ -287,7 +287,7 @@ describe("UTF-16BE decoder #node-web", function () {
   )
 })
 
-describe("UTF-16 encoder #node-web", function () {
+describe("UTF-16 encoder", function () {
   const enc = "utf-16"
   it("uses UTF-16LE and adds BOM when encoding", function () {
     assert.equal(hex(iconv.encode(testStr, enc)), hex(utf16leBOM) + " " + hex(utf16leBuf))
@@ -326,7 +326,7 @@ describe("UTF-16 encoder #node-web", function () {
   })
 })
 
-describe("UTF-16 decoder #node-web", function () {
+describe("UTF-16 decoder", function () {
   const enc = "utf-16"
   const encLE = "utf-16le"
   const encBE = "utf-16be"
@@ -374,7 +374,7 @@ describe("UTF-16 decoder #node-web", function () {
 // Adapted from @exodus/bytes' utf16 tests: unpaired/invalid surrogates must be replaced with
 // U+FFFD regardless of where they sit in the input. We re-check each case at a range of offsets,
 // which shifts the bad code unit around and guards against position/alignment-specific bugs.
-describe("UTF-16 decoder robustness #node-web", function () {
+describe("UTF-16 decoder robustness", function () {
   const orphans = [
     { invalid: [0x61, 0x62, 0xD800, 0x77, 0x78], replaced: [0x61, 0x62, 0xFFFD, 0x77, 0x78] },
     { invalid: [0xD800], replaced: [0xFFFD] },
@@ -409,7 +409,7 @@ describe("UTF-16 decoder robustness #node-web", function () {
 
 // Opt-in WHATWG "fatal" mode: { fatal: true } throws on invalid input instead of replacing with
 // U+FFFD. The default stays lenient (replacement), matching TextDecoder's own default.
-describe("UTF-16 decoder fatal mode (opt-in) #node-web", function () {
+describe("UTF-16 decoder fatal mode (opt-in)", function () {
   for (const enc of ["utf-16le", "utf-16be"]) {
     const lone = enc === "utf-16le" ? utils.bytes("00d8") : utils.bytes("d800") // Lone high surrogate.
     const odd = enc === "utf-16le" ? utils.bytes("610000") : utils.bytes("006100") // Truncated code unit.

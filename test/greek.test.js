@@ -51,7 +51,7 @@ var encodings = [
   }
 ]
 
-describe("Test Greek encodings #node-web", function () {
+describe("Test Greek encodings", function () {
   encodings.forEach(function (encoding) {
     var enc = encoding.variations[0]
     var key = "hi"

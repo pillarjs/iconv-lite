@@ -63,7 +63,7 @@ var encodings = [
   }
 ]
 
-describe("Test Cyrillic encodings #node-web", function () {
+describe("Test Cyrillic encodings", function () {
   encodings.forEach(function (encoding) {
     var enc = encoding.variations[0]
     var key = "hi"
