@@ -1,4 +1,4 @@
-import assert from "assert"
+import { expect } from "vitest"
 import Iconv from "../lib/iconv.js"
 import utils from "./helpers/utils.js"
 
@@ -33,14 +33,14 @@ describe("Web Streams", function () {
 
   it("works without enabling Node streams and binds destructured methods", async function () {
     const { encodeWebStream, decodeWebStream } = iconv
-    assert.equal(iconv.supportsWebStreams, true)
-    assert.equal("encodeStream" in iconv, false)
+    expect(iconv.supportsWebStreams).toBe(true)
+    expect("encodeStream" in iconv).toBe(false)
     const encoder = encodeWebStream("gbk")
     const decoder = decodeWebStream("gbk")
-    assert(encoder instanceof TransformStream)
-    assert(decoder instanceof TransformStream)
+    expect(encoder instanceof TransformStream).toBeTruthy()
+    expect(decoder instanceof TransformStream).toBeTruthy()
     const output = source(["中文"]).pipeThrough(encoder).pipeThrough(decoder)
-    assert.equal((await collect(output)).join(""), "中文")
+    expect((await collect(output)).join("")).toBe("中文")
   })
 
   for (const [encoding, input] of [
@@ -74,20 +74,20 @@ describe("Web Streams", function () {
       for (let split = 0; split <= input.length; split++) {
         const chunks = await collect(source([input.slice(0, split), "", input.slice(split)])
           .pipeThrough(iconv.encodeWebStream(encoding)))
-        assert(chunks.every(chunk => chunk.constructor === encoded.constructor && chunk.length > 0))
+        expect(chunks.every(chunk => chunk.constructor === encoded.constructor && chunk.length > 0)).toBeTruthy()
         const bytes = iconv.backend.concatByteResults(chunks)
         if (iconv.getCodec(encoding) === iconv.getCodec("utf7")) {
           // UTF-7 may close and reopen shifted runs at chunk boundaries.
-          assert.equal(iconv.decode(bytes, encoding), input)
+          expect(iconv.decode(bytes, encoding)).toBe(input)
         } else {
-          assert.deepStrictEqual(bytes, encoded)
+          expect(bytes).toStrictEqual(encoded)
         }
       }
       for (let split = 0; split <= encoded.length; split++) {
         const chunks = await collect(source([encoded.subarray(0, split), new Uint8Array(), encoded.subarray(split)])
           .pipeThrough(iconv.decodeWebStream(encoding)))
-        assert(chunks.every(chunk => typeof chunk === "string" && chunk.length > 0))
-        assert.equal(chunks.join(""), iconv.decode(encoded, encoding))
+        expect(chunks.every(chunk => typeof chunk === "string" && chunk.length > 0)).toBeTruthy()
+        expect(chunks.join("")).toBe(iconv.decode(encoded, encoding))
       }
     })
   }
@@ -108,7 +108,7 @@ describe("Web Streams", function () {
           }
           await writer.close()
           writer.releaseLock()
-          assert.equal((await output).join(""), text)
+          expect((await output).join("")).toBe(text)
         }
       })
     }
@@ -116,10 +116,10 @@ describe("Web Streams", function () {
 
   it("preserves per-chunk hex parsing and flushes hexadecimal output", async function () {
     const encoded = await collect(source(["4", "142"]).pipeThrough(iconv.encodeWebStream("hex")))
-    assert.deepStrictEqual(Array.from(iconv.backend.concatByteResults(encoded)), [0x14])
+    expect(Array.from(iconv.backend.concatByteResults(encoded))).toStrictEqual([0x14])
     const decoded = await collect(source([Uint8Array.of(0x41), Uint8Array.of(0x42)])
       .pipeThrough(iconv.decodeWebStream("hex")))
-    assert.equal(decoded.join(""), "4142")
+    expect(decoded.join("")).toBe("4142")
   })
 
   for (const [encoding, first, second] of [
@@ -133,15 +133,15 @@ describe("Web Streams", function () {
       const reader = transform.readable.getReader()
       const read = reader.read()
       await writer.write(Uint8Array.of(0x41, 0x42, 0x43, 0x44))
-      assert.equal((await read).value, first)
+      expect((await read).value).toBe(first)
       let written = false
       const pending = writer.write(Uint8Array.of(0x45, 0x46)).then(() => { written = true })
       await Promise.resolve()
-      assert.equal(written, false)
-      assert.equal((await reader.read()).value, second)
+      expect(written).toBe(false)
+      expect((await reader.read()).value).toBe(second)
       await pending
       await writer.close()
-      assert.equal((await reader.read()).done, true)
+      expect((await reader.read()).done).toBe(true)
       writer.releaseLock()
       reader.releaseLock()
     })
@@ -156,15 +156,15 @@ describe("Web Streams", function () {
     const output = source(["A\uD800"])
       .pipeThrough(iconv.encodeWebStream("utf8", options))
       .pipeThrough(iconv.decodeWebStream("utf8", Object.freeze({ stripBOM: false })))
-    assert.equal((await collect(output)).join(""), "\uFEFFA!")
-    assert.deepStrictEqual(calls, [["\uD800", 1]])
+    expect((await collect(output)).join("")).toBe("\uFEFFA!")
+    expect(calls).toStrictEqual([["\uD800", 1]])
   })
 
   it("drops cancelled writes and final output while allowing later chunks", async function () {
     const output = source(["A", "discarded世", "B", "\uD800"])
       .pipeThrough(iconv.encodeWebStream("latin1", { invalidCharHandler: () => true }))
       .pipeThrough(iconv.decodeWebStream("latin1"))
-    assert.equal((await collect(output)).join(""), "AB")
+    expect((await collect(output)).join("")).toBe("AB")
   })
 
   for (const input of ["世", "\uD800"]) {
@@ -173,21 +173,21 @@ describe("Web Streams", function () {
       const output = source([input]).pipeThrough(iconv.encodeWebStream("latin1", {
         invalidCharHandler () { throw error }
       }))
-      await assert.rejects(collect(output), actual => actual === error)
+      await expect(collect(output)).rejects.toBe(error)
     })
   }
 
   for (const byte of [0x80, 0xC3]) {
     it(`propagates fatal decoder errors during ${byte === 0x80 ? "write" : "flush"}`, async function () {
       const output = source([Uint8Array.of(byte)]).pipeThrough(iconv.decodeWebStream("utf8", { fatal: true }))
-      await assert.rejects(collect(output), { name: "TypeError" })
+      await expect(collect(output)).rejects.toMatchObject({ name: "TypeError" })
     })
   }
 
   it("preserves Windows C1 controls in fatal mode", async function () {
     const output = source([Uint8Array.of(0x81), Uint8Array.of(0x80, 0x41)])
       .pipeThrough(iconv.decodeWebStream("windows-1252", { fatal: true }))
-    assert.equal((await collect(output)).join(""), "\u0081€A")
+    expect((await collect(output)).join("")).toBe("\u0081€A")
   })
 
   for (const [alias, text, bytes] of [
@@ -198,10 +198,10 @@ describe("Web Streams", function () {
   ]) {
     it(alias + " uses Windows mappings in both Web Stream directions", async function () {
       const encoded = await collect(source(Array.from(text)).pipeThrough(iconv.encodeWebStream(alias)))
-      assert.deepStrictEqual(Array.from(iconv.backend.concatByteResults(encoded)), bytes)
+      expect(Array.from(iconv.backend.concatByteResults(encoded))).toStrictEqual(bytes)
       const decoded = await collect(source(bytes.map(byte => Uint8Array.of(byte)))
         .pipeThrough(iconv.decodeWebStream(alias, { fatal: true })))
-      assert.strictEqual(decoded.join(""), text)
+      expect(decoded.join("")).toBe(text)
     })
   }
 
@@ -214,21 +214,21 @@ describe("Web Streams", function () {
     it(encoding + " preserves its original mapping in Web Streams", async function () {
       const decoded = await collect(source([Uint8Array.of(0x41), Uint8Array.of(byte)])
         .pipeThrough(iconv.decodeWebStream(encoding)))
-      assert.strictEqual(decoded.join(""), "A" + expected)
+      expect(decoded.join("")).toBe("A" + expected)
       const encoded = await collect(source(["A", expected]).pipeThrough(iconv.encodeWebStream(encoding)))
-      assert.deepStrictEqual(Array.from(iconv.backend.concatByteResults(encoded)), [0x41, encoding === "cp20127" ? 0x3F : byte])
+      expect(Array.from(iconv.backend.concatByteResults(encoded))).toStrictEqual([0x41, encoding === "cp20127" ? 0x3F : byte])
     })
   }
 
   it("preserves strict ASCII fatal decoding through a Windows code page Web Stream", async function () {
     const output = source([Uint8Array.of(0x80)]).pipeThrough(iconv.decodeWebStream("20127", { fatal: true }))
-    await assert.rejects(collect(output), TypeError)
+    await expect(collect(output)).rejects.toBeInstanceOf(TypeError)
   })
 
   it("propagates fatal errors through a Windows-874 alias in Web Streams", async function () {
     const output = source([Uint8Array.of(0x80), Uint8Array.of(0xDB)])
       .pipeThrough(iconv.decodeWebStream("tis-620", { fatal: true }))
-    await assert.rejects(collect(output), TypeError)
+    await expect(collect(output)).rejects.toBeInstanceOf(TypeError)
   })
 
   it("captures the SBCS replacement when a Web Stream is created", async function () {
@@ -238,7 +238,7 @@ describe("Web Streams", function () {
     iconv.defaultCharUnicode = "!"
     const output = source([Uint8Array.of(0x41, 0xAA), Uint8Array.of(0x81, 0xAA)])
       .pipeThrough(transform)
-    assert.equal((await collect(output)).join(""), "A🙂\u0081🙂")
+    expect((await collect(output)).join("")).toBe("A🙂\u0081🙂")
   })
 
   for (const withHandler of [false, true]) {
@@ -247,10 +247,10 @@ describe("Web Streams", function () {
       iconv.defaultCharSingleByte = "!"
       const transform = iconv.encodeWebStream("cp1252", withHandler ? { invalidCharHandler () {} } : undefined)
       iconv.defaultCharSingleByte = "#"
-      assert.deepStrictEqual(Array.from(iconv.encode("\uFFFD", "windows1252")), [0x23])
+      expect(Array.from(iconv.encode("\uFFFD", "windows1252"))).toStrictEqual([0x23])
       const output = source(["A\uFFFD\uD83D", "", "\uDE42\uD800"]).pipeThrough(transform)
       const chunks = await collect(output)
-      assert.deepStrictEqual(Array.from(iconv.backend.concatByteResults(chunks)), [0x41, 0x21, 0x21, 0x21, 0x21])
+      expect(Array.from(iconv.backend.concatByteResults(chunks))).toStrictEqual([0x41, 0x21, 0x21, 0x21, 0x21])
     })
   }
 
@@ -266,12 +266,12 @@ describe("Web Streams", function () {
       try {
         const first = reader.read()
         await writer.write(Uint8Array.of(0x81))
-        assert.equal((await first).value, "\u0081")
-        const readError = assert.rejects(reader.read(), TypeError)
-        await assert.rejects(writer.write(Uint8Array.of(0x41, byte, 0x42)), TypeError)
+        expect((await first).value).toBe("\u0081")
+        const readError = expect(reader.read()).rejects.toBeInstanceOf(TypeError)
+        await expect(writer.write(Uint8Array.of(0x41, byte, 0x42))).rejects.toBeInstanceOf(TypeError)
         await readError
-        await assert.rejects(writer.closed, TypeError)
-        await assert.rejects(reader.closed, TypeError)
+        await expect(writer.closed).rejects.toBeInstanceOf(TypeError)
+        await expect(reader.closed).rejects.toBeInstanceOf(TypeError)
       } finally {
         writer.releaseLock()
         reader.releaseLock()
@@ -281,16 +281,16 @@ describe("Web Streams", function () {
 
   it("rejects chunks of the wrong type", async function () {
     for (const input of [null, 42, new Uint8Array()]) {
-      await assert.rejects(collect(source([input]).pipeThrough(iconv.encodeWebStream("utf8"))), /needs strings/)
+      await expect(collect(source([input]).pipeThrough(iconv.encodeWebStream("utf8")))).rejects.toThrow(/needs strings/)
     }
     for (const input of [null, 42, "text", [0x41], new ArrayBuffer(1)]) {
-      await assert.rejects(collect(source([input]).pipeThrough(iconv.decodeWebStream("utf8"))), /needs Uint8Array/)
+      await expect(collect(source([input]).pipeThrough(iconv.decodeWebStream("utf8")))).rejects.toThrow(/needs Uint8Array/)
     }
   })
 
   it("flushes an empty stream without emitting empty chunks", async function () {
-    assert.deepStrictEqual(await collect(source([]).pipeThrough(iconv.encodeWebStream("utf8"))), [])
-    assert.deepStrictEqual(await collect(source([]).pipeThrough(iconv.decodeWebStream("utf8"))), [])
+    expect(await collect(source([]).pipeThrough(iconv.encodeWebStream("utf8")))).toStrictEqual([])
+    expect(await collect(source([]).pipeThrough(iconv.decodeWebStream("utf8")))).toStrictEqual([])
   })
 
   it("applies backpressure until the readable side consumes output", async function () {
@@ -299,13 +299,13 @@ describe("Web Streams", function () {
     let written = false
     const pending = writer.write("A").then(() => { written = true })
     await Promise.resolve()
-    assert.equal(written, false)
+    expect(written).toBe(false)
     const reader = transform.readable.getReader()
-    assert.deepStrictEqual(Array.from((await reader.read()).value), [0x41])
+    expect(Array.from((await reader.read()).value)).toStrictEqual([0x41])
     await pending
-    assert.equal(written, true)
+    expect(written).toBe(true)
     await writer.close()
-    assert.equal((await reader.read()).done, true)
+    expect((await reader.read()).done).toBe(true)
     writer.releaseLock()
     reader.releaseLock()
   })
@@ -317,13 +317,13 @@ describe("Web Streams", function () {
     const reader = transform.readable.getReader()
     const read = reader.read()
     await writer.write("A\uD800")
-    assert.deepStrictEqual(Array.from((await read).value), [0x41])
+    expect(Array.from((await read).value)).toStrictEqual([0x41])
     const reason = new Error("Consumer stopped")
-    const closed = assert.rejects(writer.closed, error => error === reason)
+    const closed = expect(writer.closed).rejects.toBe(reason)
     await reader.cancel(reason)
     await closed
-    await assert.rejects(writer.write("B"), error => error === reason)
-    assert.equal(called, false)
+    await expect(writer.write("B")).rejects.toBe(reason)
+    expect(called).toBe(false)
     writer.releaseLock()
     reader.releaseLock()
   })
@@ -334,20 +334,20 @@ describe("Web Streams", function () {
     const writer = transform.writable.getWriter()
     const reader = transform.readable.getReader()
     const reason = new Error("Producer stopped")
-    const read = assert.rejects(reader.read(), error => error === reason)
+    const read = expect(reader.read()).rejects.toBe(reason)
     await writer.write("\uD800")
     await writer.abort(reason)
     await read
-    assert.equal(called, false)
+    expect(called).toBe(false)
     writer.releaseLock()
     reader.releaseLock()
   })
 
   it("rejects unsupported encodings and handler options before constructing a stream", function () {
-    assert.throws(() => iconv.encodeWebStream("unknown"), /Encoding not recognized/)
-    assert.throws(() => iconv.decodeWebStream("unknown"), /Encoding not recognized/)
+    expect(() => iconv.encodeWebStream("unknown")).toThrowError(/Encoding not recognized/)
+    expect(() => iconv.decodeWebStream("unknown")).toThrowError(/Encoding not recognized/)
     for (const encoding of ["hex", "base64"]) {
-      assert.throws(() => iconv.encodeWebStream(encoding, { invalidCharHandler: () => "" }), /not supported/)
+      expect(() => iconv.encodeWebStream(encoding, { invalidCharHandler: () => "" })).toThrowError(/not supported/)
     }
   })
 })

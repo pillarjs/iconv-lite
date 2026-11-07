@@ -1,4 +1,4 @@
-import assert from "assert"
+import { expect } from "vitest"
 import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
 const hex = utils.hex
@@ -19,40 +19,40 @@ const sampleStr = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<\u4FC4\u8BED>\u0
 
 describe("UTF-32LE codec", function () {
   it("encodes basic strings correctly", function () {
-    assert.equal(hex(iconv.encode(testStr, "UTF32-LE")), hex(utf32leBuf))
+    expect(hex(iconv.encode(testStr, "UTF32-LE"))).toBe(hex(utf32leBuf))
   })
 
   it("decodes basic buffers correctly", function () {
-    assert.equal(iconv.decode(utf32leBuf, "ucs4le"), testStr)
+    expect(iconv.decode(utf32leBuf, "ucs4le")).toBe(testStr)
   })
 
   it("decodes an empty buffer to an empty string", function () {
-    assert.equal(iconv.decode(utils.bytes([]), "utf-32le"), "")
+    expect(iconv.decode(utils.bytes([]), "utf-32le")).toBe("")
   })
 
   it("emits U+FFFD for a trailing incomplete code unit", function () {
-    assert.equal(iconv.decode(utils.bytes("61 00 00 00 00"), "UTF32-LE"), "a\uFFFD")
+    expect(iconv.decode(utils.bytes("61 00 00 00 00"), "UTF32-LE")).toBe("a\uFFFD")
   })
 
   it("replaces a surrogate code point with U+FFFD when decoding", function () {
     // 0x0000D800 is a (high) surrogate code point: invalid in UTF-32.
-    assert.equal(iconv.decode(utils.bytes("00 d8 00 00"), "utf-32le"), "\uFFFD")
+    expect(iconv.decode(utils.bytes("00 d8 00 00"), "utf-32le")).toBe("\uFFFD")
   })
 
   it("replaces an out-of-range code point with U+FFFD when decoding", function () {
-    assert.equal(iconv.decode(utf32leBufWithInvalidChar, "utf-32le"), testStr + "\uFFFD")
+    expect(iconv.decode(utf32leBufWithInvalidChar, "utf-32le")).toBe(testStr + "\uFFFD")
     // A code point with the high bit set (0x80000000) is far above U+10FFFF.
-    assert.equal(iconv.decode(utils.bytes("00 00 00 80"), "utf-32le"), "\uFFFD")
+    expect(iconv.decode(utils.bytes("00 00 00 80"), "utf-32le")).toBe("\uFFFD")
   })
 
   it("validates the Unicode scalar-value boundaries (D76)", function () {
     // Valid scalar values: 0..D7FF and E000..10FFFF.
-    assert.equal(iconv.decode(utils.bytes("ff d7 00 00"), "utf-32le"), "\uD7FF") // last before surrogates
-    assert.equal(iconv.decode(utils.bytes("00 e0 00 00"), "utf-32le"), "\uE000") // first after surrogates
-    assert.equal(iconv.decode(utils.bytes("ff ff 10 00"), "utf-32le"), "\uDBFF\uDFFF") // U+10FFFF, the maximum
+    expect(iconv.decode(utils.bytes("ff d7 00 00"), "utf-32le")).toBe("\uD7FF") // last before surrogates
+    expect(iconv.decode(utils.bytes("00 e0 00 00"), "utf-32le")).toBe("\uE000") // first after surrogates
+    expect(iconv.decode(utils.bytes("ff ff 10 00"), "utf-32le")).toBe("\uDBFF\uDFFF") // U+10FFFF, the maximum
     // Not scalar values: surrogate code points (D800..DFFF) and anything above U+10FFFF.
-    assert.equal(iconv.decode(utils.bytes("ff df 00 00"), "utf-32le"), "\uFFFD") // U+DFFF, last surrogate
-    assert.equal(iconv.decode(utils.bytes("00 00 11 00"), "utf-32le"), "\uFFFD") // U+110000, just past the maximum
+    expect(iconv.decode(utils.bytes("ff df 00 00"), "utf-32le")).toBe("\uFFFD") // U+DFFF, last surrogate
+    expect(iconv.decode(utils.bytes("00 00 11 00"), "utf-32le")).toBe("\uFFFD") // U+110000, just past the maximum
   })
 
   it("replaces an ill-formed code unit at any offset", function () {
@@ -61,29 +61,29 @@ describe("UTF-32LE codec", function () {
     for (const bad of ["00 d8 00 00", "00 00 11 00"]) { // U+D800 (surrogate), U+110000 (above U+10FFFF)
       for (let n = 0; n <= 40; n++) {
         const input = utils.bytes("41 00 00 00 ".repeat(n) + bad + " 42 00 00 00")
-        assert.equal(iconv.decode(input, "utf-32le"), "A".repeat(n) + "\uFFFDB")
+        expect(iconv.decode(input, "utf-32le")).toBe("A".repeat(n) + "\uFFFDB")
       }
     }
   })
 
   it("replaces lone surrogates with U+FFFD when encoding", function () {
-    assert.equal(escape(iconv.decode(iconv.encode(testStr2, "UTF32-LE"), "UTF32-LE")), escape(testStr2Fixed))
+    expect(escape(iconv.decode(iconv.encode(testStr2, "UTF32-LE"), "UTF32-LE"))).toBe(escape(testStr2Fixed))
   })
 
   it("replaces a trailing unpaired high surrogate with U+FFFD", function () {
     // 'a' is written, the lone high surrogate is held, then end() flushes it as U+FFFD.
-    assert.equal(hex(iconv.encode("a\uD800", "UTF32-LE")), hex(utils.bytes("61 00 00 00 fd ff 00 00")))
+    expect(hex(iconv.encode("a\uD800", "UTF32-LE"))).toBe(hex(utils.bytes("61 00 00 00 fd ff 00 00")))
   })
 
   it("replaces a mid-string lone surrogate with U+FFFD when encoding", function () {
     // A high surrogate not followed by a low one, and a lone low surrogate: each -> U+FFFD (fd ff 00 00).
-    assert.equal(hex(iconv.encode("\uD800x", "utf-32le")), hex(utils.bytes("fd ff 00 00 78 00 00 00")))
-    assert.equal(hex(iconv.encode("\uDC00x", "utf-32le")), hex(utils.bytes("fd ff 00 00 78 00 00 00")))
+    expect(hex(iconv.encode("\uD800x", "utf-32le"))).toBe(hex(utils.bytes("fd ff 00 00 78 00 00 00")))
+    expect(hex(iconv.encode("\uDC00x", "utf-32le"))).toBe(hex(utils.bytes("fd ff 00 00 78 00 00 00")))
   })
 
   it("throws on ill-formed input in fatal mode", function () {
-    assert.throws(function () { iconv.decode(utils.bytes("00 d8 00 00"), "utf-32le", { fatal: true }) })
-    assert.throws(function () { iconv.decode(utils.bytes("61 00 00"), "utf-32le", { fatal: true }) }) // truncated
+    expect(function () { iconv.decode(utils.bytes("00 d8 00 00"), "utf-32le", { fatal: true }) }).toThrowError()
+    expect(function () { iconv.decode(utils.bytes("61 00 00"), "utf-32le", { fatal: true }) }).toThrowError() // truncated
   })
 
   it("decodes a code point split across chunk boundaries", utils.checkDecoderChunks("utf-32le", [
@@ -94,7 +94,7 @@ describe("UTF-32LE codec", function () {
     for (let at = 1; at < utf32leBuf.length; at++) {
       const decoder = iconv.getDecoder("utf-32le")
       const res = decoder.write(utf32leBuf.slice(0, at)) + decoder.write(utf32leBuf.slice(at)) + (decoder.end() || "")
-      assert.equal(res, testStr, "split at byte " + at)
+      expect(res, "split at byte " + at).toBe(testStr)
     }
   })
 
@@ -105,38 +105,38 @@ describe("UTF-32LE codec", function () {
     aligned.set(utf32leBuf)
     const unaligned = new Uint8Array(ab.slice(0), 2, utf32leBuf.length) // byteOffset 2 -> not 4-aligned
     unaligned.set(utf32leBuf)
-    assert.equal(iconv.decode(aligned, "utf-32le"), testStr)
-    assert.equal(iconv.decode(unaligned, "utf-32le"), testStr)
+    expect(iconv.decode(aligned, "utf-32le")).toBe(testStr)
+    expect(iconv.decode(unaligned, "utf-32le")).toBe(testStr)
   })
 })
 
 describe("UTF-32BE codec", function () {
   it("encodes basic strings correctly", function () {
-    assert.equal(hex(iconv.encode(testStr, "UTF32-BE")), hex(utf32beBuf))
+    expect(hex(iconv.encode(testStr, "UTF32-BE"))).toBe(hex(utf32beBuf))
   })
 
   it("decodes basic buffers correctly", function () {
-    assert.equal(iconv.decode(utf32beBuf, "ucs4be"), testStr)
+    expect(iconv.decode(utf32beBuf, "ucs4be")).toBe(testStr)
   })
 
   it("emits U+FFFD for a trailing incomplete code unit", function () {
-    assert.equal(iconv.decode(utils.bytes("00 00 00 61 00"), "UTF32-BE"), "a\uFFFD")
+    expect(iconv.decode(utils.bytes("00 00 00 61 00"), "UTF32-BE")).toBe("a\uFFFD")
   })
 
   it("replaces a surrogate code point with U+FFFD when decoding", function () {
-    assert.equal(iconv.decode(utils.bytes("00 00 d8 00"), "utf-32be"), "\uFFFD")
+    expect(iconv.decode(utils.bytes("00 00 d8 00"), "utf-32be")).toBe("\uFFFD")
   })
 
   it("replaces an out-of-range code point with U+FFFD when decoding", function () {
-    assert.equal(iconv.decode(utf32beBufWithInvalidChar, "utf-32be"), testStr + "\uFFFD")
+    expect(iconv.decode(utf32beBufWithInvalidChar, "utf-32be")).toBe(testStr + "\uFFFD")
   })
 
   it("replaces lone surrogates with U+FFFD when encoding", function () {
-    assert.equal(escape(iconv.decode(iconv.encode(testStr2, "UTF32-BE"), "UTF32-BE")), escape(testStr2Fixed))
+    expect(escape(iconv.decode(iconv.encode(testStr2, "UTF32-BE"), "UTF32-BE"))).toBe(escape(testStr2Fixed))
   })
 
   it("replaces a trailing unpaired high surrogate with U+FFFD", function () {
-    assert.equal(hex(iconv.encode("a\uD800", "UTF32-BE")), hex(utils.bytes("00 00 00 61 00 00 ff fd")))
+    expect(hex(iconv.encode("a\uD800", "UTF32-BE"))).toBe(hex(utils.bytes("00 00 00 61 00 00 ff fd")))
   })
 
   it("decodes a code point split across chunk boundaries", utils.checkDecoderChunks("utf-32be", [
@@ -147,7 +147,7 @@ describe("UTF-32BE codec", function () {
     for (let at = 1; at < utf32beBuf.length; at++) {
       const decoder = iconv.getDecoder("utf-32be")
       const res = decoder.write(utf32beBuf.slice(0, at)) + decoder.write(utf32beBuf.slice(at)) + (decoder.end() || "")
-      assert.equal(res, testStr, "split at byte " + at)
+      expect(res, "split at byte " + at).toBe(testStr)
     }
   })
 })
@@ -157,44 +157,44 @@ describe("UTF-32 general codec", function () {
     // The standard's encoding-forms example: U+004D U+0430 U+4E8C U+10302. Per definition D90, each
     // scalar value maps to a 32-bit code unit with the same numeric value.
     const example = "M\u0430\u4E8C\uD800\uDF02"
-    assert.equal(hex(iconv.encode(example, "utf-32le")), hex(utils.bytes("4d 00 00 00 30 04 00 00 8c 4e 00 00 02 03 01 00")))
-    assert.equal(hex(iconv.encode(example, "utf-32be")), hex(utils.bytes("00 00 00 4d 00 00 04 30 00 00 4e 8c 00 01 03 02")))
-    assert.equal(iconv.decode(utils.bytes("4d 00 00 00 30 04 00 00 8c 4e 00 00 02 03 01 00"), "utf-32le"), example)
-    assert.equal(iconv.decode(utils.bytes("00 00 00 4d 00 00 04 30 00 00 4e 8c 00 01 03 02"), "utf-32be"), example)
+    expect(hex(iconv.encode(example, "utf-32le"))).toBe(hex(utils.bytes("4d 00 00 00 30 04 00 00 8c 4e 00 00 02 03 01 00")))
+    expect(hex(iconv.encode(example, "utf-32be"))).toBe(hex(utils.bytes("00 00 00 4d 00 00 04 30 00 00 4e 8c 00 01 03 02")))
+    expect(iconv.decode(utils.bytes("4d 00 00 00 30 04 00 00 8c 4e 00 00 02 03 01 00"), "utf-32le")).toBe(example)
+    expect(iconv.decode(utils.bytes("00 00 00 4d 00 00 04 30 00 00 4e 8c 00 01 03 02"), "utf-32be")).toBe(example)
   })
 
   it("uses the Section 3.10 byte order mark signatures", function () {
     // The BOM (U+FEFF) serializes to FF FE 00 00 (LE) and 00 00 FE FF (BE).
-    assert.equal(hex(iconv.encode("\uFEFF", "utf-32le")), hex(utils.bytes("ff fe 00 00")))
-    assert.equal(hex(iconv.encode("\uFEFF", "utf-32be")), hex(utils.bytes("00 00 fe ff")))
+    expect(hex(iconv.encode("\uFEFF", "utf-32le"))).toBe(hex(utils.bytes("ff fe 00 00")))
+    expect(hex(iconv.encode("\uFEFF", "utf-32be"))).toBe(hex(utils.bytes("00 00 fe ff")))
   })
 
   it("treats a non-leading U+FEFF as content (ZERO WIDTH NO-BREAK SPACE)", function () {
     // Only a leading BOM is a signature (stripped by default); elsewhere U+FEFF is kept.
-    assert.equal(iconv.decode(utils.bytes("ff fe 00 00 41 00 00 00"), "utf-32le"), "A")
-    assert.equal(iconv.decode(utils.bytes("41 00 00 00 ff fe 00 00"), "utf-32le"), "A\uFEFF")
+    expect(iconv.decode(utils.bytes("ff fe 00 00 41 00 00 00"), "utf-32le")).toBe("A")
+    expect(iconv.decode(utils.bytes("41 00 00 00 ff fe 00 00"), "utf-32le")).toBe("A\uFEFF")
   })
 
   it("adds a BOM when encoding, defaulting to UTF-32LE", function () {
-    assert.equal(hex(iconv.encode(testStr, "utf-32")), hex(utf32leBufWithBOM))
+    expect(hex(iconv.encode(testStr, "utf-32"))).toBe(hex(utf32leBufWithBOM))
   })
 
   it("doesn't change encoding options reused for other encodings", function () {
     const options = {}
-    assert.equal(hex(iconv.encode(testStr, "utf-32", options)), hex(utf32leBufWithBOM))
-    assert.equal(hex(iconv.encode("A", "utf8", options)), "41")
-    assert.deepStrictEqual(options, {})
+    expect(hex(iconv.encode(testStr, "utf-32", options))).toBe(hex(utf32leBufWithBOM))
+    expect(hex(iconv.encode("A", "utf8", options))).toBe("41")
+    expect(options).toStrictEqual({})
   })
 
   it("accepts frozen encoding options when adding the default BOM", function () {
-    assert.equal(hex(iconv.encode(testStr, "utf-32", Object.freeze({}))), hex(utf32leBufWithBOM))
+    expect(hex(iconv.encode(testStr, "utf-32", Object.freeze({})))).toBe(hex(utf32leBufWithBOM))
   })
 
   it("honors BOM defaults and explicit settings in frozen encoding options", function () {
     for (const [addBOM, includeBOM] of [[undefined, true], [null, false], [false, false], [true, true]]) {
       const expected = includeBOM ? utf32beBufWithBOM : utf32beBuf
       const options = Object.freeze({ addBOM, defaultEncoding: "utf-32be" })
-      assert.equal(hex(iconv.encode(testStr, "utf-32", options)), hex(expected))
+      expect(hex(iconv.encode(testStr, "utf-32", options))).toBe(hex(expected))
     }
   })
 
@@ -205,39 +205,39 @@ describe("UTF-32 general codec", function () {
     }
     const inherited = Object.create({ addBOM: false, defaultEncoding: "utf-32be" })
     for (const options of [inherited, new Options()]) {
-      assert.equal(hex(iconv.encode(testStr, "utf-32", options)), hex(utf32beBuf))
-      assert.deepStrictEqual(Object.keys(options), [])
+      expect(hex(iconv.encode(testStr, "utf-32", options))).toBe(hex(utf32beBuf))
+      expect(Object.keys(options)).toStrictEqual([])
     }
   })
 
   it("doesn't add a BOM and uses UTF-32BE when specified", function () {
-    assert.equal(hex(iconv.encode(testStr, "ucs4", { addBOM: false, defaultEncoding: "ucs4be" })), hex(utf32beBuf))
+    expect(hex(iconv.encode(testStr, "ucs4", { addBOM: false, defaultEncoding: "ucs4be" }))).toBe(hex(utf32beBuf))
   })
 
   it("decodes UTF-32LE using the BOM", function () {
-    assert.equal(iconv.decode(utf32leBufWithBOM, "utf-32"), testStr)
+    expect(iconv.decode(utf32leBufWithBOM, "utf-32")).toBe(testStr)
   })
 
   it("decodes UTF-32LE without a BOM (heuristic)", function () {
-    assert.equal(iconv.decode(iconv.encode(sampleStr, "utf-32-le"), "utf-32"), sampleStr)
+    expect(iconv.decode(iconv.encode(sampleStr, "utf-32-le"), "utf-32")).toBe(sampleStr)
   })
 
   it("decodes UTF-32BE using the BOM (keeping it with stripBOM: false)", function () {
-    assert.equal(iconv.decode(utf32beBufWithBOM, "utf-32", { stripBOM: false }), "\uFEFF" + testStr)
+    expect(iconv.decode(utf32beBufWithBOM, "utf-32", { stripBOM: false })).toBe("\uFEFF" + testStr)
   })
 
   it("decodes UTF-32BE without a BOM (heuristic)", function () {
-    assert.equal(iconv.decode(iconv.encode(sampleStr, "utf-32-be"), "utf-32"), sampleStr)
+    expect(iconv.decode(iconv.encode(sampleStr, "utf-32-be"), "utf-32")).toBe(sampleStr)
   })
 
   it("decodes short input, deciding endianness only at end()", function () {
     // 8 bytes is below the 32-byte detection threshold, so the codec is chosen only at end().
-    assert.equal(iconv.decode(iconv.encode("1a", "utf-32le"), "utf-32"), "1a")
+    expect(iconv.decode(iconv.encode("1a", "utf-32le"), "utf-32")).toBe("1a")
   })
 
   it("flushes a trailing incomplete code unit as U+FFFD when deciding at end()", function () {
     // 5 bytes (< 32): decided at end(), and the chosen decoder's end() yields the trailing U+FFFD.
-    assert.equal(iconv.decode(utils.bytes("31 00 00 00 00"), "utf-32"), "1\uFFFD")
+    expect(iconv.decode(utils.bytes("31 00 00 00 00"), "utf-32")).toBe("1\uFFFD")
   })
 
   it("decodes across multiple chunks once endianness is decided", function () {
@@ -246,16 +246,16 @@ describe("UTF-32 general codec", function () {
     let res = decoder.write(encoded.slice(0, 40)) // >= 32 bytes: chooses + decodes
     res += decoder.write(encoded.slice(40)) // already chosen: decodes directly
     res += decoder.end() || ""
-    assert.equal(res, sampleStr)
+    expect(res).toBe(sampleStr)
   })
 
   it("falls back to UTF-32LE for ambiguous (all-zero) input", function () {
-    assert.equal(iconv.decode(utils.bytes(new Array(32).fill(0)), "utf-32"), "\0\0\0\0\0\0\0\0")
+    expect(iconv.decode(utils.bytes(new Array(32).fill(0)), "utf-32")).toBe("\0\0\0\0\0\0\0\0")
   })
 
   it("detects endianness from a long heuristic sample (> 100 code units)", function () {
     const longStr = "a".repeat(150)
-    assert.equal(iconv.decode(iconv.encode(longStr, "utf-32le"), "utf-32"), longStr)
+    expect(iconv.decode(iconv.encode(longStr, "utf-32le"), "utf-32")).toBe(longStr)
   })
 })
 

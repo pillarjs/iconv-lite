@@ -11,18 +11,11 @@ const providerPackage = "@vitest/browser-playwright"
 const provider = legacyProvider ? "playwright" : (await import(providerPackage)).playwright({ launchOptions: launch })
 
 export default defineConfig({
-  resolve: {
-    // Shared tests use Node's assertion API with native browser byte arrays.
-    alias: {
-      assert: require.resolve("assert/")
-    }
-  },
   test: {
     maxWorkers: 2,
     globals: true,
     include: ["test/*.test.js", "test/browser/*.test.js"],
     exclude: ["**/*.node.test.js"],
-    setupFiles: ["./test/env/browser.js"],
     allowOnly: false,
     browser: {
       enabled: true,

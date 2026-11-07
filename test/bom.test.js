@@ -1,4 +1,4 @@
-import assert from "assert"
+import { expect } from "vitest"
 import utils from "./helpers/utils.js"
 
 const iconv = utils.requireIconv()
@@ -12,58 +12,58 @@ var utf16leBOM = utils.bytes([0xFF, 0xFE])
 describe("BOM Handling", function () {
   it("strips UTF-8 BOM", function () {
     var body = utils.concatBufs([utf8BOM, utils.bytes(new TextEncoder().encode(sampleStr))])
-    assert.equal(iconv.decode(body, "utf8"), sampleStr)
+    expect(iconv.decode(body, "utf8")).toBe(sampleStr)
   })
 
   it("strips UTF-16 BOM", function () {
     var body = utils.concatBufs([utf16leBOM, iconv.encode(sampleStr, "utf16le")])
-    assert.equal(iconv.decode(body, "utf16"), sampleStr)
-    assert.equal(iconv.decode(body, "utf16le"), sampleStr)
+    expect(iconv.decode(body, "utf16")).toBe(sampleStr)
+    expect(iconv.decode(body, "utf16le")).toBe(sampleStr)
 
     var body = utils.concatBufs([utf16beBOM, iconv.encode(sampleStr, "utf16be")])
-    assert.equal(iconv.decode(body, "utf16"), sampleStr)
-    assert.equal(iconv.decode(body, "utf16be"), sampleStr)
+    expect(iconv.decode(body, "utf16")).toBe(sampleStr)
+    expect(iconv.decode(body, "utf16be")).toBe(sampleStr)
   })
 
   it("doesn't strip BOMs when stripBOM=false", function () {
     var body = utils.concatBufs([utf8BOM, utils.bytes(new TextEncoder().encode(sampleStr))])
-    assert.equal(iconv.decode(body, "utf8", { stripBOM: false }), strBOM + sampleStr)
+    expect(iconv.decode(body, "utf8", { stripBOM: false })).toBe(strBOM + sampleStr)
 
     var body = utils.concatBufs([utf16leBOM, iconv.encode(sampleStr, "utf16le")])
-    assert.equal(iconv.decode(body, "utf16", { stripBOM: false }), strBOM + sampleStr)
-    assert.equal(iconv.decode(body, "utf16le", { stripBOM: false }), strBOM + sampleStr)
+    expect(iconv.decode(body, "utf16", { stripBOM: false })).toBe(strBOM + sampleStr)
+    expect(iconv.decode(body, "utf16le", { stripBOM: false })).toBe(strBOM + sampleStr)
 
     var body = utils.concatBufs([utf16beBOM, iconv.encode(sampleStr, "utf16be")])
-    assert.equal(iconv.decode(body, "utf16", { stripBOM: false }), strBOM + sampleStr)
-    assert.equal(iconv.decode(body, "utf16be", { stripBOM: false }), strBOM + sampleStr)
+    expect(iconv.decode(body, "utf16", { stripBOM: false })).toBe(strBOM + sampleStr)
+    expect(iconv.decode(body, "utf16be", { stripBOM: false })).toBe(strBOM + sampleStr)
   })
 
   it("adds/strips UTF-7 BOM", function () {
     var bodyWithBOM = iconv.encode(sampleStr, "utf7", { addBOM: true })
     var body = iconv.encode(sampleStr, "utf7")
-    assert.notDeepStrictEqual(body, bodyWithBOM)
-    assert.equal(iconv.decode(body, "utf7"), sampleStr)
+    expect(body).not.toStrictEqual(bodyWithBOM)
+    expect(iconv.decode(body, "utf7")).toBe(sampleStr)
   })
 
   it("adds UTF-8 BOM when addBOM=true", function () {
     var body = utils.concatBufs([utf8BOM, utils.bytes(new TextEncoder().encode(sampleStr))])
-    assert.deepStrictEqual(iconv.encode(sampleStr, "utf8", { addBOM: true }), body)
+    expect(iconv.encode(sampleStr, "utf8", { addBOM: true })).toStrictEqual(body)
   })
 
   it("adds UTF-16 BOMs when addBOM=true", function () {
     var body = utils.concatBufs([utf16leBOM, iconv.encode(sampleStr, "utf16le")])
-    assert.deepStrictEqual(iconv.encode(sampleStr, "utf16le", { addBOM: true }), body)
+    expect(iconv.encode(sampleStr, "utf16le", { addBOM: true })).toStrictEqual(body)
 
     var body = utils.concatBufs([utf16beBOM, iconv.encode(sampleStr, "utf16be")])
-    assert.deepStrictEqual(iconv.encode(sampleStr, "utf16be", { addBOM: true }), body)
+    expect(iconv.encode(sampleStr, "utf16be", { addBOM: true })).toStrictEqual(body)
   })
 
   it("'UTF-16' encoding adds BOM by default, but can be overridden with addBOM=false", function () {
     var body = utils.concatBufs([utf16leBOM, iconv.encode(sampleStr, "utf16le")])
-    assert.deepStrictEqual(iconv.encode(sampleStr, "utf16"), body)
+    expect(iconv.encode(sampleStr, "utf16")).toStrictEqual(body)
 
     var body = iconv.encode(sampleStr, "utf16le")
-    assert.deepStrictEqual(iconv.encode(sampleStr, "utf16", { addBOM: false }), body)
+    expect(iconv.encode(sampleStr, "utf16", { addBOM: false })).toStrictEqual(body)
   })
 
   it("when stripping BOM, calls callback 'stripBOM' if provided", function () {
@@ -71,13 +71,13 @@ describe("BOM Handling", function () {
     var stripBOM = function () { bomStripped = true }
 
     var body = utils.concatBufs([utf8BOM, utils.bytes(new TextEncoder().encode(sampleStr))])
-    assert.equal(iconv.decode(body, "utf8", { stripBOM: stripBOM }), sampleStr)
-    assert(bomStripped)
+    expect(iconv.decode(body, "utf8", { stripBOM: stripBOM })).toBe(sampleStr)
+    expect(bomStripped).toBeTruthy()
 
     bomStripped = false
 
     body = utils.bytes(new TextEncoder().encode(sampleStr))
-    assert.equal(iconv.decode(body, "utf8", { stripBOM: stripBOM }), sampleStr)
-    assert(!bomStripped)
+    expect(iconv.decode(body, "utf8", { stripBOM: stripBOM })).toBe(sampleStr)
+    expect(!bomStripped).toBeTruthy()
   })
 })

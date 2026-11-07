@@ -378,6 +378,7 @@ headless Chromium through Vitest's Playwright provider, including the browser
 entry point, Web Streams integration tests, and every shared suite.
 Browser tests use native `Uint8Array` values without a Buffer polyfill. Buffer
 compatibility checks run only in Node.js.
+Assertions use Vitest directly, without Node assertion or process polyfills.
 CI runs the browser suite on the latest Node.js LTS with the current Vitest version.
 On Linux, use `npx playwright install --with-deps chromium` to also install system
 dependencies. Set `CHROME_BIN` to use an existing Chrome or Chromium executable.

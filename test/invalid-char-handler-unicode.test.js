@@ -1,4 +1,4 @@
-import { strict as assert } from "assert"
+import { expect } from "vitest"
 import Iconv from "../lib/iconv.js"
 import utils from "./helpers/utils.js"
 
@@ -10,19 +10,19 @@ describe("invalidCharHandler (Unicode and binary)", function () {
 
   for (const encoding of ["hex", "base64"]) {
     it(`${encoding} explicitly rejects the handler option`, function () {
-      assert.throws(() => iconv.getEncoder(encoding, { invalidCharHandler: () => "" }), {
+      expect(() => iconv.getEncoder(encoding, { invalidCharHandler: () => "" })).toThrowError(expect.objectContaining({
         name: "TypeError", message: "invalidCharHandler is not supported for " + encoding
-      })
+      }))
       const input = encoding === "hex" ? "4142" : "QUI="
-      assert.deepEqual(iconv.encode(input, encoding, { invalidCharHandler: undefined }), iconv.encode(input, encoding))
+      expect(iconv.encode(input, encoding, { invalidCharHandler: undefined })).toStrictEqual(iconv.encode(input, encoding))
     })
   }
 
   it("rejects non-function handlers instead of silently disabling validation", function () {
     for (const encoding of ["latin1", "shiftjis", "utf8", "utf16le", "utf32", "utf7", "cesu8", "binary"]) {
-      assert.throws(() => iconv.encode("test", encoding, { invalidCharHandler: true }), {
+      expect(() => iconv.encode("test", encoding, { invalidCharHandler: true })).toThrowError(expect.objectContaining({
         name: "TypeError", message: "invalidCharHandler must be a function"
-      })
+      }))
     }
   })
 
@@ -35,47 +35,47 @@ describe("invalidCharHandler (Unicode and binary)", function () {
           return index === 1 ? "replacement🙂" : ""
         }
       })
-      assert.deepEqual(result, iconv.encode("Areplacement🙂🙂B", encoding))
-      assert.deepEqual(calls, [["\uDC00", 1], ["\uD800", 3], ["\uD800", 5]])
+      expect(result).toStrictEqual(iconv.encode("Areplacement🙂🙂B", encoding))
+      expect(calls).toStrictEqual([["\uDC00", 1], ["\uD800", 3], ["\uD800", 5]])
     })
 
     it(`${encoding} retains native fallback output and all valid scalar values`, function () {
       const input = "A\uD800B\uDC00🙂\uFFFD\u{10FFFF}\uD800"
-      assert.deepEqual(iconv.encode(input, encoding, { invalidCharHandler () {} }), iconv.encode(input, encoding))
-      assert.deepEqual(iconv.encode("🙂\uFFFD\u{10FFFF}", encoding, {
-        invalidCharHandler () { assert.fail("valid scalar") }
-      }), iconv.encode("🙂\uFFFD\u{10FFFF}", encoding))
+      expect(iconv.encode(input, encoding, { invalidCharHandler () {} })).toStrictEqual(iconv.encode(input, encoding))
+      expect(iconv.encode("🙂\uFFFD\u{10FFFF}", encoding, {
+        invalidCharHandler () { throw new Error("valid scalar") }
+      })).toStrictEqual(iconv.encode("🙂\uFFFD\u{10FFFF}", encoding))
     })
 
     it(`${encoding} preserves split pairs without invoking the handler`, function () {
-      const encoder = iconv.getEncoder(encoding, { invalidCharHandler () { assert.fail("split pair") } })
+      const encoder = iconv.getEncoder(encoding, { invalidCharHandler () { throw new Error("split pair") } })
       const chunks = [encoder.write("A\uD83D"), encoder.write(""), encoder.write("\uDE42B")]
       const tail = encoder.end()
       if (tail) chunks.push(tail)
-      assert.deepEqual(utils.concatBufs(chunks), iconv.encode("A🙂B", encoding))
+      expect(utils.concatBufs(chunks)).toStrictEqual(iconv.encode("A🙂B", encoding))
     })
 
     it(`${encoding} can cancel at write or end, and rejects malformed replacements`, function () {
-      assert.equal(iconv.encode("A\uDC00B", encoding, { invalidCharHandler: () => true }), null)
-      assert.equal(iconv.encode("A\uD800", encoding, { invalidCharHandler: () => true }), null)
+      expect(iconv.encode("A\uDC00B", encoding, { invalidCharHandler: () => true })).toBe(null)
+      expect(iconv.encode("A\uD800", encoding, { invalidCharHandler: () => true })).toBe(null)
       let calls = 0
-      assert.throws(() => iconv.encode("\uD800", encoding, {
+      expect(() => iconv.encode("\uD800", encoding, {
         invalidCharHandler () { calls++; return "\uD800" }
-      }), /Replacement .* cannot be encoded/)
-      assert.equal(calls, 1)
+      })).toThrowError(/Replacement .* cannot be encoded/)
+      expect(calls).toBe(1)
       const error = new Error("Invalid scalar")
-      assert.throws(() => iconv.encode("\uD800", encoding, { invalidCharHandler () { throw error } }), actual => actual === error)
+      expect(() => iconv.encode("\uD800", encoding, { invalidCharHandler () { throw error } })).toThrowError({ asymmetricMatch: actual => actual === error })
     })
 
     it(`${encoding} leaves no stale surrogate after cancelling a final character`, function () {
       let calls = 0
       const encoder = iconv.getEncoder(encoding, { invalidCharHandler () { return ++calls === 2 } })
-      assert.deepEqual(encoder.write("\uD800\uD800"), iconv.encode("\uFFFD", encoding))
-      assert.equal(encoder.end(), null)
-      assert.deepEqual(encoder.write("A"), iconv.encode("A", encoding, { addBOM: false }))
+      expect(encoder.write("\uD800\uD800")).toStrictEqual(iconv.encode("\uFFFD", encoding))
+      expect(encoder.end()).toBe(null)
+      expect(encoder.write("A")).toStrictEqual(iconv.encode("A", encoding, { addBOM: false }))
       const tail = encoder.end()
-      assert.ok(!tail || tail.length === 0)
-      assert.equal(calls, 2)
+      expect(!tail || tail.length === 0).toBeTruthy()
+      expect(calls).toBe(2)
     })
 
     it(`${encoding} excludes BOM from positions and preserves it after cancellation`, function () {
@@ -85,13 +85,13 @@ describe("invalidCharHandler (Unicode and binary)", function () {
         invalidCharHandler (char, index) { calls.push([char, index]); return true }
       })
       const encoder = iconv.getEncoder(encoding, options)
-      assert.equal(encoder.write("\uDC00"), null)
-      assert.deepEqual(encoder.write("A"), iconv.encode("A", encoding, { addBOM: true }))
+      expect(encoder.write("\uDC00")).toBe(null)
+      expect(encoder.write("A")).toStrictEqual(iconv.encode("A", encoding, { addBOM: true }))
       const tail = encoder.end()
-      assert.ok(!tail || tail.length === 0)
-      assert.deepEqual(calls, [["\uDC00", 0]])
-      assert.equal(iconv.encode("\uD800", encoding, options), null)
-      assert.deepEqual(calls[1], ["\uD800", 0])
+      expect(!tail || tail.length === 0).toBeTruthy()
+      expect(calls).toStrictEqual([["\uDC00", 0]])
+      expect(iconv.encode("\uD800", encoding, options)).toBe(null)
+      expect(calls[1]).toStrictEqual(["\uD800", 0])
     })
   }
 
@@ -100,18 +100,18 @@ describe("invalidCharHandler (Unicode and binary)", function () {
     const result = iconv.encode("ÿ世🙂", "binary", {
       invalidCharHandler (char, index) { calls.push([char, index]); return index === 1 ? "!!" : "" }
     })
-    assert.deepEqual(Array.from(result), [0xFF, 0x21, 0x21])
-    assert.deepEqual(calls, [["世", 1], ["🙂", 2]])
-    assert.deepEqual(iconv.encode("世🙂", "binary", { invalidCharHandler () {} }), iconv.encode("世🙂", "binary"))
-    assert.throws(() => iconv.encode("世", "binary", { invalidCharHandler: () => "🙂" }), /Replacement .* cannot be encoded/)
+    expect(Array.from(result)).toStrictEqual([0xFF, 0x21, 0x21])
+    expect(calls).toStrictEqual([["世", 1], ["🙂", 2]])
+    expect(iconv.encode("世🙂", "binary", { invalidCharHandler () {} })).toStrictEqual(iconv.encode("世🙂", "binary"))
+    expect(() => iconv.encode("世", "binary", { invalidCharHandler: () => "🙂" })).toThrowError(/Replacement .* cannot be encoded/)
   })
 
   for (const encoding of ["utf16le", "utf16be", "utf16", "cesu8", "utf7", "utf7imap"]) {
     it(`${encoding} retains its lossless UTF-16 code-unit behavior`, function () {
       const input = "A🙂\uD800B\uDC00"
-      assert.deepEqual(iconv.encode(input, encoding, {
-        invalidCharHandler () { assert.fail("These code units are preserved by this codec") }
-      }), iconv.encode(input, encoding))
+      expect(iconv.encode(input, encoding, {
+        invalidCharHandler () { throw new Error("These code units are preserved by this codec") }
+      })).toStrictEqual(iconv.encode(input, encoding))
     })
   }
 })

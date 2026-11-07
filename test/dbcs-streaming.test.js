@@ -1,4 +1,4 @@
-import assert from "assert"
+import { expect } from "vitest"
 import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
 
@@ -20,8 +20,8 @@ describe("DBCS streaming", function () {
         const chunks = [encoder.write(text.slice(0, split)), encoder.write(""), encoder.write(text.slice(split))]
         const tail = encoder.end()
         if (tail) chunks.push(tail)
-        assert.strictEqual(utils.hex(utils.concatBufs(chunks)), expected, `split at ${split}`)
-        assert.strictEqual(encoder.end(), undefined)
+        expect(utils.hex(utils.concatBufs(chunks)), `split at ${split}`).toBe(expected)
+        expect(encoder.end()).toBe(undefined)
       }
     })
   }
@@ -36,11 +36,11 @@ describe("DBCS streaming", function () {
       const chunks = [encoder.write(text.slice(0, split)), encoder.write(""), encoder.write(text.slice(split))]
       const tail = encoder.end()
       if (tail) chunks.push(tail)
-      assert.strictEqual(utils.hex(utils.concatBufs(chunks)), "61 21 21 d6 d0 62", `split at ${split}`)
+      expect(utils.hex(utils.concatBufs(chunks)), `split at ${split}`).toBe("61 21 21 d6 d0 62")
       // Handler positions are relative to the write where each character starts.
       const expectedCalls = [1, 2].map(index => ["\uE7C7", index < split ? index : index - split])
-      assert.deepStrictEqual(calls, expectedCalls, `split at ${split}`)
-      assert.strictEqual(encoder.end(), undefined)
+      expect(calls, `split at ${split}`).toStrictEqual(expectedCalls)
+      expect(encoder.end()).toBe(undefined)
     }
   })
 
@@ -57,9 +57,9 @@ describe("DBCS streaming", function () {
       const tail = encoder.end()
       if (tail) chunks.push(tail)
       const output = utils.concatBufs(chunks)
-      assert.strictEqual(utils.hex(output), expected)
-      assert.strictEqual(iconv.decode(output, encoding), decoded)
-      assert.strictEqual(encoder.end(), undefined)
+      expect(utils.hex(output)).toBe(expected)
+      expect(iconv.decode(output, encoding)).toBe(decoded)
+      expect(encoder.end()).toBe(undefined)
     })
   }
 
@@ -144,9 +144,9 @@ describe("DBCS streaming", function () {
       for (const [from, to] of ranges) {
         for (let lead = from; lead <= to; lead++) {
           const decoder = iconv.getDecoder(encoding)
-          assert.strictEqual(decoder.write(utils.bytes([lead])), "", `lead ${lead.toString(16)}`)
-          assert.strictEqual(decoder.end(), "�")
-          assert.strictEqual(iconv.decode(utils.bytes([lead, 0xFF, 0x41]), encoding), "�A", `lead ${lead.toString(16)}`)
+          expect(decoder.write(utils.bytes([lead])), `lead ${lead.toString(16)}`).toBe("")
+          expect(decoder.end()).toBe("�")
+          expect(iconv.decode(utils.bytes([lead, 0xFF, 0x41]), encoding), `lead ${lead.toString(16)}`).toBe("�A")
         }
       }
     })
@@ -155,19 +155,19 @@ describe("DBCS streaming", function () {
   it("buffers every Big5 lead byte until a trail byte or end-of-input", function () {
     for (let lead = 0x81; lead <= 0xFE; lead++) {
       const decoder = iconv.getDecoder("big5")
-      assert.strictEqual(decoder.write(utils.bytes([lead])), "", `lead ${lead.toString(16)}`)
-      assert.strictEqual(decoder.write(utils.bytes([])), "")
-      assert.strictEqual(decoder.end(), "�")
-      assert.strictEqual(decoder.end(), "")
+      expect(decoder.write(utils.bytes([lead])), `lead ${lead.toString(16)}`).toBe("")
+      expect(decoder.write(utils.bytes([]))).toBe("")
+      expect(decoder.end()).toBe("�")
+      expect(decoder.end()).toBe("")
     }
   })
 
   it("buffers every EUC-JP JIS X 0212 row until its third byte", function () {
     for (let row = 0xA1; row <= 0xFE; row++) {
       const decoder = iconv.getDecoder("eucjp")
-      assert.strictEqual(decoder.write(utils.bytes([0x8F, row])), "", `row ${row.toString(16)}`)
-      assert.strictEqual(decoder.write(utils.bytes([0xFF, 0x41])), "�A")
-      assert.strictEqual(decoder.end(), "")
+      expect(decoder.write(utils.bytes([0x8F, row])), `row ${row.toString(16)}`).toBe("")
+      expect(decoder.write(utils.bytes([0xFF, 0x41]))).toBe("�A")
+      expect(decoder.end()).toBe("")
     }
   })
 
@@ -178,11 +178,11 @@ describe("DBCS streaming", function () {
   ]) {
     it(`resets ${encoding} after replacing an incomplete sequence once`, function () {
       const decoder = iconv.getDecoder(encoding)
-      assert.strictEqual(decoder.write(utils.bytes(pending)), "")
-      assert.strictEqual(decoder.end(), "�")
-      assert.strictEqual(decoder.end(), "")
-      assert.strictEqual(decoder.write(utils.bytes(valid)), expected)
-      assert.strictEqual(decoder.end(), "")
+      expect(decoder.write(utils.bytes(pending))).toBe("")
+      expect(decoder.end()).toBe("�")
+      expect(decoder.end()).toBe("")
+      expect(decoder.write(utils.bytes(valid))).toBe(expected)
+      expect(decoder.end()).toBe("")
     })
   }
 
@@ -195,10 +195,10 @@ describe("DBCS streaming", function () {
         chunk[0] = byte
         actual += decoder.write(chunk)
         chunk[0] = 0xff
-        assert.strictEqual(decoder.write(new Uint8Array(0)), "")
+        expect(decoder.write(new Uint8Array(0))).toBe("")
       }
-      assert.strictEqual(actual + decoder.end(), expected)
-      assert.strictEqual(decoder.end(), "")
+      expect(actual + decoder.end()).toBe(expected)
+      expect(decoder.end()).toBe("")
     })
 
     it(`decodes ${hex} as ${encoding} at every chunk boundary`, function () {
@@ -207,8 +207,8 @@ describe("DBCS streaming", function () {
         const decoder = iconv.getDecoder(encoding)
         const actual = decoder.write(input.subarray(0, split)) + decoder.write(new Uint8Array(0)) +
           decoder.write(input.subarray(split)) + decoder.end()
-        assert.strictEqual(actual, expected, `split at ${split}`)
-        assert.strictEqual(decoder.end(), "")
+        expect(actual, `split at ${split}`).toBe(expected)
+        expect(decoder.end()).toBe("")
       }
     })
   }
@@ -225,7 +225,7 @@ describe("DBCS exhaustive two-byte chunk boundaries", { timeout: 30000 }, functi
           const whole = iconv.decode(bytes, encoding)
           const decoder = iconv.getDecoder(encoding)
           const split = decoder.write(bytes.subarray(0, 1)) + decoder.write(bytes.subarray(1)) + decoder.end()
-          if (split !== whole) assert.fail(`${utils.hex(bytes)}: whole ${utils.strToHex(whole)}, split ${utils.strToHex(split)}`)
+          if (split !== whole) throw new Error(`${utils.hex(bytes)}: whole ${utils.strToHex(whole)}, split ${utils.strToHex(split)}`)
         }
       }
     })

@@ -1,4 +1,4 @@
-import assert from "assert"
+import { expect } from "vitest"
 import Iconv from "../lib/iconv.js"
 import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
@@ -8,13 +8,13 @@ var testStringGBKBuffer = utils.bytes("d6 d0 b9 fa 61 62 63")
 
 describe("GBK tests", function () {
   it("GBK correctly encoded/decoded", function () {
-    assert.strictEqual(utils.hex(iconv.encode(testString, "GBK")), utils.hex(testStringGBKBuffer))
-    assert.strictEqual(iconv.decode(testStringGBKBuffer, "GBK"), testString)
+    expect(utils.hex(iconv.encode(testString, "GBK"))).toBe(utils.hex(testStringGBKBuffer))
+    expect(iconv.decode(testStringGBKBuffer, "GBK")).toBe(testString)
   })
 
   it("GB2312 correctly encoded/decoded", function () {
-    assert.strictEqual(utils.hex(iconv.encode(testString, "GB2312")), utils.hex(testStringGBKBuffer))
-    assert.strictEqual(iconv.decode(testStringGBKBuffer, "GB2312"), testString)
+    expect(utils.hex(iconv.encode(testString, "GB2312"))).toBe(utils.hex(testStringGBKBuffer))
+    expect(iconv.decode(testStringGBKBuffer, "GB2312")).toBe(testString)
   })
 
   it("GBK correctly decodes and encodes characters · and ×", function () {
@@ -22,8 +22,8 @@ describe("GBK tests", function () {
     // Reference: http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP936.TXT
     var chars = "·×"
     var gbkChars = utils.bytes("a1 a4 a1 c1")
-    assert.strictEqual(utils.hex(iconv.encode(chars, "GBK")), utils.hex(gbkChars))
-    assert.strictEqual(iconv.decode(gbkChars, "GBK"), chars)
+    expect(utils.hex(iconv.encode(chars, "GBK"))).toBe(utils.hex(gbkChars))
+    expect(iconv.decode(gbkChars, "GBK")).toBe(chars)
   })
 
   it("GBK and GB18030 correctly decodes and encodes Euro character", function () {
@@ -34,14 +34,14 @@ describe("GBK tests", function () {
     var gbkEuroEncoding2 = utils.bytes("a2 e3")
     var strEuro = "€"
 
-    assert.strictEqual(iconv.decode(gbkEuroEncoding1, "GBK"), strEuro)
-    assert.strictEqual(iconv.decode(gbkEuroEncoding2, "GBK"), strEuro)
-    assert.strictEqual(iconv.decode(gbkEuroEncoding1, "GB18030"), strEuro)
-    assert.strictEqual(iconv.decode(gbkEuroEncoding2, "GB18030"), strEuro)
+    expect(iconv.decode(gbkEuroEncoding1, "GBK")).toBe(strEuro)
+    expect(iconv.decode(gbkEuroEncoding2, "GBK")).toBe(strEuro)
+    expect(iconv.decode(gbkEuroEncoding1, "GB18030")).toBe(strEuro)
+    expect(iconv.decode(gbkEuroEncoding2, "GB18030")).toBe(strEuro)
 
     // GBK encodes the euro sign as 0x80, while GB18030 uses 0xA2 0xE3.
-    assert.strictEqual(utils.hex(iconv.encode(strEuro, "GBK")), utils.hex(gbkEuroEncoding1))
-    assert.strictEqual(utils.hex(iconv.encode(strEuro, "GB18030")), utils.hex(gbkEuroEncoding2))
+    expect(utils.hex(iconv.encode(strEuro, "GBK"))).toBe(utils.hex(gbkEuroEncoding1))
+    expect(utils.hex(iconv.encode(strEuro, "GB18030"))).toBe(utils.hex(gbkEuroEncoding2))
   })
 
   it("GB18030 findIdx works correctly", function () {
@@ -54,10 +54,10 @@ describe("GBK tests", function () {
 
     var codec = iconv.getEncoder("gb18030")
 
-    for (var i = 0; i < 0x100; i++) { assert.strictEqual(codec.findIdx(codec.gb18030.uChars, i), findIdxAlternative(codec.gb18030.uChars, i), i) }
+    for (var i = 0; i < 0x100; i++) { expect(codec.findIdx(codec.gb18030.uChars, i), i).toBe(findIdxAlternative(codec.gb18030.uChars, i)) }
 
     var tests = [0xFFFF, 0x10000, 0x10001, 0x30000]
-    for (var i = 0; i < tests.length; i++) { assert.strictEqual(codec.findIdx(codec.gb18030.uChars, tests[i]), findIdxAlternative(codec.gb18030.uChars, tests[i]), tests[i]) }
+    for (var i = 0; i < tests.length; i++) { expect(codec.findIdx(codec.gb18030.uChars, tests[i]), tests[i]).toBe(findIdxAlternative(codec.gb18030.uChars, tests[i])) }
   })
 
   it("GB18030 encodes/decodes 4 byte sequences", function () {
@@ -72,14 +72,14 @@ describe("GBK tests", function () {
     }
     for (var uChar in chars) {
       var gbkBuf = chars[uChar]
-      assert.strictEqual(utils.hex(iconv.encode(uChar, "GB18030")), utils.hex(gbkBuf))
-      assert.strictEqual(utils.strToHex(iconv.decode(gbkBuf, "GB18030")), utils.strToHex(uChar))
+      expect(utils.hex(iconv.encode(uChar, "GB18030"))).toBe(utils.hex(gbkBuf))
+      expect(utils.strToHex(iconv.decode(gbkBuf, "GB18030"))).toBe(utils.strToHex(uChar))
     }
   })
 
   it("GB18030 correctly decodes incomplete 4 byte sequences", function () {
     for (const bytes of [[0x82], [0x82, 0x31], [0x82, 0x31, 0x82]]) {
-      assert.strictEqual(iconv.decode(utils.bytes(bytes), "GB18030"), "�")
+      expect(iconv.decode(utils.bytes(bytes), "GB18030")).toBe("�")
     }
     var chars = {
       // eslint-disable-next-line
@@ -96,7 +96,7 @@ describe("GBK tests", function () {
     }
     for (var uChar in chars) {
       var gbkBuf = chars[uChar]
-      assert.strictEqual(utils.strToHex(iconv.decode(gbkBuf, "GB18030")), utils.strToHex(uChar))
+      expect(utils.strToHex(iconv.decode(gbkBuf, "GB18030"))).toBe(utils.strToHex(uChar))
     }
   })
 
@@ -107,13 +107,13 @@ describe("GBK tests", function () {
         ["\uE7C7\uE7C7", "3f 3f"],
         ["a\uE7C7\uE7C7b", "61 3f 3f 62"]
       ]) {
-        assert.strictEqual(utils.hex(iconv.encode(text, encoding)), expected, encoding)
+        expect(utils.hex(iconv.encode(text, encoding)), encoding).toBe(expected)
       }
     }
-    for (const options of [undefined, { invalidCharHandler () { assert.fail("GB18030 can encode U+E7C7") } }]) {
-      assert.strictEqual(utils.hex(iconv.encode("\uE7C7", "GB18030", options)), "81 35 f4 37")
+    for (const options of [undefined, { invalidCharHandler () { throw new Error("GB18030 can encode U+E7C7") } }]) {
+      expect(utils.hex(iconv.encode("\uE7C7", "GB18030", options))).toBe("81 35 f4 37")
     }
-    assert.strictEqual(iconv.decode(utils.bytes("81 35 f4 37"), "GBK"), "\uE7C7")
+    expect(iconv.decode(utils.bytes("81 35 f4 37"), "GBK")).toBe("\uE7C7")
   })
 
   it("GBK reports U+E7C7 to the handler and respects its replacement or cancellation", function () {
@@ -129,8 +129,8 @@ describe("GBK tests", function () {
       const encoded = iconv.encode("a€\uE7C7b", "GBK", {
         invalidCharHandler (char, index) { calls.push([char, index]); return replacement }
       })
-      assert.deepStrictEqual(calls, [["\uE7C7", 2]])
-      assert.strictEqual(encoded === null ? null : utils.hex(encoded), expected)
+      expect(calls).toStrictEqual([["\uE7C7", 2]])
+      expect(encoded === null ? null : utils.hex(encoded)).toBe(expected)
     }
   })
 
@@ -138,23 +138,23 @@ describe("GBK tests", function () {
     const custom = new Iconv(iconv.backend)
     custom.defaultCharSingleByte = "!"
     for (const options of [undefined, { invalidCharHandler () {} }]) {
-      assert.strictEqual(utils.hex(custom.encode("a\uE7C7b", "GBK", options)), "61 21 62")
+      expect(utils.hex(custom.encode("a\uE7C7b", "GBK", options))).toBe("61 21 62")
     }
   })
 
   it("GBK rejects U+E7C7 in replacement text without calling the handler recursively", function () {
     const calls = []
-    assert.throws(() => iconv.encode("a\uE7C7b", "GBK", {
+    expect(() => iconv.encode("a\uE7C7b", "GBK", {
       invalidCharHandler (char, index) { calls.push([char, index]); return "\uE7C7" }
-    }), /Replacement .* cannot be encoded in gbk at index 1/)
-    assert.deepStrictEqual(calls, [["\uE7C7", 1]])
+    })).toThrowError(/Replacement .* cannot be encoded in gbk at index 1/)
+    expect(calls).toStrictEqual([["\uE7C7", 1]])
   })
 
   it("GB18030:2005 changes are applied", function () {
     // See https://github.com/whatwg/encoding/issues/22
     var chars = "\u1E3F\u0000\uE7C7"  // Use \u0000 as separator
     var gbkChars = utils.bytes("a8 bc 00 81 35 f4 37")
-    assert.strictEqual(iconv.decode(gbkChars, "GB18030"), chars)
-    assert.strictEqual(utils.hex(iconv.encode(chars, "GB18030")), utils.hex(gbkChars))
+    expect(iconv.decode(gbkChars, "GB18030")).toBe(chars)
+    expect(utils.hex(iconv.encode(chars, "GB18030"))).toBe(utils.hex(gbkChars))
   })
 })

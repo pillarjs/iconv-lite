@@ -1,4 +1,4 @@
-import assert from "assert"
+import { expect } from "vitest"
 import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
 const hex = utils.hex
@@ -14,52 +14,46 @@ const weirdBuf = utils.bytes("15 16 17 18") // Can't automatically detect whethe
 
 describe("ucs2 alias", function () {
   it("decodes identically to utf-16le", function () {
-    assert.equal(iconv.decode(utf16leBuf, "ucs2"), iconv.decode(utf16leBuf, "utf-16le"))
+    expect(iconv.decode(utf16leBuf, "ucs2")).toBe(iconv.decode(utf16leBuf, "utf-16le"))
   })
 
   it("encodes identically to utf-16le", function () {
-    assert.equal(hex(iconv.encode(testStr, "ucs2")), hex(iconv.encode(testStr, "utf-16le")))
+    expect(hex(iconv.encode(testStr, "ucs2"))).toBe(hex(iconv.encode(testStr, "utf-16le")))
   })
 
   it("resolves the 'ucs-2' label too", function () {
-    assert.equal(iconv.decode(utf16leBuf, "ucs-2"), iconv.decode(utf16leBuf, "utf-16le"))
+    expect(iconv.decode(utf16leBuf, "ucs-2")).toBe(iconv.decode(utf16leBuf, "utf-16le"))
   })
 })
 
 describe("WHATWG utf-16 label aliases", function () {
   for (const label of ["unicode", "csunicode", "iso-10646-ucs-2", "unicodefeff"]) {
     it(`'${label}' decodes as UTF-16LE`, function () {
-      assert.equal(iconv.decode(utf16leBuf, label), iconv.decode(utf16leBuf, "utf-16le"))
+      expect(iconv.decode(utf16leBuf, label)).toBe(iconv.decode(utf16leBuf, "utf-16le"))
     })
   }
 
   it("'unicodefffe' decodes as UTF-16BE", function () {
-    assert.equal(iconv.decode(utf16beBuf, "unicodefffe"), iconv.decode(utf16beBuf, "utf-16be"))
+    expect(iconv.decode(utf16beBuf, "unicodefffe")).toBe(iconv.decode(utf16beBuf, "utf-16be"))
   })
 })
 
 describe("UTF-16LE encoder", function () {
   const enc = "utf16-le"
   it("encodes basic strings correctly", function () {
-    assert.equal(hex(iconv.encode("", enc)), "")
-    assert.equal(hex(iconv.encode(testStr, enc)), hex(utf16leBuf))
+    expect(hex(iconv.encode("", enc))).toBe("")
+    expect(hex(iconv.encode(testStr, enc))).toBe(hex(utf16leBuf))
   })
 
   it("adds BOM if asked", function () {
-    assert.equal(
-      hex(iconv.encode(testStr, enc, { addBOM: true })),
-      hex(utf16leBOM) + " " + hex(utf16leBuf)
-    )
+    expect(hex(iconv.encode(testStr, enc, { addBOM: true }))).toBe(hex(utf16leBOM) + " " + hex(utf16leBuf))
   })
 
   // NOTE: I'm not sure what the right behavior is here. Node.js keeps all invalid surrogates as-is for
   // both utf-16le and ucs2 encodings. TextEncoder can't encode utf-16, but when using utf-8, replaces
   // these with '�'. Leaning towards Node side for now.
   it("keeps single and invalid surrogates as-is", function () {
-    assert.equal(
-      hex(iconv.encode(" \uD800 \uDE00 \uDE00\uD800 \uD800", enc)),
-      hex(utils.bytes("2000 00d8 2000 00de 2000 00de 00d8 2000 00d8"))
-    )
+    expect(hex(iconv.encode(" \uD800 \uDE00 \uDE00\uD800 \uD800", enc))).toBe(hex(utils.bytes("2000 00d8 2000 00de 2000 00de 00d8 2000 00d8")))
   })
 
   it("has full 16-bit transparency", function () {
@@ -69,30 +63,30 @@ describe("UTF-16LE encoder", function () {
       s += String.fromCharCode(i)
       arr.push(i & 0xff, i >> 8)
     }
-    assert.equal(hex(iconv.encode(s, enc)), hex(utils.bytes(arr)))
+    expect(hex(iconv.encode(s, enc))).toBe(hex(utils.bytes(arr)))
   })
 
   it("keeps valid surrogate pairs split on a chunk boundary unchanged", function () {
     const encoder = iconv.getEncoder(enc)
-    assert.equal(hex(encoder.write("\uD83D")), "3d d8")
-    assert.equal(hex(encoder.write("\uDCA9")), "a9 dc")
-    assert.strictEqual(encoder.end(), undefined)
+    expect(hex(encoder.write("\uD83D"))).toBe("3d d8")
+    expect(hex(encoder.write("\uDCA9"))).toBe("a9 dc")
+    expect(encoder.end()).toBe(undefined)
   })
 })
 
 describe("UTF-16LE decoder", function () {
   const enc = "utf16-le"
   it("decodes basic buffers correctly", function () {
-    assert.equal(iconv.decode(utf16leBuf, enc), testStr)
+    expect(iconv.decode(utf16leBuf, enc)).toBe(testStr)
   })
 
   it("decodes uneven length buffers showing an error", function () {
-    assert.equal(iconv.decode(utils.bytes("61 00 00"), enc), "a�")
+    expect(iconv.decode(utils.bytes("61 00 00"), enc)).toBe("a�")
   })
 
   it("decodes very short buffers correctly", function () {
-    assert.equal(iconv.decode(utils.bytes([]), enc), "")
-    assert.equal(iconv.decode(utils.bytes([0x61]), enc), "�")
+    expect(iconv.decode(utils.bytes([]), enc)).toBe("")
+    expect(iconv.decode(utils.bytes([0x61]), enc)).toBe("�")
   })
 
   // Per the WHATWG Encoding Standard, the UTF-16 decoder replaces unpaired/invalid surrogates with
@@ -100,7 +94,7 @@ describe("UTF-16LE decoder", function () {
   it("replaces unpaired surrogates with U+FFFD (per WHATWG)", function () {
     // prettier-ignore
     const buf = utils.bytes("2000 00d8 2000 00de 2000 00de 00d8 2000 00d8")
-    assert.equal(iconv.decode(buf, enc), " � � �� �")
+    expect(iconv.decode(buf, enc)).toBe(" � � �� �")
   })
 
   it("round-trips all non-surrogate BMP code points", function () {
@@ -109,7 +103,7 @@ describe("UTF-16LE decoder", function () {
       if (i >= 0xD800 && i <= 0xDFFF) continue // Surrogates aren't round-trippable per WHATWG.
       s += String.fromCharCode(i)
     }
-    assert.equal(iconv.decode(iconv.encode(s, enc), enc), s)
+    expect(iconv.decode(iconv.encode(s, enc), enc)).toBe(s)
   })
 
   it(
@@ -172,53 +166,47 @@ describe("UTF-16LE decoder", function () {
 describe("UTF-16BE encoder", function () {
   const enc = "utf16-be"
   it("encodes basic strings correctly", function () {
-    assert.equal(hex(iconv.encode("", enc)), "")
-    assert.equal(hex(iconv.encode(testStr, enc)), hex(utf16beBuf))
+    expect(hex(iconv.encode("", enc))).toBe("")
+    expect(hex(iconv.encode(testStr, enc))).toBe(hex(utf16beBuf))
   })
 
   it("adds BOM if asked", function () {
-    assert.equal(
-      hex(iconv.encode(testStr, enc, { addBOM: true })),
-      hex(utf16beBOM) + " " + hex(utf16beBuf)
-    )
+    expect(hex(iconv.encode(testStr, enc, { addBOM: true }))).toBe(hex(utf16beBOM) + " " + hex(utf16beBuf))
   })
 
   // See note in UTF-16LE encoder above; we need to keep them consistent.
   it("keeps single and invalid surrogates as-is", function () {
-    assert.equal(
-      hex(iconv.encode(" \uD800 \uDE00 \uDE00\uD800 \uD800", enc)),
-      hex(utils.bytes("0020 d800 0020 de00 0020 de00 d800 0020 d800"))
-    )
+    expect(hex(iconv.encode(" \uD800 \uDE00 \uDE00\uD800 \uD800", enc))).toBe(hex(utils.bytes("0020 d800 0020 de00 0020 de00 d800 0020 d800")))
   })
 
   it("handles valid surrogate pairs on chunk boundary correctly", function () {
     const encoder = iconv.getEncoder(enc)
-    assert.equal(hex(encoder.write("\uD83D")), "d8 3d")
-    assert.equal(hex(encoder.write("\uDCA9")), "dc a9")
-    assert.strictEqual(encoder.end(), undefined)
+    expect(hex(encoder.write("\uD83D"))).toBe("d8 3d")
+    expect(hex(encoder.write("\uDCA9"))).toBe("dc a9")
+    expect(encoder.end()).toBe(undefined)
   })
 })
 
 describe("UTF-16BE decoder", function () {
   const enc = "utf16-be"
   it("decodes basic buffers correctly", function () {
-    assert.equal(iconv.decode(utf16beBuf, enc), testStr)
+    expect(iconv.decode(utf16beBuf, enc)).toBe(testStr)
   })
 
   it("decodes uneven length buffers showing an error", function () {
-    assert.equal(iconv.decode(utils.bytes([0, 0x61, 0]), enc), "a�")
+    expect(iconv.decode(utils.bytes([0, 0x61, 0]), enc)).toBe("a�")
   })
 
   it("decodes very short buffers correctly", function () {
-    assert.equal(iconv.decode(utils.bytes([]), enc), "")
-    assert.equal(iconv.decode(utils.bytes([0x61]), enc), "�")
+    expect(iconv.decode(utils.bytes([]), enc)).toBe("")
+    expect(iconv.decode(utils.bytes([0x61]), enc)).toBe("�")
   })
 
   // See note in the UTF-16LE decoder above.
   it("replaces unpaired surrogates with U+FFFD (per WHATWG)", function () {
     // prettier-ignore
     const buf = utils.bytes("0020 d800 0020 de00 0020 de00 d800 0020 d800")
-    assert.equal(iconv.decode(buf, enc), " � � �� �")
+    expect(iconv.decode(buf, enc)).toBe(" � � �� �")
   })
 
   it("round-trips all non-surrogate BMP code points", function () {
@@ -227,7 +215,7 @@ describe("UTF-16BE decoder", function () {
       if (i >= 0xD800 && i <= 0xDFFF) continue // Surrogates aren't round-trippable per WHATWG.
       s += String.fromCharCode(i)
     }
-    assert.equal(iconv.decode(iconv.encode(s, enc), enc), s)
+    expect(iconv.decode(iconv.encode(s, enc), enc)).toBe(s)
   })
 
   it(
@@ -290,24 +278,24 @@ describe("UTF-16BE decoder", function () {
 describe("UTF-16 encoder", function () {
   const enc = "utf-16"
   it("uses UTF-16LE and adds BOM when encoding", function () {
-    assert.equal(hex(iconv.encode(testStr, enc)), hex(utf16leBOM) + " " + hex(utf16leBuf))
+    expect(hex(iconv.encode(testStr, enc))).toBe(hex(utf16leBOM) + " " + hex(utf16leBuf))
   })
 
   it("doesn't change encoding options reused for other encodings", function () {
     const options = {}
-    assert.equal(hex(iconv.encode(testStr, enc, options)), hex(utf16leBOM) + " " + hex(utf16leBuf))
-    assert.equal(hex(iconv.encode("A", "utf8", options)), "41")
-    assert.deepStrictEqual(options, {})
+    expect(hex(iconv.encode(testStr, enc, options))).toBe(hex(utf16leBOM) + " " + hex(utf16leBuf))
+    expect(hex(iconv.encode("A", "utf8", options))).toBe("41")
+    expect(options).toStrictEqual({})
   })
 
   it("accepts frozen encoding options when adding the default BOM", function () {
-    assert.equal(hex(iconv.encode(testStr, enc, Object.freeze({}))), hex(utf16leBOM) + " " + hex(utf16leBuf))
+    expect(hex(iconv.encode(testStr, enc, Object.freeze({})))).toBe(hex(utf16leBOM) + " " + hex(utf16leBuf))
   })
 
   it("honors BOM defaults and explicit settings in frozen encoding options", function () {
     for (const [addBOM, includeBOM] of [[undefined, true], [null, false], [false, false], [true, true]]) {
       const expected = (includeBOM ? hex(utf16leBOM) + " " : "") + hex(utf16leBuf)
-      assert.equal(hex(iconv.encode(testStr, enc, Object.freeze({ addBOM }))), expected)
+      expect(hex(iconv.encode(testStr, enc, Object.freeze({ addBOM })))).toBe(expected)
     }
   })
 
@@ -316,13 +304,13 @@ describe("UTF-16 encoder", function () {
       get addBOM () { return false }
     }
     for (const options of [Object.create({ addBOM: false }), new Options()]) {
-      assert.equal(hex(iconv.encode(testStr, enc, options)), hex(utf16leBuf))
-      assert.deepStrictEqual(Object.keys(options), [])
+      expect(hex(iconv.encode(testStr, enc, options))).toBe(hex(utf16leBuf))
+      expect(Object.keys(options)).toStrictEqual([])
     }
   })
 
   it("can skip BOM", function () {
-    assert.equal(hex(iconv.encode(testStr, enc, { addBOM: false })), hex(utf16leBuf))
+    expect(hex(iconv.encode(testStr, enc, { addBOM: false }))).toBe(hex(utf16leBuf))
   })
 })
 
@@ -332,29 +320,26 @@ describe("UTF-16 decoder", function () {
   const encBE = "utf-16be"
 
   it("uses BOM to determine encoding", function () {
-    assert.equal(iconv.decode(utils.concatBufs([utf16leBOM, utf16leBuf]), enc), testStr)
-    assert.equal(iconv.decode(utils.concatBufs([utf16beBOM, utf16beBuf]), enc), testStr)
+    expect(iconv.decode(utils.concatBufs([utf16leBOM, utf16leBuf]), enc)).toBe(testStr)
+    expect(iconv.decode(utils.concatBufs([utf16beBOM, utf16beBuf]), enc)).toBe(testStr)
   })
 
   it("handles very short buffers", function () {
-    assert.equal(iconv.decode(utils.bytes([]), enc), "")
-    assert.equal(iconv.decode(utils.bytes([0x61]), enc), "�")
+    expect(iconv.decode(utils.bytes([]), enc)).toBe("")
+    expect(iconv.decode(utils.bytes([0x61]), enc)).toBe("�")
   })
 
   it("uses spaces when there is no BOM to determine encoding", function () {
-    assert.equal(iconv.decode(iconv.encode(sampleStr, encLE), enc), sampleStr)
-    assert.equal(iconv.decode(iconv.encode(sampleStr, encBE), enc), sampleStr)
+    expect(iconv.decode(iconv.encode(sampleStr, encLE), enc)).toBe(sampleStr)
+    expect(iconv.decode(iconv.encode(sampleStr, encBE), enc)).toBe(sampleStr)
   })
 
   it("uses UTF-16LE if no BOM and heuristics failed", function () {
-    assert.equal(iconv.decode(weirdBuf, enc), iconv.decode(weirdBuf, encLE))
+    expect(iconv.decode(weirdBuf, enc)).toBe(iconv.decode(weirdBuf, encLE))
   })
 
   it("can be given a different default encoding", function () {
-    assert.equal(
-      iconv.decode(weirdBuf, enc, { defaultEncoding: encBE }),
-      iconv.decode(weirdBuf, encBE)
-    )
+    expect(iconv.decode(weirdBuf, enc, { defaultEncoding: encBE })).toBe(iconv.decode(weirdBuf, encBE))
   })
 
   it("keeps decoding chunks fed after the endianness was detected", function () {
@@ -362,12 +347,12 @@ describe("UTF-16 decoder", function () {
     let res = d.write(utf16leBuf) // 16 bytes -> triggers detection, sets the inner decoder.
     res += d.write(utf16leBuf) // Subsequent chunk: inner decoder already chosen.
     res += d.end() || ""
-    assert.equal(res, testStr + testStr)
+    expect(res).toBe(testStr + testStr)
   })
 
   it("uses only the first 100 code units for the space heuristic", function () {
     const longStr = "a".repeat(120) // >100 code units, no BOM -> heuristic loop hits its cap.
-    assert.equal(iconv.decode(iconv.encode(longStr, encLE), enc), longStr)
+    expect(iconv.decode(iconv.encode(longStr, encLE), enc)).toBe(longStr)
   })
 })
 
@@ -400,7 +385,7 @@ describe("UTF-16 decoder robustness", function () {
         for (let p = 0; p <= 40; p++) {
           const prefix = new Array(p).fill(0x20) // p spaces, shifting the bad unit's position.
           const buf = unitsToBytes(prefix.concat(invalid), le)
-          assert.strictEqual(iconv.decode(buf, enc), " ".repeat(p) + expectedTail)
+          expect(iconv.decode(buf, enc)).toBe(" ".repeat(p) + expectedTail)
         }
       })
     }
@@ -415,16 +400,16 @@ describe("UTF-16 decoder fatal mode (opt-in)", function () {
     const odd = enc === "utf-16le" ? utils.bytes("610000") : utils.bytes("006100") // Truncated code unit.
 
     it(`throws on invalid input when { fatal: true } (${enc})`, function () {
-      assert.throws(function () { iconv.decode(lone, enc, { fatal: true }) })
-      assert.throws(function () { iconv.decode(odd, enc, { fatal: true }) })
+      expect(function () { iconv.decode(lone, enc, { fatal: true }) }).toThrowError()
+      expect(function () { iconv.decode(odd, enc, { fatal: true }) }).toThrowError()
     })
 
     it(`still decodes valid input when { fatal: true } (${enc})`, function () {
-      assert.equal(iconv.decode(iconv.encode(testStr, enc), enc, { fatal: true }), testStr)
+      expect(iconv.decode(iconv.encode(testStr, enc), enc, { fatal: true })).toBe(testStr)
     })
 
     it(`replaces instead of throwing by default (${enc})`, function () {
-      assert.equal(iconv.decode(lone, enc), "�")
+      expect(iconv.decode(lone, enc)).toBe("�")
     })
   }
 })
