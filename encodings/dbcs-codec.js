@@ -416,12 +416,9 @@ class DBCSEncoder {
         if (dbcsCode == UNASSIGNED && this.gb18030) {
           // The WHATWG encoder side table overrides the ranges algorithm.
           var tableCode = this.gb18030EncoderTable?.[uCode]
-          if (tableCode === null) {
-            // Encoder error: fall through to the default character.
-          } else if (tableCode !== undefined) {
-            newBuf[j++] = tableCode >> 8
-            newBuf[j++] = tableCode & 0xFF
-            continue
+          if (tableCode !== undefined) {
+            // A null entry uses the configured fallback in the common writer.
+            dbcsCode = tableCode ?? UNASSIGNED
           } else {
             // Use GB18030 algorithm to find character(s) to write.
             var idx = findIdx(this.gb18030.uChars, uCode)
