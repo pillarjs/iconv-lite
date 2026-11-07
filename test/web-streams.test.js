@@ -56,6 +56,14 @@ describe("Web Streams", function () {
     ["big5", "AÊ\u0304🙂"],
     ["utf7", "A£中"],
     ["utf7imap", "A£中"],
+    ["65000", "A+£🙂B"],
+    ["cp65000", "A+£🙂B"],
+    ["65001", "A🙂\uD800B"],
+    ["cp65001", "A🙂\uD800B"],
+    ["1200", "A🙂B"],
+    ["cp1201", "A🙂B"],
+    ["12000", "A🙂\uD800B"],
+    ["cp12001", "A🙂\uD800B"],
     ["binary", "\x80\xff"],
     ["base64", "QUI="]
   ]) {
@@ -66,7 +74,7 @@ describe("Web Streams", function () {
           .pipeThrough(iconv.encodeWebStream(encoding)))
         assert(chunks.every(chunk => chunk.constructor === encoded.constructor && chunk.length > 0))
         const bytes = iconv.backend.concatByteResults(chunks)
-        if (encoding === "utf7") {
+        if (iconv.getCodec(encoding) === iconv.getCodec("utf7")) {
           // UTF-7 may close and reopen shifted runs at chunk boundaries.
           assert.equal(iconv.decode(bytes, encoding), input)
         } else {

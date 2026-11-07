@@ -8,7 +8,9 @@
 
 ### 🐞 Bug fixes
 
-- Add Windows code page aliases `20127` / `cp20127` for 7-bit ASCII.
+- Add Windows code page aliases `65000` / `cp65000` for UTF-7 and `65001` / `cp65001` for UTF-8. Addresses [#109](https://github.com/pillarjs/iconv-lite/issues/109).
+
+- Add Windows code page aliases `1200` / `1201` for UTF-16LE/BE, `12000` / `12001` for UTF-32LE/BE and `20127` for 7-bit ASCII, including their `cp` forms. Unicode code pages preserve fixed byte order, BOM options and fatal decoding.
 
 - Respect changes to `defaultCharSingleByte` after a single-byte codec is cached - by [@bjohansebas](https://github.com/bjohansebas) in [#451](https://github.com/pillarjs/iconv-lite/pull/451)
 

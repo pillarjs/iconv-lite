@@ -22,7 +22,7 @@ describe("Encoding Existence - Prototype Properties", function () {
   })
 
   it("should detect all available encodings", function () {
-    assert.strictEqual(Object.keys(iconv.encodings).length, 453)
+    assert.strictEqual(Object.keys(iconv.encodings).length, 465)
   })
 })
 
@@ -204,5 +204,76 @@ describe("WHATWG label aliases", function () {
     assert.ok(iconv.encodingExists("iso-8859-8-i"))
     assert.ok(iconv.encodingExists("sun_eu_greek"))
     assert.ok(iconv.encodingExists("x-euc-jp"))
+  })
+})
+
+describe("Windows Unicode code page aliases (#109)", function () {
+  for (const [codePage, encoding, bytes] of [
+    [1200, "utf16le", [0x41, 0, 0x62, 0x22, 0x91, 3, 0x2E, 0]],
+    [1201, "utf16be", [0, 0x41, 0x22, 0x62, 3, 0x91, 0, 0x2E]],
+    [12000, "utf32le", [0x41, 0, 0, 0, 0x62, 0x22, 0, 0, 0x91, 3, 0, 0, 0x2E, 0, 0, 0]],
+    [12001, "utf32be", [0, 0, 0, 0x41, 0, 0, 0x22, 0x62, 0, 0, 3, 0x91, 0, 0, 0, 0x2E]],
+    [65000, "utf7", [0x41, 0x2B, 0x49, 0x6D, 0x49, 0x44, 0x6B, 0x51, 0x2D, 0x2E]],
+    [65001, "utf8", [0x41, 0xE2, 0x89, 0xA2, 0xCE, 0x91, 0x2E]]
+  ]) {
+    const text = "A\u2262\u0391." // RFC 2152 example: A+ImIDkQ-.
+    const aliases = [codePage, String(codePage), "cp" + codePage, " \tCP-" + codePage + "\r\n"]
+
+    it(codePage + " encodes and decodes like " + encoding, function () {
+      for (const alias of aliases) {
+        assert.strictEqual(iconv.encodingExists(alias), true)
+        assert.strictEqual(iconv.getCodec(alias), iconv.getCodec(encoding))
+        assert.deepStrictEqual(iconv.encode(text, alias), utils.bytes(bytes))
+        assert.strictEqual(iconv.decode(utils.bytes(bytes), alias), text)
+      }
+    })
+
+    it(codePage + " preserves incremental decoding at every byte boundary", function () {
+      for (const alias of aliases) {
+        for (let split = 0; split <= bytes.length; split++) {
+          const decoder = iconv.getDecoder(alias)
+          const result = decoder.write(utils.bytes(bytes.slice(0, split))) +
+            decoder.write(utils.bytes([])) + decoder.write(utils.bytes(bytes.slice(split))) + (decoder.end() || "")
+          assert.strictEqual(result, text)
+        }
+      }
+    })
+
+    it(codePage + " preserves BOM options", function () {
+      for (const alias of aliases) {
+        const encoded = iconv.encode(text, alias, { addBOM: true })
+        assert.deepStrictEqual(encoded, iconv.encode(text, encoding, { addBOM: true }))
+        assert.strictEqual(iconv.decode(encoded, alias), text)
+        assert.strictEqual(iconv.decode(encoded, alias, { stripBOM: false }), "\uFEFF" + text)
+      }
+    })
+  }
+
+  it("keeps Unicode code page byte order fixed and propagates fatal errors", function () {
+    for (const [codePage, encoding] of [[1200, "utf16le"], [1201, "utf16be"], [12000, "utf32le"], [12001, "utf32be"]]) {
+      for (const alias of [codePage, String(codePage), "cp" + codePage]) {
+        const options = { defaultEncoding: encoding.startsWith("utf16") ? "utf16be" : "utf32be", addBOM: false }
+        const bytes = iconv.encode("A🙂B", encoding, options)
+        assert.deepStrictEqual(iconv.encode("A🙂B", alias, options), bytes)
+        assert.strictEqual(iconv.decode(bytes, alias, options), "A🙂B")
+        assert.throws(() => iconv.decode(utils.bytes([0x41]), alias, { fatal: true }), Error)
+        assert.strictEqual(iconv.decode(utils.bytes([0x41]), alias), "\uFFFD")
+      }
+    }
+  })
+
+  it("preserves UTF-8 fatal mode and invalid-character handling through code page aliases", function () {
+    for (const alias of [65001, "65001", "cp65001"]) {
+      assert.strictEqual(iconv.decode(utils.bytes([0xFF]), alias), "\uFFFD")
+      assert.throws(() => iconv.decode(utils.bytes([0xFF]), alias, { fatal: true }), TypeError)
+      const calls = []
+      assert.deepStrictEqual(iconv.encode("A\uD800", alias, {
+        invalidCharHandler (char, index) {
+          calls.push([char, index])
+          return "!"
+        }
+      }), utils.bytes([0x41, 0x21]))
+      assert.deepStrictEqual(calls, [["\uD800", 1]])
+    }
   })
 })

@@ -267,12 +267,16 @@ Both the number as a string and its `cp`-prefixed form are supported:
 
 | Code page | Encoding |
 | --- | --- |
+| `1200`, `1201` | UTF-16LE, UTF-16BE |
+| `12000`, `12001` | UTF-32LE, UTF-32BE |
+| `65000`, `65001` | UTF-7, UTF-8 |
 | `20127` | 7-bit ASCII (also `cp367` and `ibm367`) |
 | `28591`, `28599` | ISO-8859-1, ISO-8859-9 |
 | `28601` | Existing iconv-lite alias for ISO-8859-11 |
 
 Thus `cp28591` still decodes `0x80` to U+0080, while the web label `iso-8859-1`
-decodes it to `€`.
+decodes it to `€`. Code pages `1200`/`1201` and `12000`/`12001` use fixed byte
+order, without the autodetection of `utf16` or `utf32`.
 
 Most singlebyte encodings are generated automatically from [node-iconv](https://github.com/bnoordhuis/node-iconv). Thank you Ben Noordhuis and libiconv authors!
 
