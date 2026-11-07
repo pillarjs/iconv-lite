@@ -238,7 +238,7 @@ during either `write()` or `end()` makes the one-shot `encode()` return `null`.
 
 ## Supported encodings
 
- *  All node.js native encodings: utf8, ucs2 / utf16-le, ascii, binary, base64, hex.
+ *  Node.js-compatible encodings: utf8, ucs2 / utf16-le, binary, base64, hex.
  *  Additional unicode encodings: utf16, utf16-be, utf-7, utf-7-imap, utf32, utf32-le, and utf32-be.
  *  All widespread singlebyte encodings: Windows 125x family, ISO-8859 family, 
     IBM/DOS codepages, Macintosh family, KOI8 family, all others supported by iconv library. 
@@ -246,6 +246,42 @@ during either `write()` or `end()` makes the one-shot `encode()` return `null`.
  *  All widespread multibyte encodings: CP932, CP936, CP949, CP950, GB2312, GBK, GB18030, Big5, Shift_JIS, EUC-JP.
 
 See [all supported encodings on wiki](https://github.com/ashtuchkin/iconv-lite/wiki/Supported-Encodings).
+
+The following legacy label families use the Windows mappings defined by the
+[WHATWG Encoding Standard](https://encoding.spec.whatwg.org/#names-and-labels),
+for both encoding and decoding:
+
+| Common labels | Encoding |
+| --- | --- |
+| `ascii`, `us-ascii`, `latin1`, `iso-8859-1` | Windows-1252 |
+| `latin5`, `iso-8859-9` | Windows-1254 |
+| `tis-620`, `iso-8859-11` | Windows-874 |
+
+For example, `iconv.decode(Uint8Array.of(0x80), 'ascii')` now returns `€`, and
+`iconv.encode('€', 'latin1')` produces byte `0x80`. These labels differ from
+Node.js `Buffer`'s `ascii` and `latin1` encodings. Use `binary` for byte-preserving
+Latin-1 conversion between bytes and U+0000–U+00FF.
+
+Numeric code page labels retain their explicit encodings, including in streams.
+Both the number as a string and its `cp`-prefixed form are supported:
+
+| Code page | Encoding |
+| --- | --- |
+| `1200`, `1201` | UTF-16LE, UTF-16BE |
+| `12000`, `12001` | UTF-32LE, UTF-32BE |
+| `65000`, `65001` | UTF-7, UTF-8 |
+| `20127` | 7-bit ASCII (also `cp367` and `ibm367`) |
+| `28591`, `28599` | ISO-8859-1, ISO-8859-9 |
+| `28601` | Existing iconv-lite alias for ISO-8859-11 |
+
+Thus `cp28591` still decodes `0x80` to U+0080, while the web label `iso-8859-1`
+decodes it to `€`. Code pages `1200`/`1201` and `12000`/`12001` use fixed byte
+order, without the autodetection of `utf16` or `utf32`.
+
+Encoding labels reject non-ASCII characters, including Unicode whitespace and
+letters that Unicode lowercasing would turn into ASCII. Surrounding ASCII
+whitespace and ASCII letter case are accepted. Numeric code pages and lenient
+ASCII separator matching are iconv-lite extensions, not WHATWG `TextDecoder` labels.
 
 Most singlebyte encodings are generated automatically from [node-iconv](https://github.com/bnoordhuis/node-iconv). Thank you Ben Noordhuis and libiconv authors!
 

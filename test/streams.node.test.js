@@ -186,6 +186,32 @@ describe("Streaming mode", function () {
     output: "\u0081€A"
   }))
 
+  for (const [alias, text, bytes] of [
+    ["ascii", "€\u0081Ÿ", [0x80, 0x81, 0x9F]],
+    ["latin1", "€\u0081Ÿ", [0x80, 0x81, 0x9F]],
+    ["iso-8859-9", "€Ğİş", [0x80, 0xD0, 0xDD, 0xFE]],
+    ["tis-620", "€\u0081ก", [0x80, 0x81, 0xA1]]
+  ]) {
+    it(alias + " uses Windows mappings in Node encoder streams", checkEncodeStream({
+      encoding: alias,
+      input: Array.from(text),
+      output: Buffer.from(bytes)
+    }))
+    it(alias + " uses Windows mappings in Node decoder streams", checkDecodeStream({
+      encoding: alias,
+      encodingOptions: { fatal: true },
+      input: bytes.map(byte => [byte]),
+      output: text
+    }))
+  }
+
+  it("propagates fatal errors through a Windows-874 alias in Node streams", checkDecodeStream({
+    encoding: "tis-620",
+    encodingOptions: { fatal: true },
+    input: [[0x80], [0xDB]],
+    checkError: error => assert(error instanceof TypeError)
+  }))
+
   for (const [encoding, byte] of [
     ["windows-874", 0xDB], ["windows-1253", 0xAA],
     ["windows-1255", 0xD9], ["windows-1257", 0xA1]
@@ -226,6 +252,37 @@ describe("Streaming mode", function () {
     encoding: "us-ascii",
     input: [Buffer.from("hello "), Buffer.from("world!")],
     output: "hello world!"
+  }))
+
+  for (const [encoding, text, bytes] of [
+    ["1200", "A🙂", [0x41, 0, 0x3D, 0xD8, 0x42, 0xDE]],
+    ["cp1201", "A🙂", [0, 0x41, 0xD8, 0x3D, 0xDE, 0x42]],
+    ["12000", "A🙂", [0x41, 0, 0, 0, 0x42, 0xF6, 1, 0]],
+    ["cp12001", "A🙂", [0, 0, 0, 0x41, 0, 1, 0xF6, 0x42]],
+    ["cp20127", "AB", [0x41, 0x42]],
+    ["28591", "A\u0080", [0x41, 0x80]],
+    ["cp28599", "A\u0080", [0x41, 0x80]],
+    ["cp28601", "A\u0080", [0x41, 0x80]],
+    ["65000", "A\u2262\u0391.", [0x41, 0x2B, 0x49, 0x6D, 0x49, 0x44, 0x6B, 0x51, 0x2D, 0x2E]],
+    ["cp65001", "A\u2262\u0391.", [0x41, 0xE2, 0x89, 0xA2, 0xCE, 0x91, 0x2E]]
+  ]) {
+    it(encoding + " encodes Unicode in Node streams", checkEncodeStream({
+      encoding,
+      input: [text],
+      output: Buffer.from(bytes)
+    }))
+    it(encoding + " decodes Unicode one byte at a time in Node streams", checkDecodeStream({
+      encoding,
+      input: bytes.map(byte => [byte]),
+      output: text
+    }))
+  }
+
+  it("preserves strict ASCII fatal decoding through a Windows code page Node stream", checkDecodeStream({
+    encoding: "20127",
+    encodingOptions: { fatal: true },
+    input: [[0x41], [0x80]],
+    checkError: error => assert(error instanceof TypeError)
   }))
 
   it("Stream encoder should error when fed with buffers", checkEncodeStream({

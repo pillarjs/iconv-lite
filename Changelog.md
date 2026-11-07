@@ -1,6 +1,18 @@
 ## Unreleased
 
+### ⚠️ Breaking changes
+
+- Reject encoding labels containing non-ASCII characters instead of stripping them or folding them into ASCII (for example, the Kelvin sign in `Koi8-r`). Surrounding ASCII whitespace and case-insensitive ASCII matching remain supported.
+
+- Resolve legacy ASCII, Latin-1, Latin-5 and Thai labels to their WHATWG Windows encodings.
+
+    `ascii` and `iso-8859-1` (including `us-ascii` and `latin1`) now use Windows-1252. `iso-8859-9` and `latin5` use Windows-1254; `iso-8859-11` and `tis-620` use Windows-874. This applies to encoding, decoding, handlers, fatal mode and streams. For example, byte `80` decodes to `€` with `ascii` or `latin1`, and encoding `€` produces `80`. Explicit ISO code pages `28591`, `28599` and `28601` (including their `cp` forms) retain their original tables; `cp367` and `ibm367` retain 7-bit ASCII. Use `binary` for byte-preserving Latin-1 conversion.
+
 ### 🐞 Bug fixes
+
+- Add Windows code page aliases `65000` / `cp65000` for UTF-7 and `65001` / `cp65001` for UTF-8. Addresses [#109](https://github.com/pillarjs/iconv-lite/issues/109).
+
+- Add Windows code page aliases `1200` / `1201` for UTF-16LE/BE, `12000` / `12001` for UTF-32LE/BE and `20127` for 7-bit ASCII, including their `cp` forms. Unicode code pages preserve fixed byte order, BOM options and fatal decoding.
 
 - Respect changes to `defaultCharSingleByte` after a single-byte codec is cached - by [@bjohansebas](https://github.com/bjohansebas) in [#451](https://github.com/pillarjs/iconv-lite/pull/451)
 

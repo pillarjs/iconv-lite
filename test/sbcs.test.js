@@ -5,6 +5,10 @@ import sbcsData from "./tables/sbcs-data.json" with { type: "json" }
 const iconv = utils.requireIconv()
 
 const aliases = {
+  cp20127: "ascii",
+  cp28591: "iso8859-1",
+  cp28599: "iso8859-9",
+  cp28601: "iso8859-11",
   armscii8: "armscii-8",
   georgianacademy: "georgian-academy",
   georgianps: "georgian-ps",
@@ -206,7 +210,7 @@ describe("SBCS encode maps U+FFFD to defaultCharSingleByte", function () {
 })
 
 describe("SBCS fatal decoding outside the Windows family", function () {
-  for (const [encoding, byte] of [["ascii", 0x80], ["iso88593", 0xA5]]) {
+  for (const [encoding, byte] of [["iso88596", 0xA1], ["iso88593", 0xA5]]) {
     it(encoding + " rejects unassigned bytes only in fatal mode", function () {
       assert.strictEqual(iconv.decode(utils.bytes([byte]), encoding), "\uFFFD")
       assert.throws(() => iconv.decode(utils.bytes([byte]), encoding, { fatal: true }), TypeError)
