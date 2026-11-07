@@ -1,7 +1,9 @@
 import assert from "assert"
 import Iconv from "../lib/iconv.js"
-import defaultIconv from "../lib/index-node.js"
+import utils from "./helpers/utils.js"
 import * as utf7 from "../encodings/utf7.js"
+
+const defaultIconv = utils.requireIconv()
 
 class DelegatingCodec {
   #encoding

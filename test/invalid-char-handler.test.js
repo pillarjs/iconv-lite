@@ -1,7 +1,8 @@
-import { Buffer } from "buffer"
 import assert from "assert"
-import defaultIconv from "../lib/index-node.js"
+import utils from "./helpers/utils.js"
 import Iconv from "../lib/iconv.js"
+
+const defaultIconv = utils.requireIconv()
 
 describe("invalidCharHandler (SBCS)", function () {
   let iconv
@@ -17,7 +18,7 @@ describe("invalidCharHandler (SBCS)", function () {
       }
     })
 
-    assert.strictEqual(Buffer.from(res).toString("binary"), "A?B")
+    assert.deepStrictEqual(res, utils.bytes([0x41, 0x3F, 0x42]))
     assert.strictEqual(calls.length, 1)
     assert.strictEqual(calls[0].char, "世")
     assert.strictEqual(calls[0].index, 1)
@@ -32,7 +33,7 @@ describe("invalidCharHandler (SBCS)", function () {
     })
 
     assert.strictEqual(called, false)
-    assert.strictEqual(Buffer.from(res).toString("binary"), "?A")
+    assert.deepStrictEqual(res, utils.bytes([0x3F, 0x41]))
   })
 
   it("reports U+FFFD when the replacement byte is unassigned", function () {
@@ -132,7 +133,7 @@ describe("invalidCharHandler (SBCS)", function () {
       }
     })
 
-    assert.strictEqual(Buffer.from(res).toString("binary"), "A???B")
+    assert.deepStrictEqual(res, utils.bytes([0x41, 0x3F, 0x3F, 0x3F, 0x42]))
     assert.strictEqual(calls.length, 2)
     assert.strictEqual(calls[0].char, "🙂")
     assert.strictEqual(calls[0].index, 1)
@@ -165,7 +166,7 @@ describe("invalidCharHandler (SBCS)", function () {
       const tail = encoder.end()
       if (tail) chunks.push(tail)
 
-      assert.deepStrictEqual(Buffer.concat(chunks), Buffer.from([0x41, 0x3F, 0x3F, 0x3F, 0x42, 0x3F]))
+      assert.deepStrictEqual(utils.concatBufs(chunks), utils.bytes([0x41, 0x3F, 0x3F, 0x3F, 0x42, 0x3F]))
       assert.deepStrictEqual(calls, ["🙂", "世", "\uD800"])
       assert.strictEqual(encoder.end(), undefined)
     }
@@ -281,7 +282,7 @@ describe("invalidCharHandler (SBCS)", function () {
     assert.strictEqual(encoder.write("🙂"), null)
     output.push(encoder.write(" world"))
 
-    assert.strictEqual(Buffer.concat(output).toString("binary"), "Hello :) world")
+    assert.deepStrictEqual(utils.concatBufs(output), utils.bytes(new TextEncoder().encode("Hello :) world")))
     assert.strictEqual(calls.length, 1)
     assert.strictEqual(calls[0].char, "🙂")
     assert.strictEqual(calls[0].index, 0)
@@ -295,7 +296,7 @@ describe("invalidCharHandler (SBCS)", function () {
       }
     })
 
-    assert.strictEqual(Buffer.from(res).toString("binary"), "!")
+    assert.deepStrictEqual(res, utils.bytes([0x21]))
   })
 
   it("supports expanding and empty replacements without changing source indices", function () {
@@ -306,7 +307,7 @@ describe("invalidCharHandler (SBCS)", function () {
         return char === "🙂" ? ":)".repeat(100) : ""
       }
     })
-    assert.strictEqual(Buffer.from(result).toString("latin1"), "A" + ":)".repeat(100) + "B")
+    assert.deepStrictEqual(result, utils.bytes(new TextEncoder().encode("A" + ":)".repeat(100) + "B")))
     assert.deepStrictEqual(calls, [["🙂", 1], ["世", 2], ["界", 4]])
   })
 
@@ -320,9 +321,9 @@ describe("invalidCharHandler (SBCS)", function () {
 
   it("replaces split pairs and pending characters at end", function () {
     const encoder = iconv.getEncoder("latin1", { invalidCharHandler: () => ":)" })
-    assert.strictEqual(Buffer.from(encoder.write("A\uD83D")).toString(), "A")
-    assert.strictEqual(Buffer.from(encoder.write("\uDE42\uD800")).toString(), ":)")
-    assert.strictEqual(Buffer.from(encoder.end()).toString(), ":)")
+    assert.deepStrictEqual(encoder.write("A\uD83D"), utils.bytes([0x41]))
+    assert.deepStrictEqual(encoder.write("\uDE42\uD800"), utils.bytes([0x3A, 0x29]))
+    assert.deepStrictEqual(encoder.end(), utils.bytes([0x3A, 0x29]))
     assert.strictEqual(encoder.end(), undefined)
   })
 
@@ -336,6 +337,6 @@ describe("invalidCharHandler (SBCS)", function () {
       }
     })
 
-    assert.strictEqual(Buffer.from(res).toString("binary"), "?")
+    assert.deepStrictEqual(res, utils.bytes([0x3F]))
   })
 })

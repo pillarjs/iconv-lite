@@ -1,6 +1,8 @@
 import assert from "node:assert/strict"
 import Iconv from "../lib/iconv-node.js"
-import defaultIconv from "../lib/index-node.js"
+import utils from "./helpers/utils.js"
+
+const defaultIconv = utils.requireIconv()
 
 describe("invalidCharHandler (Node streams)", function () {
   let iconv

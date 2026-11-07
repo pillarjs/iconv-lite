@@ -62,7 +62,7 @@ table mappings. The shared Windows suite also checks every byte (including
   (jis0208/jis0212/big5/euc-kr) and `data/whatwg-windows-indexes.json`
   (Windows-874 and Windows-1250–1258) from `encoding.spec.whatwg.org/indexes.json`.
   The Windows indexes also drive [`../windows-sbcs.test.js`](../windows-sbcs.test.js)
-  in both Node backends and webpack/Chrome: all 256 bytes, both decoding error
+  in both Node backends and Vitest Browser Mode: all 256 bytes, both decoding error
   modes, every BMP scalar for encoding, aliases and incremental decoding.
 - [`upstream/`](./upstream) — **unmodified** vendored WPT files (BSD-3-Clause / W3C
   licensed), curated to the TextDecoder/TextEncoder behaviour relevant to

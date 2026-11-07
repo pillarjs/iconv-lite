@@ -1,7 +1,8 @@
-import { Buffer } from "buffer"
 import { strict as assert } from "assert"
 import Iconv from "../lib/iconv.js"
-import defaultIconv from "../lib/index-node.js"
+import utils from "./helpers/utils.js"
+
+const defaultIconv = utils.requireIconv()
 
 describe("invalidCharHandler (DBCS)", function () {
   let iconv
@@ -37,21 +38,21 @@ describe("invalidCharHandler (DBCS)", function () {
     const encoder = iconv.getEncoder("big5", { invalidCharHandler () { assert.fail("valid sequence") } })
     const chunks = [encoder.write("AÊ"), encoder.write(""), encoder.write("\u0304B")]
     assert.equal(encoder.end(), undefined)
-    assert.deepEqual(Buffer.concat(chunks), Buffer.from(iconv.encode("AÊ\u0304B", "big5")))
+    assert.deepEqual(utils.concatBufs(chunks), iconv.encode("AÊ\u0304B", "big5"))
   })
 
   it("lets a replacement finish a pending Big5 sequence", function () {
     const encoder = iconv.getEncoder("big5", { invalidCharHandler: () => "\u0304" })
     const chunks = [encoder.write("AÊ"), encoder.write("🙂B")]
     assert.equal(encoder.end(), undefined)
-    assert.deepEqual(Buffer.concat(chunks), Buffer.from(iconv.encode("AÊ\u0304B", "big5")))
+    assert.deepEqual(utils.concatBufs(chunks), iconv.encode("AÊ\u0304B", "big5"))
     assert.deepEqual(iconv.encode("A🙂B", "big5", { invalidCharHandler: () => "Ê\u0304" }), iconv.encode("AÊ\u0304B", "big5"))
   })
 
   it("flushes pending sequences and replaces a final unpaired surrogate", function () {
     const encoder = iconv.getEncoder("big5", { invalidCharHandler: () => "!" })
     const chunks = [encoder.write("AÊ\uD800"), encoder.end()]
-    assert.deepEqual(Buffer.concat(chunks), Buffer.from(iconv.encode("AÊ!", "big5")))
+    assert.deepEqual(utils.concatBufs(chunks), iconv.encode("AÊ!", "big5"))
     assert.equal(encoder.end(), undefined)
   })
 
@@ -78,7 +79,7 @@ describe("invalidCharHandler (DBCS)", function () {
       invalidCharHandler (char, index) { calls.push([char, index]); return "!" }
     })
     const chunks = [encoder.write("A\uD83D"), encoder.write("\uDE42B")]
-    assert.deepEqual(Buffer.concat(chunks), Buffer.from("A!B"))
+    assert.deepEqual(utils.concatBufs(chunks), utils.bytes([0x41, 0x21, 0x42]))
     assert.deepEqual(calls, [["🙂", 1]])
   })
 })

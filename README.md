@@ -356,8 +356,9 @@ npm run test:web
 # To pass Vitest arguments to a specific backend:
 npm run test:web -- -t "GB18030" --reporter dot
 
-# To run all shared tests in Chrome through webpack:
-npm run test:webpack
+# Install Chromium once, then run all shared tests in Vitest Browser Mode:
+npx playwright install chromium
+npm run test:browser
 
 # To view performance:
 npm run test:performance
@@ -367,14 +368,19 @@ npm run test:cov
 open coverage/index.html
 ```
 
-Webpack automatically discovers shared suites in `test/*.test.js`. Tests that need
+Browser Mode automatically discovers shared suites in `test/*.test.js`. Tests that need
 Node streams, native bindings, the filesystem, or Node's module loader use the
 `*.node.test.js` suffix and run with both backends through `npm test`.
 
 Vitest runs the complete Node.js suite as two isolated projects, `node` and `web`,
-and combines their V8 coverage into one report. Browser tests use Vitest with
-Playwright to execute the webpack bundle in headless Chrome, including the packed
-package and every shared suite.
+and combines their V8 coverage into one report. Browser tests run directly in
+headless Chromium through Vitest's Playwright provider, including the browser
+entry point, Web Streams integration tests, and every shared suite.
+Browser tests use native `Uint8Array` values without a Buffer polyfill. Buffer
+compatibility checks run only in Node.js.
+CI runs the browser suite on the latest Node.js LTS with the current Vitest version.
+On Linux, use `npx playwright install --with-deps chromium` to also install system
+dependencies. Set `CHROME_BIN` to use an existing Chrome or Chromium executable.
 
 The default development dependencies track current Vitest and Vite releases.
 CI selects Vitest 3 and Vite 6 before installing dependencies on Node.js 22

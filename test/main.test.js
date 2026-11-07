@@ -1,6 +1,5 @@
 import whatwgAliases from "../encodings/whatwg-aliases.js"
 import assert from "assert"
-import { Buffer } from "buffer"
 import utils from "./helpers/utils.js"
 import { canonicalizeEncoding } from "../lib/utils.js"
 
@@ -10,6 +9,8 @@ var testString = "Hello123!"
 var testStringLatin1 = "Hello123!£Å÷×çþÿ¿®"
 var testStringBase64 = "SGVsbG8xMjMh"
 var testStringHex = "48656c6c6f31323321"
+var testBytes = new TextEncoder().encode(testString)
+var testLatin1Bytes = Uint8Array.from([0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x31, 0x32, 0x33, 0x21, 0xa3, 0xc5, 0xf7, 0xd7, 0xe7, 0xfe, 0xff, 0xbf, 0xae])
 
 describe("Encoding Existence - Prototype Properties", function () {
   it("should not detect prototype properties as encodings", function () {
@@ -37,30 +38,32 @@ describe("Generic UTF8-UCS2 tests", function () {
   it("Return values are of correct types", function () {
     assert.strictEqual(iconv.encode(testString, "utf8").constructor, utils.BytesType)
 
-    var s = iconv.decode(Buffer.from(testString), "utf8")
+    var s = iconv.decode(testBytes, "utf8")
     assert.strictEqual(Object.prototype.toString.call(s), "[object String]")
   })
 
   it("Internal encodings all correctly encoded/decoded", function () {
-    ["utf8", "UTF-8", "UCS2", "binary"].forEach(function (enc) {
-      assert.deepStrictEqual(iconv.encode(testStringLatin1, enc), utils.bytes(Buffer.from(testStringLatin1, enc)))
-      assert.strictEqual(iconv.decode(Buffer.from(testStringLatin1, enc), enc), testStringLatin1)
-    })
+    const utf8 = new TextEncoder().encode(testStringLatin1)
+    const ucs2 = Uint8Array.from([0x48, 0, 0x65, 0, 0x6c, 0, 0x6c, 0, 0x6f, 0, 0x31, 0, 0x32, 0, 0x33, 0, 0x21, 0, 0xa3, 0, 0xc5, 0, 0xf7, 0, 0xd7, 0, 0xe7, 0, 0xfe, 0, 0xff, 0, 0xbf, 0, 0xae, 0])
+    for (const [enc, bytes] of [["utf8", utf8], ["UTF-8", utf8], ["UCS2", ucs2], ["binary", testLatin1Bytes]]) {
+      assert.deepStrictEqual(iconv.encode(testStringLatin1, enc), utils.bytes(bytes))
+      assert.strictEqual(iconv.decode(bytes, enc), testStringLatin1)
+    }
   })
 
   it("Base64 correctly encoded/decoded", function () {
-    assert.deepStrictEqual(iconv.encode(testStringBase64, "base64"), utils.bytes(Buffer.from(testString, "binary")))
-    assert.strictEqual(iconv.decode(Buffer.from(testString, "binary"), "base64"), testStringBase64)
+    assert.deepStrictEqual(iconv.encode(testStringBase64, "base64"), utils.bytes(testBytes))
+    assert.strictEqual(iconv.decode(testBytes, "base64"), testStringBase64)
   })
 
   it("Hex correctly encoded/decoded", function () {
     assert.deepStrictEqual(iconv.encode(testStringHex, "hex"), utils.bytes(testStringHex))
-    assert.strictEqual(iconv.decode(Buffer.from(testString, "binary"), "hex"), testStringHex)
+    assert.strictEqual(iconv.decode(testBytes, "hex"), testStringHex)
   })
 
   it("Latin1 correctly encoded/decoded", function () {
-    assert.deepStrictEqual(iconv.encode(testStringLatin1, "latin1"), utils.bytes(Buffer.from(testStringLatin1, "binary")))
-    assert.strictEqual(iconv.decode(Buffer.from(testStringLatin1, "binary"), "latin1"), testStringLatin1)
+    assert.deepStrictEqual(iconv.encode(testStringLatin1, "latin1"), utils.bytes(testLatin1Bytes))
+    assert.strictEqual(iconv.decode(testLatin1Bytes, "latin1"), testStringLatin1)
   })
 
   it("keeps binary byte-preserving while ASCII and Latin-1 use Windows-1252", function () {
@@ -75,21 +78,21 @@ describe("Generic UTF8-UCS2 tests", function () {
     }
   })
 
-  it("Convert to string, not buffer (utf8 used)", function () {
+  it("rejects Uint8Array input when encoding", function () {
     assert.throws(function () {
-      iconv.encode(Buffer.from(testStringLatin1, "utf8"), "utf8")
+      iconv.encode(new TextEncoder().encode(testStringLatin1), "utf8")
     })
   })
 
   it("Throws on unknown encodings", function () {
     assert.throws(function () { iconv.encode("a", "xxx") })
-    assert.throws(function () { iconv.decode(Buffer.from("a"), "xxx") })
+    assert.throws(function () { iconv.decode(Uint8Array.of(0x61), "xxx") })
   })
 
   it("Opt-in fatal mode throws on invalid utf8, replaces by default", function () {
-    var invalid = Buffer.from([0xff, 0xfe, 0xfd])
+    var invalid = Uint8Array.of(0xff, 0xfe, 0xfd)
     assert.throws(function () { iconv.decode(invalid, "utf8", { fatal: true }) })
-    assert.strictEqual(iconv.decode(Buffer.from("abc"), "utf8", { fatal: true }), "abc")
+    assert.strictEqual(iconv.decode(Uint8Array.of(0x61, 0x62, 0x63), "utf8", { fatal: true }), "abc")
     assert.strictEqual(iconv.decode(invalid, "utf8"), "���") // default: replacement, no throw.
   })
 
@@ -107,7 +110,8 @@ describe("Generic UTF8-UCS2 tests", function () {
 
   it("Aliases toEncoding and fromEncoding work the same as encode and decode", function () {
     assert.deepStrictEqual(iconv.toEncoding(testString, "latin1"), iconv.encode(testString, "latin1"))
-    assert.strictEqual(iconv.fromEncoding(Buffer.from(testStringLatin1), "latin1"), iconv.decode(Buffer.from(testStringLatin1), "latin1"))
+    const bytes = new TextEncoder().encode(testStringLatin1)
+    assert.strictEqual(iconv.fromEncoding(bytes, "latin1"), iconv.decode(bytes, "latin1"))
   })
 
   it("handles Object & Array prototypes monkey patching", function () {
@@ -161,7 +165,7 @@ describe("Encoding label normalization", function () {
       assert.strictEqual(iconv.encodingExists(ch + "utf-8"), false)
       assert.strictEqual(iconv.encodingExists("utf-8" + ch), false)
       assert.strictEqual(iconv.encodingExists(ch + "utf-8" + ch), false)
-      assert.throws(function () { iconv.decode(Buffer.from([0x61]), ch + "utf-8") })
+      assert.throws(function () { iconv.decode(Uint8Array.of(0x61), ch + "utf-8") })
     })
   })
 
@@ -207,7 +211,7 @@ describe("WHATWG label aliases", function () {
   })
 
   it("decodes each alias identically to its target encoding", function () {
-    var bytes = Buffer.from([0x80, 0xa0, 0xc0, 0xe0, 0x41, 0x7f])
+    var bytes = Uint8Array.of(0x80, 0xa0, 0xc0, 0xe0, 0x41, 0x7f)
     Object.keys(whatwgAliases).forEach(function (alias) {
       var target = whatwgAliases[alias]
       assert.strictEqual(
@@ -219,7 +223,7 @@ describe("WHATWG label aliases", function () {
   })
 
   it("maps the human-readable labels (e.g. x-cp1252, koi8, x-mac-roman)", function () {
-    assert.strictEqual(iconv.decode(Buffer.from([0x80]), "x-cp1252"), iconv.decode(Buffer.from([0x80]), "windows-1252"))
+    assert.strictEqual(iconv.decode(Uint8Array.of(0x80), "x-cp1252"), iconv.decode(Uint8Array.of(0x80), "windows-1252"))
     assert.ok(iconv.encodingExists("x-mac-cyrillic"))
     assert.ok(iconv.encodingExists("x-mac-ukrainian"))
     assert.ok(iconv.encodingExists("x-mac-roman"))

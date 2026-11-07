@@ -1,7 +1,9 @@
 import { createRequire } from "node:module"
 import assert from "assert"
 import { Buffer } from "buffer"
-import iconv from "../lib/index-node.js"
+import utils from "./helpers/utils.js"
+
+const iconv = utils.requireIconv()
 const require = createRequire(import.meta.url)
 
 // Make all valid input combinations for a given encoding and call fn with it.

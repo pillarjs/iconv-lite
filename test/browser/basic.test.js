@@ -2,6 +2,13 @@ import { strict as assert } from "assert"
 import iconv from "iconv-lite"
 
 describe("iconv-lite", function () {
+  it("uses native Uint8Array without a Buffer global", function () {
+    assert.equal(typeof globalThis.Buffer, "undefined")
+    const bytes = iconv.encode("abc", "utf8")
+    assert.equal(Object.getPrototypeOf(bytes), Uint8Array.prototype)
+    assert.deepEqual(bytes, Uint8Array.of(0x61, 0x62, 0x63))
+  })
+
   it("can be imported successfully", function () {
     // Emulate more complex environments that are both web- and node.js-compatible (e.g. Electron renderer process).
     // See https://github.com/ashtuchkin/iconv-lite/issues/204 for details.
@@ -51,6 +58,7 @@ describe("iconv-lite", function () {
         var expected = "Lorem ipsum"
 
         var encoded = iconv.encode(expected, encoding)
+        assert.equal(encoded.constructor, Uint8Array, encoding)
         var uint8Array = Uint8Array.from(encoded)
         var actual = iconv.decode(uint8Array, encoding)
         assert.equal(actual, expected, encoding)

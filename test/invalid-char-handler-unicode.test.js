@@ -1,7 +1,8 @@
-import { Buffer } from "buffer"
 import { strict as assert } from "assert"
 import Iconv from "../lib/iconv.js"
-import defaultIconv from "../lib/index-node.js"
+import utils from "./helpers/utils.js"
+
+const defaultIconv = utils.requireIconv()
 
 describe("invalidCharHandler (Unicode and binary)", function () {
   let iconv
@@ -51,7 +52,7 @@ describe("invalidCharHandler (Unicode and binary)", function () {
       const chunks = [encoder.write("A\uD83D"), encoder.write(""), encoder.write("\uDE42B")]
       const tail = encoder.end()
       if (tail) chunks.push(tail)
-      assert.deepEqual(Buffer.concat(chunks), Buffer.from(iconv.encode("A🙂B", encoding)))
+      assert.deepEqual(utils.concatBufs(chunks), iconv.encode("A🙂B", encoding))
     })
 
     it(`${encoding} can cancel at write or end, and rejects malformed replacements`, function () {

@@ -9,10 +9,7 @@ package-lock.json
 
 # Development environment
 /coverage
-/test/webpack/dist
 /benchmarks/node_envs
 /generation/source-data
 
 .nyc_output
-
-iconv-lite.tgz

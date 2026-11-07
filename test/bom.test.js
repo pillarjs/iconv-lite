@@ -1,5 +1,4 @@
 import assert from "assert"
-import { Buffer } from "buffer"
 import utils from "./helpers/utils.js"
 
 const iconv = utils.requireIconv()
@@ -12,7 +11,7 @@ var utf16leBOM = utils.bytes([0xFF, 0xFE])
 
 describe("BOM Handling", function () {
   it("strips UTF-8 BOM", function () {
-    var body = utils.concatBufs([utf8BOM, utils.bytes(Buffer.from(sampleStr))])
+    var body = utils.concatBufs([utf8BOM, utils.bytes(new TextEncoder().encode(sampleStr))])
     assert.equal(iconv.decode(body, "utf8"), sampleStr)
   })
 
@@ -27,7 +26,7 @@ describe("BOM Handling", function () {
   })
 
   it("doesn't strip BOMs when stripBOM=false", function () {
-    var body = utils.concatBufs([utf8BOM, utils.bytes(Buffer.from(sampleStr))])
+    var body = utils.concatBufs([utf8BOM, utils.bytes(new TextEncoder().encode(sampleStr))])
     assert.equal(iconv.decode(body, "utf8", { stripBOM: false }), strBOM + sampleStr)
 
     var body = utils.concatBufs([utf16leBOM, iconv.encode(sampleStr, "utf16le")])
@@ -47,7 +46,7 @@ describe("BOM Handling", function () {
   })
 
   it("adds UTF-8 BOM when addBOM=true", function () {
-    var body = utils.concatBufs([utf8BOM, utils.bytes(Buffer.from(sampleStr))])
+    var body = utils.concatBufs([utf8BOM, utils.bytes(new TextEncoder().encode(sampleStr))])
     assert.deepStrictEqual(iconv.encode(sampleStr, "utf8", { addBOM: true }), body)
   })
 
@@ -71,13 +70,13 @@ describe("BOM Handling", function () {
     var bomStripped = false
     var stripBOM = function () { bomStripped = true }
 
-    var body = utils.concatBufs([utf8BOM, utils.bytes(Buffer.from(sampleStr))])
+    var body = utils.concatBufs([utf8BOM, utils.bytes(new TextEncoder().encode(sampleStr))])
     assert.equal(iconv.decode(body, "utf8", { stripBOM: stripBOM }), sampleStr)
     assert(bomStripped)
 
     bomStripped = false
 
-    body = utils.bytes(Buffer.from(sampleStr))
+    body = utils.bytes(new TextEncoder().encode(sampleStr))
     assert.equal(iconv.decode(body, "utf8", { stripBOM: stripBOM }), sampleStr)
     assert(!bomStripped)
   })
