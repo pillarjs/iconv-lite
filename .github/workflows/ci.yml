@@ -78,6 +78,9 @@ jobs:
 
   test:
     name: Run tests
+    permissions:
+      contents: read
+      checks: write
     strategy:
       fail-fast: false
       matrix:
@@ -104,10 +107,6 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
-
-      - name: Npm version fixes
-        if: ${{matrix.npm-version != ''}}
-        run: npm install -g ${{ matrix.npm-version }}
 
       - name: Configure npm loglevel
         run: |
@@ -140,34 +139,28 @@ jobs:
           name: coverage-node-${{ matrix.node-version }}-${{ matrix.os }}
           path: ./coverage/lcov.info
           retention-days: 1
-                
+
+      # Resolve LCOV source paths on their original OS; Coveralls combines the jobs.
+      - name: Report coverage to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          file: ./coverage/lcov.info
+          format: lcov
+          flag-name: node-${{ matrix.node-version }}-${{ matrix.os }}
+          parallel: true
+
   coverage:
     needs: test
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       checks: write
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Install lcov
-        shell: bash
-        run: sudo apt-get -y install lcov
-
-      - name: Collect coverage reports
-        uses: actions/download-artifact@v8
-        with:
-          path: ./coverage
-          pattern: coverage-node-*
-
-      - name: Merge coverage reports
-        shell: bash
-        run: find ./coverage -name lcov.info -exec printf '-a %q\n' {} \; | xargs lcov -o ./lcov.info
-
-      - name: Upload coverage report
+      - name: Finish parallel coverage reports
         uses: coverallsapp/github-action@v2
         with:
-          file: ./lcov.info
+          parallel-finished: true
 
   test_webpack:
     name: Run tests webpack
