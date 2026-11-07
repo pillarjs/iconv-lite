@@ -49,4 +49,18 @@ describe("DBCS backends #node-web", function () {
   it("replaces out-of-range GB18030 pointers on both backends", function () {
     assert.strictEqual(iconv.decode(utils.bytes("fe 39 fe 39"), "gb18030"), "�")
   })
+
+  it("keeps GBK encoding rules when decoding GB18030 sequences", function () {
+    for (const encoding of ["gbk", "xgbk", "isoir58"]) {
+      assert.strictEqual(iconv.decode(utils.bytes("95 30 83 35"), encoding), "😱")
+      assert.strictEqual(utils.hex(iconv.encode("€😱", encoding)), "80 3f")
+      const calls = []
+      const encoded = iconv.encode("€😱", encoding, {
+        invalidCharHandler (char) { calls.push(char); return "!" }
+      })
+      assert.deepStrictEqual(calls, ["😱"])
+      assert.strictEqual(utils.hex(encoded), "80 21")
+    }
+    assert.strictEqual(utils.hex(iconv.encode("€😱", "gb18030")), "a2 e3 95 30 83 35")
+  })
 })

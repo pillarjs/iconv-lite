@@ -1,3 +1,13 @@
+## Unreleased
+
+### 🐞 Bug fixes
+
+- Treat an invalid DBCS byte pair as one error - by [@b84330808](https://github.com/b84330808) in [#442](https://github.com/pillarjs/iconv-lite/pull/442)
+
+    Shift_JIS, EUC-KR, GBK, GB18030 and EUC-JP now handle an invalid two-byte sequence the way the Encoding Standard specifies, as Big5 already did: a non-ASCII second byte is consumed with the lead, and only an ASCII one is decoded again. CP936 and CP950 use the same error-recovery rule. Every lead byte that the standard defines is buffered, including rows with no assigned characters. Before, the second byte was read again as a new lead, so `81 E9 41 42` in Shift_JIS decoded to `U+FFFD 顴 B` and the `A` was lost.
+
+- Align additional GBK, GB18030 and EUC-JP decoding behavior with the Encoding Standard. GBK accepts GB18030 four-byte sequences while retaining its encoder. Incomplete GB18030 and EUC-JP sequences produce one replacement character at end-of-input. EUC-JP buffers every JIS X 0212 row and consumes invalid three-byte sequences as one error, reprocessing only an ASCII final byte.
+
 ## 1.0.0-alpha.4
 
 ### ⚠️ Breaking changes
