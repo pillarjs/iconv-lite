@@ -48,7 +48,7 @@ function forEachFourByteSequence (check) {
   assert.strictEqual(pointer, 1587600)
 }
 
-describe("GB18030 pointer ranges #node-web", function () {
+describe("GB18030 pointer ranges", function () {
   this.timeout(30000)
 
   for (const encoding of ["gb18030", "gbk"]) {

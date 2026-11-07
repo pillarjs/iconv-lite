@@ -649,7 +649,7 @@ describe("Full DBCS encoding tests", function () {
             var strExpected = bufExpected.toString("hex")
 
             var bufActual = iconv.encode(str, enc)
-            var strActual = bufActual.toString("hex")
+            var strActual = Buffer.from(bufActual).toString("hex")
 
             if (strExpected === strActual) continue
 
@@ -658,7 +658,7 @@ describe("Full DBCS encoding tests", function () {
 
             var str1 = iconv.decode(bufExpected, enc)
             var str12 = iconv.decode(bufActual, enc)
-            var str2 = convertWithDefault(converterBack, bufActual).toString()
+            var str2 = convertWithDefault(converterBack, Buffer.from(bufActual)).toString()
             var str22 = convertWithDefault(converterBack, bufExpected).toString()
             if (
               str1 === str &&

@@ -1,7 +1,7 @@
 import assert from "assert"
 import utils from "./helpers/utils.js"
 
-describe("Test utils RLE Encoding #node-web", function () {
+describe("Test utils RLE Encoding", function () {
   function assertRountrip (input) {
     assert.deepEqual(utils.rleDecode(utils.rleEncode(input)), input)
   }

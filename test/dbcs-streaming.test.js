@@ -2,7 +2,7 @@ import assert from "assert"
 import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
 
-describe("DBCS streaming #node-web", function () {
+describe("DBCS streaming", function () {
   const encodeCases = [
     ["big5", "Ê中", "88 66 a4 a4"],
     ["big5", "Ê𠕇", "88 66 fa 40"],
@@ -183,7 +183,7 @@ describe("DBCS streaming #node-web", function () {
   }
 })
 
-describe("DBCS exhaustive two-byte chunk boundaries #node-web", function () {
+describe("DBCS exhaustive two-byte chunk boundaries", function () {
   this.timeout(30000)
   for (const encoding of ["shiftjis", "eucjp", "cp936", "gbk", "gb18030", "cp949", "cp950", "big5hkscs"]) {
     it(`decodes ${encoding} identically when split`, function () {

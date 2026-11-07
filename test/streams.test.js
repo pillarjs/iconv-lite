@@ -1,9 +1,10 @@
 import mocha from "mocha"
 import assert from "assert"
 import { Buffer } from "buffer"
-import iconv from "../lib/index-node.js"
-
+import utils from "./helpers/utils.js"
 import { Readable } from "stream"
+
+const iconv = utils.requireIconv()
 var describeMocha = mocha.describe
 
 var describe = describeMocha
@@ -321,8 +322,8 @@ describe("Streaming sugar", function () {
       .pipe(iconv.encodeStream("windows-1251"))
       .collect(function (err, outp) {
         assert.ifError(err)
-        assert(Buffer.isBuffer(outp))
-        assert.equal(outp.toString("hex"), "e0e1e2e3e4e5")
+        assert.strictEqual(outp.constructor, utils.BytesType)
+        assert.equal(utils.hex(outp), "e0 e1 e2 e3 e4 e5")
         done()
       })
   })

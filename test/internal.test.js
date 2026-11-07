@@ -10,7 +10,7 @@ const cases = [
   { encoding: "base64", text: "AID/", bytes: "00 80 ff" }
 ]
 
-describe("Internal codecs #node-web", function () {
+describe("Internal codecs", function () {
   for (const { encoding, text, bytes } of cases) {
     it(`encodes and decodes ${encoding} with the environment's byte type`, function () {
       const encoded = iconv.encode(text, encoding)

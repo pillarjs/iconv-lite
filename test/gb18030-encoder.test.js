@@ -27,7 +27,7 @@ const encoderTable = [
   ["\uE864", "fe a0"]
 ]
 
-describe("GB18030 encoder #node-web", function () {
+describe("GB18030 encoder", function () {
   for (const useHandler of [false, true]) {
     it(`applies all 18 asymmetric mappings ${useHandler ? "with" : "without"} a handler`, function () {
       const options = useHandler

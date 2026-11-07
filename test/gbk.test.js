@@ -5,7 +5,7 @@ const iconv = utils.requireIconv()
 var testString = "中国abc" // unicode contains GBK-code and ascii
 var testStringGBKBuffer = utils.bytes("d6 d0 b9 fa 61 62 63")
 
-describe("GBK tests #node-web", function () {
+describe("GBK tests", function () {
   it("GBK correctly encoded/decoded", function () {
     assert.strictEqual(utils.hex(iconv.encode(testString, "GBK")), utils.hex(testStringGBKBuffer))
     assert.strictEqual(iconv.decode(testStringGBKBuffer, "GBK"), testString)

@@ -19,7 +19,7 @@ function buf (ascii) {
 // Where the spec leaves a choice we follow RFC 2152: the optional "Set O" punctuation and whitespace
 // (space, tab, CR, LF) are left direct (not Base64-encoded), and ill-formed input is replaced with U+FFFD.
 
-describe("UTF-7 codec #node-web", function () {
+describe("UTF-7 codec", function () {
   it("encodes correctly", function () {
     // Examples from RFC 2152.
     assert.equal(enc("A\u2262\u0391.", "utf-7"), "A+ImIDkQ-.")
@@ -222,7 +222,7 @@ describe("UTF-7 codec #node-web", function () {
   })
 })
 
-describe("UTF-7-IMAP codec #node-web", function () {
+describe("UTF-7-IMAP codec", function () {
   it("encodes correctly", function () {
     // Examples from RFC 2152.
     assert.equal(enc("A\u2262\u0391.", "utf-7-imap"), "A&ImIDkQ-.")

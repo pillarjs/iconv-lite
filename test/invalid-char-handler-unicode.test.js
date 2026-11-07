@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import Iconv from "../lib/iconv-node.js"
 import defaultIconv from "../lib/index-node.js"
 
-describe("invalidCharHandler (Unicode and binary) #node-web", function () {
+describe("invalidCharHandler (Unicode and binary)", function () {
   let iconv
   beforeEach(function () { iconv = new Iconv(defaultIconv.backend) })
 

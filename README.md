@@ -280,12 +280,20 @@ Node versions 0.10.31 and 0.11.13 are buggy, don't use them (see [#65](https://g
 git clone git@github.com:ashtuchkin/iconv-lite.git
 cd iconv-lite
 npm install
+# Runs the complete suite twice in Node.js: once with each backend.
 npm test
-    
+
+# To run one backend:
+npm run test:node
+npm run test:web
+
+# To pass Mocha arguments to a specific backend:
+npm run test:web -- --grep "GB18030" --reporter dot
+
 # To view performance:
 npm run test:performance
 
-# To view test coverage: 
+# To view combined coverage from both backends:
 npm run test:cov
 open coverage/index.html
 ```

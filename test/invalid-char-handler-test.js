@@ -2,7 +2,7 @@ import assert from "assert"
 import defaultIconv from "../lib/index-node.js"
 import Iconv from "../lib/iconv-node.js"
 
-describe("invalidCharHandler (SBCS) #node-web", function () {
+describe("invalidCharHandler (SBCS)", function () {
   let iconv
 
   beforeEach(function () {

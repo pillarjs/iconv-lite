@@ -17,7 +17,7 @@ async function collect (stream) {
   return chunks
 }
 
-describe("External encodings #node-web", function () {
+describe("External encodings", function () {
   let iconv
   beforeEach(function () { iconv = new Iconv(defaultIconv.backend) })
 
