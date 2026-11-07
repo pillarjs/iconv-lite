@@ -1,4 +1,4 @@
-import assert from "node:assert/strict"
+import { strict as assert } from "assert"
 import Iconv from "../lib/iconv.js"
 import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
