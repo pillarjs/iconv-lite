@@ -32,13 +32,18 @@ export default {
   // Decoder bytes input: use only array access + .length, so both Buffer-s and Uint8Array-s work.
   // Decoder string output: allocRawChars -> use Uint16Array -> rawCharsToResult().
   allocRawChars (numChars) {
-    // NOTE: We could do a 'new ArrayBuffer' here, but Buffer.alloc gives us pooling, which makes small chunks faster.
-    const buf = Buffer.alloc(numChars * Uint16Array.BYTES_PER_ELEMENT)
-    return new Uint16Array(buf.buffer, buf.byteOffset, numChars)
+    return new Uint16Array(numChars)
   },
   rawCharsToResult (rawChars, finalLen) {
     if (finalLen === 0) {
       return ""
+    }
+    // Avoid exposing the backing ArrayBuffer for short outputs. Native UCS-2
+    // conversion is faster once the character buffer exceeds 64 bytes.
+    if (rawChars.length <= 32) {
+      // Copying a short prefix is faster than creating a subarray view here.
+      const chars = finalLen === rawChars.length ? rawChars : rawChars.slice(0, finalLen)
+      return String.fromCharCode.apply(null, chars as unknown as number[])
     }
     return Buffer.from(rawChars.buffer, rawChars.byteOffset, finalLen * Uint16Array.BYTES_PER_ELEMENT)
       .toString("ucs2")
