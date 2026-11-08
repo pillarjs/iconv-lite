@@ -102,6 +102,7 @@ iconv.encode('Hello 世界', 'windows-1252', { defaultCharByte: 0x21 }); // "Hel
 
 The option also works with `getEncoder()`, `encodeStream()` and `encodeWebStream()`.
 Each encoder captures its setting at creation. The default is `0x3F` (`?`).
+ISO-2022-JP restricts the replacement to ASCII bytes other than ESC, SO and SI.
 Replacement settings do not modify shared codec tables.
 
 Single-byte encoders emit one replacement byte per unrepresentable Unicode code
@@ -135,7 +136,7 @@ the existing encoding behavior.
 ### Rejecting invalid encoded input
 
 Pass `{ fatal: true }` to throw a `TypeError` when decoding invalid input.
-This is supported by UTF-8, UTF-16, UTF-32 and table-based single-byte encodings,
+This is supported by UTF-8, UTF-16, UTF-32, ISO-2022-JP and table-based single-byte encodings,
 including Windows-874 and Windows-125x. The default remains replacement decoding.
 
 ```javascript
@@ -150,7 +151,7 @@ valid write. Stream errors propagate through the stream's error mechanism.
 Legacy multibyte encodings such as Shift_JIS, GB18030 and Big5 do not yet support
 this option.
 
-For table-based single-byte and multibyte encodings, CESU-8 and UTF-32, pass
+For table-based single-byte and multibyte encodings, ISO-2022-JP, CESU-8 and UTF-32, pass
 `defaultCharUnicode` to choose the text inserted for each decoding error:
 
 ```javascript
@@ -261,7 +262,7 @@ during either `write()` or `end()` makes the one-shot `encode()` return `null`.
  *  All widespread singlebyte encodings: Windows 125x family, ISO-8859 family, 
     IBM/DOS codepages, Macintosh family, KOI8 family, all others supported by iconv library. 
     Aliases like 'latin1', 'us-ascii' also supported.
- *  All widespread multibyte encodings: CP932, CP936, CP949, CP950, GB2312, GBK, GB18030, Big5, Shift_JIS, EUC-JP.
+ *  All widespread multibyte encodings: CP932, CP936, CP949, CP950, GB2312, GBK, GB18030, Big5, Shift_JIS, EUC-JP, ISO-2022-JP.
 
 See [all supported encodings on wiki](https://github.com/ashtuchkin/iconv-lite/wiki/Supported-Encodings).
 
@@ -350,6 +351,21 @@ This library supports UTF-7 (RFC 2152) and UTF-7-IMAP / Modified UTF-7 (RFC 3501
 
 UTF-7 is designed for short, 7-bit-safe strings (mail headers, IMAP mailbox names) and is best used that way.
 It is not recommended for large or bulk text, where the native `utf8`/`utf16` encodings are faster.
+
+## ISO-2022-JP
+
+ISO-2022-JP is the stateful 7-bit Japanese encoding common in email. Encoding and decoding follow the
+[WHATWG Encoding Standard](https://encoding.spec.whatwg.org/#iso-2022-jp).
+ * Decoding supports ASCII, JIS X 0201 Roman and Katakana, and JIS X 0208 (`ESC $ @` and `ESC $ B`). Escape sequences
+   and characters may be split across stream chunks. Ill-formed input is replaced with �, including two escape
+   sequences in a row with nothing between them (a WHATWG rule that prevents hiding content).
+ * Encoding uses ASCII, JIS X 0201 Roman (for ¥ and ‾) and JIS X 0208, and always ends in ASCII. CR and LF preserve
+   Roman state; they switch JIS X 0208 back to ASCII. Halfwidth katakana are encoded as fullwidth, and characters
+   with no mapping become `?` using the same state transitions as an ASCII input character.
+ * Supports `fatal`, `defaultCharUnicode`, `defaultCharByte` and `invalidCharHandler`. The replacement byte must
+   be ASCII and cannot be ESC (`0x1B`), SO (`0x0E`) or SI (`0x0F`), which would change or invalidate the encoding state.
+ * Character mappings are the same as the `EUC-JP` codec (and browsers). They differ from the JIS mappings used by
+   GNU iconv and Python for 6 characters: for example, 0x2141 decodes to U+FF5E (～), not U+301C (〜).
 
 ## Other notes
 

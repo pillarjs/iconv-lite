@@ -1,7 +1,7 @@
 // Encoding-label aliases from the WHATWG Encoding Standard (https://encoding.spec.whatwg.org/).
 // Keys are canonicalized labels (lowercase, separators stripped); values are existing iconv-lite
-// encoding names. Labels whose target encoding iconv-lite does not implement (e.g. iso-2022-jp,
-// x-user-defined) are intentionally omitted.
+// encoding names. Labels whose target encoding iconv-lite does not implement (e.g. x-user-defined)
+// are intentionally omitted.
 
 export default {
   // These legacy labels use the Windows mappings on the web. This registry is

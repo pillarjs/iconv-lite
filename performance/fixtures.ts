@@ -22,6 +22,9 @@ const encodingStrings: Record<string, string> = {
   big5hkscs: "中文測試Ê\u0304𠕇abc12",
   shift_jis: "日本語の文字列テストabc12",
   eucjp: "日本語の文字列テスト˘abc12",
+  "iso-2022-jp": "日本語の文字列テストabc12",
+  "iso-2022-jp-ascii": "This is a test string 32 chars..",
+  "iso-2022-jp-transitions": "a管b理¥x\r\n‾\\~\n日本",
   cp949: "한국어문자열테스트abc12",
   utf8: "这是中文字符测试。。！@￥%12This is a test string 48 chars..",
   "utf-16le": "这是中文字符测试。。！@￥%12This is a test string 48 chars..",
@@ -75,7 +78,11 @@ export async function createCases () {
   }
 
   for (const [label, baseString] of Object.entries(encodingStrings)) {
-    const encoding = label === "gbk-ascii" ? "gbk" : label.startsWith("gb18030-") ? "gb18030" : label
+    const encoding = label === "gbk-ascii"
+      ? "gbk"
+      : label.startsWith("gb18030-")
+        ? "gb18030"
+        : label.startsWith("iso-2022-jp-") ? "iso-2022-jp" : label
     const alternatives = competitors(encoding)
     const nativeEncoding = canonicalEncoding(encoding)
     for (const [size, repeat] of Object.entries(sizes)) {
@@ -130,8 +137,9 @@ export async function createCases () {
     }
   }
 
-  for (const encoding of ["big5hkscs", "gb18030"]) {
-    const buffer = Uint8Array.from(implementations[0].codec.encode(encodingStrings[encoding], encoding))
+  for (const encoding of ["big5hkscs", "gb18030", "iso-2022-jp"]) {
+    const string = encodingStrings[encoding === "iso-2022-jp" ? "iso-2022-jp-transitions" : encoding]
+    const buffer = Uint8Array.from(implementations[0].codec.encode(string, encoding))
     for (const { name, codec, bytes } of implementations) {
       const input = bytes.from(buffer)
       const decodeChunks = function () {
@@ -140,11 +148,19 @@ export async function createCases () {
         for (let i = 0; i < input.length; i++) result += decoder.write(input.subarray(i, i + 1))
         return result + (decoder.end() || "")
       }
-      add(`${encoding}/byte-chunks/decode/${name}`, decodeChunks, encodingStrings[encoding])
+      add(`${encoding}/byte-chunks/decode/${name}`, decodeChunks, string)
     }
     for (const codec of competitors(encoding)) {
       add(`${encoding}/byte-chunks/decode/${codec.name}`,
-        codec.decodeChunks && (() => codec.decodeChunks!(buffer)), encodingStrings[encoding])
+        codec.decodeChunks && (() => codec.decodeChunks!(buffer)), string)
+    }
+    if (encoding === "iso-2022-jp" && textDecoderSupports(encoding)) {
+      add(`${encoding}/byte-chunks/decode/native-TextDecoder`, () => {
+        const decoder = new TextDecoder(encoding)
+        let result = ""
+        for (let i = 0; i < buffer.length; i++) result += decoder.decode(buffer.subarray(i, i + 1), { stream: true })
+        return result + decoder.decode()
+      }, string)
     }
   }
 
