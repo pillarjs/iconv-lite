@@ -29,6 +29,7 @@
     "erasableSyntaxOnly": true
   },
   "include": [
+    ".size-limit.ts",
     "lib/**/*.ts",
     "backends/**/*.ts",
     "encodings/**/*.ts",

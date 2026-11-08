@@ -47,6 +47,25 @@ jobs:
       - name: Run lint
         run: npm run lint
 
+  size:
+    name: Check package size
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js LTS
+        uses: actions/setup-node@v7
+        with:
+          node-version: 'lts/*'
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts --include=dev
+
+      - name: Check package size
+        run: npm run size
+
   performance:
     name: Run performance test
     strategy:
