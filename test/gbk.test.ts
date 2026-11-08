@@ -114,6 +114,20 @@ describe("GBK tests", function () {
     expect(iconv.decode(utils.bytes("81 35 f4 37"), "GBK")).toBe("\uE7C7")
   })
 
+  it("GBK applies the GB18030 encoder table to private-use characters", function () {
+    // https://encoding.spec.whatwg.org/#gb18030-encoder
+    const text = "\uE78D\uE796\uE81E\uE82C\uE864"
+    const expected = "a6 d9 a6 f3 fe 59 fe 67 fe a0"
+    for (const encoding of ["GBK", "x-gbk", "iso-ir-58"]) {
+      expect(utils.hex(iconv.encode(text, encoding)), encoding).toBe(expected)
+      expect(utils.hex(iconv.encode(text, encoding, {
+        invalidCharHandler () { throw new Error("representable character") }
+      })), encoding).toBe(expected)
+    }
+    expect(utils.hex(iconv.encode("\uE5E5", "GBK"))).toBe("3f")
+    expect(iconv.decode(utils.bytes("a6 d9 fe 67"), "GBK")).toBe("\uFE10\u9FB7")
+  })
+
   it("GBK reports U+E7C7 to the handler and respects its replacement or cancellation", function () {
     for (const [replacement, expected] of [
       [undefined, "61 80 3f 62"],
