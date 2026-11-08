@@ -1,0 +1,54 @@
+// Runs the vendored Web Platform Tests (test/wpt/encoding/*.any.js) against
+// iconv-lite using wpt-runner (jsdom) with the TextDecoder/TextEncoder shim from
+// ./shim.ts. The WPT files are unmodified upstream copies (see ./README.md).
+//
+//   npm run test:wpt                  # run all vendored encoding/*.any.js
+//   node test/wpt/run.ts textdecoder-fatal   # filter by filename substring
+//   node test/wpt/run.ts "" --strict         # exit non-zero on any failure
+
+import path from "path"
+import wptRunner from "wpt-runner"
+import setup from "./shim.ts"
+import { WINDOW_TESTS, isWindowTest, runWindowTest } from "./run-window.ts"
+import { runDecodeCompare } from "./decode-compare.ts"
+
+const args = process.argv.slice(2)
+const strict = args.includes("--strict")
+const target = args.find((a) => !a.startsWith("--")) || ""
+
+const wptRoot = path.join(import.meta.dirname, "upstream")
+
+// vm-based window tests (Node.js-style runner) that jsdom can't run.
+let extraFailures = 0
+for (const t of WINDOW_TESTS.filter((t) => t.file.includes(target))) {
+  const r = runWindowTest(t)
+  extraFailures += r.fail
+  console.log(`${r.file} (${t.variant}) — ${r.pass} pass, ${r.fail} fail`)
+}
+
+// Index-driven decode-compare for the legacy multi-byte encodings without an
+// upstream TextDecoder test (shift_jis/euc-jp/euc-kr/big5).
+if ("decode-compare".includes(target) || target === "") {
+  for (const r of runDecodeCompare()) {
+    extraFailures += r.fail
+    console.log(`decode-compare: ${r.enc} — ${r.pass} pass, ${r.fail} fail`)
+  }
+}
+
+// Serve from the WPT root so both relative (resources/...) and absolute
+// (/common/...) test includes resolve. jsdom runs the `.any.js` API tests;
+// mapping tests with query variants are handled by the vm runner above.
+//
+// TODO: the non-TextDecoder variants (?XMLHttpRequest, ?document)
+// and the legacy-mb iframe tests need the official WPT python server. Running
+// those (e.g. via `wpt serve`) is future work to extend coverage.
+wptRunner(wptRoot, {
+  rootURL: "/",
+  setup,
+  filter: (testPath) => /\.any\.html$/.test(testPath) && !isWindowTest(testPath) && testPath.includes(target)
+})
+  .then((failures) => {
+    console.log(`\n=== ${failures + extraFailures} failing WPT test(s) against iconv-lite ===`)
+    process.exit(strict && failures + extraFailures > 0 ? 1 : 0)
+  })
+  .catch((err) => { console.error(err); process.exit(1) })

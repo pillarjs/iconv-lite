@@ -1,15 +1,46 @@
 {
   "compilerOptions": {
-    "target": "es2022",
+    "target": "ES2022",
     "lib": [
-      "es2015"
+      "ES2024",
+      "DOM"
     ],
     "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "paths": {
+      "iconv-lite": [
+        "./lib/index-node.ts"
+      ],
+      "iconv-lite/web": [
+        "./lib/index-web.ts"
+      ],
+      "iconv-lite/encodings/*.js": [
+        "./encodings/*.ts"
+      ]
+    },
+    "types": [
+      "node",
+      "vitest/globals"
+    ],
     "noEmit": true,
-    "strict": true
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true
   },
   "include": [
-    "./test/types/**/*.ts",
-    "./**/*.d.ts"
+    ".size-limit.ts",
+    "lib/**/*.ts",
+    "backends/**/*.ts",
+    "encodings/**/*.ts",
+    "test/**/*.ts",
+    "performance/**/*.ts",
+    "generation/**/*.ts",
+    "vitest*.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test/wpt/upstream"
   ]
 }

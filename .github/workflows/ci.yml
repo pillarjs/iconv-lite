@@ -41,8 +41,30 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts --include=dev
 
+      - name: Build package
+        run: npm run build
+
       - name: Run lint
         run: npm run lint
+
+  size:
+    name: Check package size
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js LTS
+        uses: actions/setup-node@v7
+        with:
+          node-version: 'lts/*'
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts --include=dev
+
+      - name: Check package size
+        run: npm run size
 
   performance:
     name: Run performance test
@@ -138,13 +160,15 @@ jobs:
         shell: bash
         run: npm run test:ci
 
-      - name: Run typescript tests
-        run: npm run test:typescript
+      - name: Check types
+        run: npm run typecheck
 
+      # Node 22.0 lacks native TypeScript support; its library tests still run above.
       - name: WPT encoding conformance report
+        if: matrix.node-version != '22.0.0'
         shell: bash
         continue-on-error: true
-        run: node test/wpt/report.js >> "$GITHUB_STEP_SUMMARY"
+        run: node test/wpt/report.ts >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload code coverage
         uses: actions/upload-artifact@v7

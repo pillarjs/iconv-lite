@@ -8,6 +8,7 @@ package-lock.json
 /.idea
 
 # Development environment
+/dist
 /coverage
 /benchmarks/node_envs
 /generation/source-data

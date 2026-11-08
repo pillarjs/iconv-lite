@@ -1,0 +1,283 @@
+import { expect } from "vitest"
+import utils from "./helpers/utils.js"
+const iconv = utils.requireIconv()
+
+// UTF-7 output is pure ASCII; turn the backend bytes into a string for readable assertions
+// (works with both the Node Buffer and the Web Uint8Array backends).
+function enc (str: string, encoding: string) {
+  return Array.prototype.map.call(iconv.encode(str, encoding), (b) => String.fromCharCode(b)).join("")
+}
+
+// ASCII string -> backend bytes (Buffer in Node, Uint8Array in the browser).
+function buf (ascii: string) {
+  const arr = []
+  for (let i = 0; i < ascii.length; i++) { arr.push(ascii.charCodeAt(i)) }
+  return utils.bytes(arr)
+}
+
+// Several encode/decode cases come from https://github.com/kkaefer/utf7 and the RFC 2152 examples.
+// Where the spec leaves a choice we follow RFC 2152: the optional "Set O" punctuation and whitespace
+// (space, tab, CR, LF) are left direct (not Base64-encoded), and ill-formed input is replaced with U+FFFD.
+
+describe("UTF-7 codec", function () {
+  it("encodes correctly", function () {
+    // Examples from RFC 2152.
+    expect(enc("A\u2262\u0391.", "utf-7")).toBe("A+ImIDkQ-.")
+    expect(enc("\u65E5\u672C\u8A9E", "utf-7")).toBe("+ZeVnLIqe-")
+
+    // Set O characters ('!', '"', ...) are left direct, per RFC 2152.
+    expect(enc("Hi Mom -\u263A-!", "utf-7")).toBe("Hi Mom -+Jjo--!")
+
+    expect(enc("Item 3 is \u00A31.", "utf-7")).toBe("Item 3 is +AKM-1.")
+
+    // Custom examples that contain more than one mode shift.
+    expect(enc("Jyv\u00E4skyl\u00E4", "utf-7")).toBe("Jyv+AOQ-skyl+AOQ-")
+    expect(enc("'\u4F60\u597D' hei\u00DFt \"Hallo\"", "utf-7")).toBe("'+T2BZfQ-' hei+AN8-t \"Hallo\"")
+
+    // The plus sign is represented as +-.
+    expect(enc("Hot + Spicy + Fruity", "utf-7")).toBe("Hot +- Spicy +- Fruity")
+
+    // Slashes in the beginning.
+    expect(enc("\uFFFF\uEDCA\u9876\u5432\u1FED", "utf-7")).toBe("+///typh2VDIf7Q-")
+
+    // + sign around non-ASCII chars
+    expect(enc("\u00E4+\u00E4+\u00E4", "utf-7")).toBe("+AOQAKwDkACsA5A-")
+
+    // A long direct run (>= 16 chars) goes through the bulk TextEncoder path -- both when it is the
+    // whole string and when it is only a slice of it (followed by a shifted run).
+    expect(enc("This is a long ASCII run.", "utf-7")).toBe("This is a long ASCII run.")
+    expect(enc("This is a long ASCII run\u4E2D", "utf-7")).toBe("This is a long ASCII run+Ti0-")
+
+    // A long non-ASCII run (>= the bulk-encode threshold) packs the Base64 with one native toBase64
+    // call (Node 25+/browsers) or the bit accumulator (elsewhere); both produce identical bytes.
+    const longRun = "\u4E2D".repeat(64)
+    expect(enc(longRun, "utf-7")).toBe("+" + "Ti1OLU4t".repeat(21) + "Ti0-")
+    expect(iconv.decode(iconv.encode(longRun, "utf-7"), "utf-7")).toBe(longRun)
+
+    // Whitespace (space, tab, CR, LF) is represented directly (RFC 2152, Rule 3).
+    expect(enc("a\tb\r\nc d", "utf-7")).toBe("a\tb\r\nc d")
+  })
+
+  it("decodes correctly", function () {
+    // Examples from RFC 2152.
+    expect(iconv.decode(buf("A+ImIDkQ-."), "utf-7")).toBe("A\u2262\u0391.")
+    expect(iconv.decode(buf("A+ImIDkQ."), "utf-7")).toBe("A\u2262\u0391.")
+
+    expect(iconv.decode(buf("+ZeVnLIqe-"), "utf-7")).toBe("\u65E5\u672C\u8A9E")
+    expect(iconv.decode(buf("+ZeVnLIqe"), "utf-7")).toBe("\u65E5\u672C\u8A9E")
+
+    expect(iconv.decode(buf("Hi Mom -+Jjo--!"), "utf-7")).toBe("Hi Mom -\u263A-!")
+    expect(iconv.decode(buf("Hi+ACA-Mom+ACA--+Jjo--+ACE-"), "utf-7")).toBe("Hi Mom -\u263A-!")
+    expect(iconv.decode(buf("Item 3 is +AKM-1."), "utf-7")).toBe("Item 3 is \u00A31.")
+    expect(iconv.decode(buf("Item+ACA-3+ACA-is+ACAAow-1."), "utf-7")).toBe("Item 3 is \u00A31.")
+
+    // Custom examples that contain more than one mode shift.
+    expect(iconv.decode(buf("Jyv+AOQ-skyl+AOQ-"), "utf-7")).toBe("Jyv\u00E4skyl\u00E4")
+    expect(iconv.decode(buf("Jyv+AOQ-skyl+AOQ"), "utf-7")).toBe("Jyv\u00E4skyl\u00E4")
+    expect(iconv.decode(buf("'+T2BZfQ-' hei+AN8-t \"Hallo\""), "utf-7")).toBe("'\u4F60\u597D' hei\u00DFt \"Hallo\"")
+    expect(iconv.decode(buf("'+T2BZfQ' hei+AN8-t \"Hallo\""), "utf-7")).toBe("'\u4F60\u597D' hei\u00DFt \"Hallo\"")
+    expect(iconv.decode(buf("'+T2BZfQ-'+ACA-hei+AN8-t+ACAAIg-Hallo+ACI-"), "utf-7")).toBe("'\u4F60\u597D' hei\u00DFt \"Hallo\"")
+    expect(iconv.decode(buf("'+T2BZfQ-'+ACA-hei+AN8-t+ACAAIg-Hallo+ACI"), "utf-7")).toBe("'\u4F60\u597D' hei\u00DFt \"Hallo\"")
+
+    // The plus sign is represented by +-.
+    expect(iconv.decode(buf("Hot +- Spicy +- Fruity"), "utf-7")).toBe("Hot + Spicy + Fruity")
+    expect(iconv.decode(buf("Hot+ACAAKwAg-Spicy+ACAAKwAg-Fruity"), "utf-7")).toBe("Hot + Spicy + Fruity")
+
+    // Slashes in the beginning.
+    expect(iconv.decode(buf("+///typh2VDIf7Q-"), "utf-7")).toBe("\uFFFF\uEDCA\u9876\u5432\u1FED")
+    expect(iconv.decode(buf("+///typh2VDIf7Q"), "utf-7")).toBe("\uFFFF\uEDCA\u9876\u5432\u1FED")
+
+    // + sign around non-ASCII chars
+    expect(iconv.decode(buf("+AOQ-+-+AOQ-+-+AOQ-"), "utf-7")).toBe("\u00E4+\u00E4+\u00E4")
+    expect(iconv.decode(buf("+AOQAKwDkACsA5A-"), "utf-7")).toBe("\u00E4+\u00E4+\u00E4")
+    expect(iconv.decode(buf("+AOQAKwDkACsA5A"), "utf-7")).toBe("\u00E4+\u00E4+\u00E4")
+
+    // Tests from https://gist.github.com/peteroupc/08c5ecc8131a76062ffe
+    expect(iconv.decode(buf("\r\n\t '!\"#'(),$-%@[]^&=<>;*_`{}./:|?"), "utf-7")).toBe("\r\n\t '!\"#'(),$-%@[]^&=<>;*_`{}./:|?")
+    expect(iconv.decode(buf("x+--"), "utf-7")).toBe("x+-")
+    expect(iconv.decode(buf("x+-y"), "utf-7")).toBe("x+y")
+
+    // UTF-16 code unit
+    expect(iconv.decode(buf("+DEE?"), "utf-7")).toBe("\u0C41?")
+    expect(iconv.decode(buf("+DEE"), "utf-7")).toBe("\u0C41")
+
+    // Surrogate pair
+    expect(iconv.decode(buf("+2ADcAA?"), "utf-7")).toBe("\uD800\uDC00?")
+    expect(iconv.decode(buf("+2ADcAA"), "utf-7")).toBe("\uD800\uDC00")
+
+    // Two UTF-16 code units
+    expect(iconv.decode(buf("+AMAA4A?"), "utf-7")).toBe("\u00C0\u00E0?")
+    expect(iconv.decode(buf("+AMAA4A"), "utf-7")).toBe("\u00C0\u00E0")
+    expect(iconv.decode(buf("+AMAA4A-Next"), "utf-7")).toBe("\u00C0\u00E0Next")
+    expect(iconv.decode(buf("+AMAA4A!Next"), "utf-7")).toBe("\u00C0\u00E0!Next")
+  })
+
+  it("replaces ill-formed sequences with U+FFFD (RFC 2152)", function () {
+    // Incomplete code unit: a single Base64 char carries only 6 bits, not a full 16-bit unit.
+    expect(iconv.decode(buf("+D-"), "utf-7")).toBe("\uFFFD")
+    // Truncated Base64 at end of stream (no terminator), still an incomplete code unit.
+    expect(iconv.decode(buf("+DE"), "utf-7")).toBe("\uFFFD")
+    // A complete code unit followed by non-zero padding bits.
+    expect(iconv.decode(buf("+DEH-"), "utf-7")).toBe("\u0C41\uFFFD")
+    // Non-ASCII byte while unshifted (only ASCII is valid in direct mode).
+    expect(iconv.decode(utils.bytes([0x41, 0x80, 0x42]), "utf-7")).toBe("A\uFFFDB")
+    // A non-ASCII byte ends the Base64 run (it's not Base64), then is re-read as ill-formed direct.
+    expect(iconv.decode(utils.bytes([0x2b, 0x41, 0x4f, 0x51, 0x80]), "utf-7")).toBe("\u00E4\uFFFD")
+    // A medium invalid Base64 run (length % 4 === 1, past the inline threshold) -> U+FFFD.
+    expect(iconv.decode(buf("+" + "A".repeat(109) + "-"), "utf-7")).toBe("\uFFFD")
+    // A long invalid Base64 run (length % 4 === 1) -> U+FFFD (the bulk decode rejects it too).
+    expect(iconv.decode(buf("+" + "A".repeat(345) + "-"), "utf-7")).toBe("\uFFFD")
+    // A long well-formed-length run with non-zero trailing bits: the bulk path still yields the whole
+    // code units, and the run-level check appends U+FFFD (no silent truncation on the fast path).
+    expect(iconv.decode(buf("+" + "A".repeat(348) + "-"), "utf-7")).toBe("\u0000".repeat(130) + "\uFFFD")
+  })
+
+  it("handles edge cases", function () {
+    // Empty input.
+    expect(enc("", "utf-7")).toBe("")
+    expect(iconv.decode(buf(""), "utf-7")).toBe("")
+
+    // Non-BMP character (surrogate pair) round-trips through Base64.
+    expect(enc("\uD83D\uDE00", "utf-7")).toBe("+2D3eAA-")
+    expect(iconv.decode(buf("+2D3eAA-"), "utf-7")).toBe("\uD83D\uDE00")
+
+    // '&' is an ordinary Set O direct char in plain UTF-7 (unlike UTF-7-IMAP, where it shifts).
+    expect(enc("a&b", "utf-7")).toBe("a&b")
+    expect(iconv.decode(buf("a&b"), "utf-7")).toBe("a&b")
+
+    // '\' and '~' are not direct, so they are Base64-encoded.
+    expect(enc("\\~", "utf-7")).toBe("+AFwAfg-")
+    expect(iconv.decode(buf("+AFwAfg-"), "utf-7")).toBe("\\~")
+
+    // A trailing lone '+' becomes "+-".
+    expect(enc("a+", "utf-7")).toBe("a+-")
+
+    // RFC 2152: "+" followed immediately by a non-Base64, non-'-' char is ill-formed (-> U+FFFD);
+    // the terminator is then re-read as direct.
+    expect(iconv.decode(buf("+."), "utf-7")).toBe("\uFFFD.")
+    expect(iconv.decode(buf("&."), "utf-7-imap")).toBe("\uFFFD.")
+  })
+
+  it("decodes across streaming chunk boundaries", function () {
+    function decodeChunks (chunks: string[], encoding: string) {
+      const decoder = iconv.getDecoder(encoding)
+      let res = ""
+      for (let i = 0; i < chunks.length; i++) {
+        res += decoder.write(buf(chunks[i]))
+      }
+      const trail = decoder.end()
+      return trail ? res + trail : res
+    }
+
+    // Base64 run split mid-run (between code units of "ImIDkQ").
+    expect(decodeChunks(["A+ImI", "DkQ-."], "utf-7")).toBe("A\u2262\u0391.")
+    // Split at the shift-in boundary, run ends via end() with no trailing '-'.
+    expect(decodeChunks(["abc+", "ZeVnLIqe"], "utf-7")).toBe("abc\u65E5\u672C\u8A9E")
+    // The "+-" -> "+" escape split across chunks.
+    expect(decodeChunks(["x+", "-y"], "utf-7")).toBe("x+y")
+  })
+
+  it("decodes long runs and passes lone surrogates through", function () {
+    // A short run (< the inline threshold) decodes via the hand-rolled accumulator.
+    const short = "\u4E2D".repeat(10)
+    expect(iconv.decode(iconv.encode(short, "utf-7"), "utf-7")).toBe(short)
+    // A run just past the inline threshold but below the TextDecoder one (atob + fromCharCode).
+    const small = "\u4E2D".repeat(50)
+    expect(iconv.decode(iconv.encode(small, "utf-7"), "utf-7")).toBe(small)
+    // A medium BMP run (~100 units) uses the atob + bulk utf-16le step.
+    const medium = "\u4E2D".repeat(100)
+    expect(iconv.decode(iconv.encode(medium, "utf-7"), "utf-7")).toBe(medium)
+    // A long BMP run (no surrogates) round-trips via the bulk TextDecoder path.
+    const long = "\u4E2D".repeat(600)
+    expect(iconv.decode(iconv.encode(long, "utf-7"), "utf-7")).toBe(long)
+    // A medium run of surrogate pairs (atob path, below the TextDecoder threshold) round-trips via
+    // the verbatim fromCharCode path (a surrogate keeps it off the TextDecoder path).
+    const emojiMedium = "\uD83D\uDE00".repeat(30)
+    expect(iconv.decode(iconv.encode(emojiMedium, "utf-7"), "utf-7")).toBe(emojiMedium)
+    // A long run of valid surrogate pairs (non-BMP) round-trips via the verbatim fromCharCode path.
+    const emoji = "\uD83D\uDE00".repeat(200)
+    expect(iconv.decode(iconv.encode(emoji, "utf-7"), "utf-7")).toBe(emoji)
+    // Per RFC 2152 the Base64 carries raw 16-bit units, so a lone surrogate passes through as its
+    // code unit (not U+FFFD), consistently in a short run and in a long run.
+    expect(iconv.decode(buf("+2AA-"), "utf-7")).toBe("\uD800")
+    const lone = "\u4E2D".repeat(600) + "\uD800"
+    expect(iconv.decode(iconv.encode(lone, "utf-7"), "utf-7")).toBe(lone)
+  })
+
+  it("flushes long runs incrementally across chunks (bounded memory)", function () {
+    // A long run split at arbitrary (sub-quantum) byte boundaries reconstructs correctly.
+    const long = "\u4E2D".repeat(1000)
+    const encoded = iconv.encode(long, "utf-7")
+    const decoder = iconv.getDecoder("utf-7")
+    let res = ""
+    for (let p = 0; p < encoded.length; p += 7) {
+      res += decoder.write(encoded.subarray(p, p + 7))
+    }
+    const trail = decoder.end()
+    expect(trail ? res + trail : res).toBe(long)
+
+    // A never-terminating run is flushed as it streams in, not buffered whole until it closes.
+    const partial = iconv.getDecoder("utf-7").write(buf("+" + "AAAAAAAA".repeat(500)))
+    expect(partial.length > 0, "expected incremental output for an unterminated run").toBeTruthy()
+  })
+})
+
+describe("UTF-7-IMAP codec", function () {
+  it("encodes correctly", function () {
+    // Examples from RFC 2152.
+    expect(enc("A\u2262\u0391.", "utf-7-imap")).toBe("A&ImIDkQ-.")
+    expect(enc("\u65E5\u672C\u8A9E", "utf-7-imap")).toBe("&ZeVnLIqe-")
+    expect(enc("Hi Mom -\u263A-!", "utf-7-imap")).toBe("Hi Mom -&Jjo--!")
+    expect(enc("Item 3 is \u00A31.", "utf-7-imap")).toBe("Item 3 is &AKM-1.")
+
+    // Custom examples that contain more than one mode shift.
+    expect(enc("Jyv\u00E4skyl\u00E4", "utf-7-imap")).toBe("Jyv&AOQ-skyl&AOQ-")
+    expect(enc("'\u4F60\u597D' hei\u00DFt \"Hallo\"", "utf-7-imap")).toBe("'&T2BZfQ-' hei&AN8-t \"Hallo\"")
+
+    // The ampersand sign is represented as &-.
+    expect(enc("Hot & Spicy & Fruity", "utf-7-imap")).toBe("Hot &- Spicy &- Fruity")
+
+    // Slashes are converted to commas.
+    expect(enc("\uFFFF\uEDCA\u9876\u5432\u1FED", "utf-7-imap")).toBe("&,,,typh2VDIf7Q-")
+
+    // & sign around non-ASCII chars
+    expect(enc("\u00E4&\u00E4&\u00E4", "utf-7-imap")).toBe("&AOQ-&-&AOQ-&-&AOQ-")
+  })
+
+  it("decodes correctly", function () {
+    // Examples from RFC 2152.
+    expect(iconv.decode(buf("A&ImIDkQ-."), "utf-7-imap")).toBe("A\u2262\u0391.")
+    expect(iconv.decode(buf("&ZeVnLIqe-"), "utf-7-imap")).toBe("\u65E5\u672C\u8A9E")
+    expect(iconv.decode(buf("Hi Mom -&Jjo--!"), "utf-7-imap")).toBe("Hi Mom -\u263A-!")
+    expect(iconv.decode(buf("Item 3 is &AKM-1."), "utf-7-imap")).toBe("Item 3 is \u00A31.")
+
+    // Custom examples that contain more than one mode shift.
+    expect(iconv.decode(buf("Jyv&AOQ-skyl&AOQ-"), "utf-7-imap")).toBe("Jyv\u00E4skyl\u00E4")
+    expect(iconv.decode(buf("'&T2BZfQ-' hei&AN8-t \"Hallo\""), "utf-7-imap")).toBe("'\u4F60\u597D' hei\u00DFt \"Hallo\"")
+
+    // The ampersand sign is represented by &-.
+    expect(iconv.decode(buf("Hot &- Spicy &- Fruity"), "utf-7-imap")).toBe("Hot & Spicy & Fruity")
+
+    // Slashes are converted to commas.
+    expect(iconv.decode(buf("&,,,typh2VDIf7Q-"), "utf-7-imap")).toBe("\uFFFF\uEDCA\u9876\u5432\u1FED")
+    // Forgiving: a literal '/' is also accepted as value 63 (decodes the same as ',').
+    expect(iconv.decode(buf("&///typh2VDIf7Q-"), "utf-7-imap")).toBe("\uFFFF\uEDCA\u9876\u5432\u1FED")
+
+    // & sign around non-ASCII chars
+    expect(iconv.decode(buf("&AOQ-&-&AOQ-&-&AOQ-"), "utf-7-imap")).toBe("\u00E4&\u00E4&\u00E4")
+
+    // A long run (>= the bulk-decode threshold) full of ',' round-trips, exercising the ','->'/'
+    // remap on the fast path. U+FFFF's bytes are all-ones, so every Base64 char is '/' (-> ',').
+    const longImap = "\uFFFF".repeat(200)
+    expect(iconv.decode(iconv.encode(longImap, "utf-7-imap"), "utf-7-imap")).toBe(longImap)
+  })
+
+  it("decodes across streaming chunk boundaries", function () {
+    const decoder = iconv.getDecoder("utf-7-imap")
+    // Base64 run ("ImIDkQ") split between two chunks.
+    let res = decoder.write(buf("A&ImI"))
+    res += decoder.write(buf("DkQ-."))
+    const trail = decoder.end()
+    expect(trail ? res + trail : res).toBe("A\u2262\u0391.")
+  })
+})
