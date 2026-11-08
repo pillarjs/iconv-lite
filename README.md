@@ -136,8 +136,9 @@ the existing encoding behavior.
 ### Rejecting invalid encoded input
 
 Pass `{ fatal: true }` to throw a `TypeError` when decoding invalid input.
-This is supported by UTF-8, UTF-16, UTF-32, ISO-2022-JP and table-based single-byte encodings,
-including Windows-874 and Windows-125x. The default remains replacement decoding.
+This is supported by UTF-8, UTF-16, UTF-32, ISO-2022-JP and table-based single-byte and multibyte encodings,
+including Windows-874, Windows-125x, Big5, Shift_JIS, EUC-JP, EUC-KR, GBK and GB18030.
+The default remains replacement decoding.
 
 ```javascript
 iconv.decode(Uint8Array.of(0x81), 'windows-1252', { fatal: true }); // '\u0081'
@@ -148,8 +149,9 @@ iconv.decode(Uint8Array.of(0xAA), 'windows-1253', { fatal: true }); // Throws Ty
 The option also applies to `getDecoder()`, `decodeStream()` and `decodeWebStream()`.
 A fatal single-byte decoder rejects the failing write and can process a later
 valid write. Stream errors propagate through the stream's error mechanism.
-Legacy multibyte encodings such as Shift_JIS, GB18030 and Big5 do not yet support
-this option.
+Fatal table-based multibyte decoders reject invalid and truncated sequences. When an
+incremental write throws, restored and unread bytes remain queued for a later write or `end()`.
+Finalization resets the decoder even when it throws.
 
 For table-based single-byte and multibyte encodings, ISO-2022-JP, CESU-8 and UTF-32, pass
 `defaultCharUnicode` to choose the text inserted for each decoding error:

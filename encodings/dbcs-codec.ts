@@ -186,7 +186,7 @@ class DBCSCodec {
       : new DBCSEncoder(this, iconv.backend, defaultCharByte)
   }
 
-  createDecoder (options: DecodeOptions | undefined, iconv: WebIconv) { return new DBCSDecoder(this, iconv.backend, getDefaultCharUnicode(options)) }
+  createDecoder (options: DecodeOptions | undefined, iconv: WebIconv) { return new DBCSDecoder(this, iconv.backend, options) }
 
   // Decoder helpers
   _getDecodeTrieNode (addr: number) {
@@ -687,8 +687,10 @@ class DBCSDecoder {
   declare eucjp: boolean
 
   #defaultCharUnicode: string
+  #fatal: boolean
+  #pending: number[] | undefined
 
-  constructor (codec: DBCSCodec, backend: Backend, defaultCharUnicode: string) {
+  constructor (codec: DBCSCodec, backend: Backend, options: DecodeOptions | undefined) {
     this.backend = backend
     // Decoder state
     this.nodeIdx = 0
@@ -697,12 +699,35 @@ class DBCSDecoder {
     // Static data
     this.decodeTables = codec.decodeTables
     this.decodeTableSeq = codec.decodeTableSeq
-    this.#defaultCharUnicode = defaultCharUnicode
+    this.#defaultCharUnicode = getDefaultCharUnicode(options)
+    this.#fatal = !!options?.fatal
     this.gb18030 = codec.gb18030Decode
     this.eucjp = codec.eucjp
   }
 
+  #fail (buf?: Uint8Array | number[], start = 0): never {
+    // The decoder resets its partial sequence before reporting an error, but
+    // restored and unread bytes remain in the input queue for a later write.
+    const pending = []
+    if (buf) {
+      for (let i = start; i < buf.length; i++) {
+        pending.push(i < 0 ? this.prevBytes[i + this.prevBytes.length] : buf[i])
+      }
+    }
+    this.nodeIdx = 0
+    this.prevBytes.length = 0
+    this.#pending = pending.length ? pending : undefined
+    throw new TypeError("Invalid multibyte sequence")
+  }
+
   write (buf: Uint8Array | number[]) {
+    if (this.#pending) {
+      const input = new Uint8Array(this.#pending.length + buf.length)
+      input.set(this.#pending)
+      input.set(buf, this.#pending.length)
+      this.#pending = undefined
+      buf = input
+    }
     if (buf.length === 0) return ""
     // Buffered bytes can complete a surrogate pair/sequence or need reprocessing.
     const newBuf = this.backend.allocRawChars(buf.length + this.prevBytes.length)
@@ -735,6 +760,7 @@ class DBCSDecoder {
           // so i - seqStart === 1 also detects a second byte across chunks.
           i = seqStart
         }
+        if (this.#fatal) this.#fail(buf, i + 1)
       } else if (uCode === GB18030_CODE) {
         let ptr
         if (i >= 3) {
@@ -752,6 +778,7 @@ class DBCSDecoder {
           // The supplementary range maps linearly to U+10000..U+10FFFF.
           uCode = 0x10000 + ptr - GB18030_SUPPLEMENTARY_START
         } else {
+          if (this.#fatal) this.#fail(buf, i + 1)
           uCode = 0xFFFD
           errors?.push(j)
         }
@@ -797,6 +824,17 @@ class DBCSDecoder {
   }
 
   end () {
+    if (this.#fatal) {
+      try {
+        const result = this.#pending ? this.write([]) : ""
+        if (this.prevBytes.length) this.#fail()
+        return result
+      } finally {
+        this.nodeIdx = 0
+        this.prevBytes.length = 0
+        this.#pending = undefined
+      }
+    }
     if (this.prevBytes.length === 0) return ""
     if (this.gb18030 || this.eucjp) {
       // End-of-input consumes the entire incomplete sequence as one error.

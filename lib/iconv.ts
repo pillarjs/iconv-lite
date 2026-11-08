@@ -13,7 +13,7 @@ export type Encoding = BuiltinEncoding | (string & {}) | number
 export interface DecodeOptions {
   /**
    * Throw a TypeError on invalid input instead of inserting U+FFFD. @default false
-   * Supported by UTF-8, UTF-16, UTF-32, ISO-2022-JP and table-based single-byte codecs.
+   * Supported by UTF-8, UTF-16, UTF-32, ISO-2022-JP and table-based single-byte and multibyte codecs.
    */
   fatal?: boolean;
   /**

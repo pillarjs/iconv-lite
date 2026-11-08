@@ -275,6 +275,20 @@ describe("Streaming mode", function () {
     }
   }
 
+  for (const [encoding, lead] of [
+    ["big5", 0xA1], ["shift_jis", 0x81], ["euc-jp", 0xA1],
+    ["euc-kr", 0xB0], ["gbk", 0x81], ["gb18030", 0x81]
+  ] as const) {
+    for (const truncated of [false, true]) {
+      it(`${encoding} propagates fatal TypeError during ${truncated ? "flush" : "write"}`, checkDecodeStream({
+        encoding,
+        encodingOptions: { fatal: true, defaultCharUnicode: "" },
+        input: truncated ? [[0x41], [lead]] : [[0x41], [lead], [0x20]],
+        checkError: error => assert(error instanceof TypeError)
+      }))
+    }
+  }
+
   it("preserves Windows C1 controls in fatal mode", checkDecodeStream({
     encoding: "windows-1252",
     encodingOptions: { fatal: true },

@@ -22,6 +22,10 @@
 
 ### 🚀 Improvements
 
+- Support `{ fatal: true }` in table-based multibyte decoders, including Big5, Shift_JIS, EUC-JP, EUC-KR, GBK and GB18030.
+
+    Invalid and truncated sequences throw `TypeError` in one-shot decoding, incremental decoders and streams. After a fatal write, bytes restored by the WHATWG decoder algorithm and unread input remain available to subsequent writes; finalization resets the decoder even when it throws.
+
 - Add the ISO-2022-JP codec - by [@cadelass](https://github.com/cadelass) in [#425](https://github.com/pillarjs/iconv-lite/pull/425)
 
     `iso-2022-jp` (alias `csiso2022jp`) is now supported for decoding and encoding, following the WHATWG Encoding Standard. It reuses the EUC-JP tables without adding another mapping table.
