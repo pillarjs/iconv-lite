@@ -289,6 +289,22 @@ describe("Streaming mode", function () {
     }
   }
 
+  const userDefinedBytes = Array.from({ length: 256 }, (_, byte) => byte)
+  const userDefinedText = String.fromCharCode(...userDefinedBytes.map(byte => byte < 0x80 ? byte : 0xF700 + byte))
+
+  it("decodes every x-user-defined byte through a fatal Node stream", checkDecodeStream({
+    encoding: "x-user-defined",
+    encodingOptions: { fatal: true },
+    input: userDefinedBytes.map(byte => [byte]),
+    output: userDefinedText
+  }))
+
+  it("encodes every x-user-defined character through a Node stream", checkEncodeStream({
+    encoding: "x-user-defined",
+    input: Array.from(userDefinedText),
+    output: Buffer.from(userDefinedBytes)
+  }))
+
   it("preserves Windows C1 controls in fatal mode", checkDecodeStream({
     encoding: "windows-1252",
     encodingOptions: { fatal: true },

@@ -53,6 +53,7 @@ describe("Web Streams", function () {
     ["utf32", "A🙂\uD800"],
     ["cesu8", "A🙂B"],
     ["latin1", "Aé世🙂\uD800"],
+    ["x-user-defined", "\0\u007F\uF780🙂\uF7FF\uD800"],
     ["shiftjis", "あ中文🙂"],
     ["gb18030", "中🙂"],
     ["big5", "AÊ\u0304🙂"],
@@ -211,6 +212,16 @@ describe("Web Streams", function () {
       })
     }
   }
+
+  it("roundtrips every x-user-defined byte through fatal Web Streams", async function () {
+    const bytes = Uint8Array.from({ length: 256 }, (_, byte) => byte)
+    const decoded = await collect(source(Array.from(bytes, byte => Uint8Array.of(byte)))
+      .pipeThrough(iconv.decodeWebStream("x-user-defined", { fatal: true })))
+    const expected = String.fromCharCode(...Array.from(bytes, byte => byte < 0x80 ? byte : 0xF700 + byte))
+    expect(decoded.join("")).toBe(expected)
+    const encoded = await collect(source(decoded).pipeThrough(iconv.encodeWebStream("x-user-defined")))
+    expect(iconv.backend.concatByteResults(encoded)).toStrictEqual(utils.bytes(bytes))
+  })
 
   it("preserves Windows C1 controls in fatal mode", async function () {
     const output = source([Uint8Array.of(0x81), Uint8Array.of(0x80, 0x41)])

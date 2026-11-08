@@ -96,7 +96,8 @@ const encodings = [
   "xmaccyrillic",
   "ascii",
   "tis620",
-  "mik"
+  "mik",
+  "xuserdefined"
 ]
 
 const res = Object.fromEntries(
@@ -107,11 +108,13 @@ const res = Object.fromEntries(
       return [encoding, false]
     }
     console.log(`Processing ${encoding}`)
-    const index = encoding === "macintosh"
-      ? whatwgIndexes.macintosh
-      : encoding === "xmaccyrillic" ? whatwgIndexes["x-mac-cyrillic"] : undefined
+    const index = encoding === "xuserdefined"
+      ? Array.from({ length: 128 }, (_, pointer) => 0xF780 + pointer)
+      : encoding === "macintosh"
+        ? whatwgIndexes.macintosh
+        : encoding === "xmaccyrillic" ? whatwgIndexes["x-mac-cyrillic"] : undefined
     if (index) {
-      // The public web codecs use WHATWG mappings rather than libiconv's variants.
+      // Use WHATWG mappings for web codecs that differ from or are absent in libiconv.
       const decode = Array.from({ length: 256 }, (_, byte) => String.fromCodePoint(byte < 128 ? byte : index[byte - 128]))
       const encode = new Array<string>(0xFFF0).fill("")
       for (let byte = 0; byte < decode.length; byte++) {

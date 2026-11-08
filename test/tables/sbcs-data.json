@@ -314,5 +314,9 @@
         "decode": "$¢\u0000#C$\\ก#&$?฿#&",
         "encode": "$¢\u0000#ඣ$\\¡#&$?ß#썴#⹤"
     },
-    "mik": false
+    "mik": false,
+    "xuserdefined": {
+        "decode": "$¢\u0000$¢",
+        "encode": "$¢\u0000#썴#㏐$¢#ࠒ"
+    }
 }
