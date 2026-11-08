@@ -1,6 +1,13 @@
 // This script generates unicode normalization data.
 
-import { getFile, parseText } from "../utils.js"
+import { getFile, parseText } from "../utils.ts"
+
+interface CharacterFeatures {
+  decomp?: number[]
+  canonical?: boolean
+  combiningClass: number
+  noCompose?: boolean
+}
 
 const baseUrl = "http://www.unicode.org/Public/6.3.0/ucd/"
 
@@ -10,7 +17,7 @@ async function generate () {
     getFile(baseUrl + "CompositionExclusions.txt")
   ])
 
-  const features = {}
+  const features: Record<string, CharacterFeatures> = {}
   parseText(data, ";").forEach(function (a) {
     const ch = parseInt(a[0], 16)
     const combiningClass = parseInt(a[3], 10) || 0
@@ -45,7 +52,7 @@ async function generate () {
   // Exclude Non-Starter Decompositions and Singleton Decompositions (CompositionExclusions.txt parts 3, 4)
   for (const ch in features) {
     const feat = features[ch]
-    if (feat.canonical && (feat.decomp.length === 1 || feat.combiningClass || (features[feat.decomp[0]] || {}).combiningClass)) {
+    if (feat.canonical && feat.decomp && (feat.decomp.length === 1 || feat.combiningClass || (features[feat.decomp[0]] || {}).combiningClass)) {
       // console.log("Excluded:", (+ch).toString(16));
       feat.noCompose = true
     }
@@ -76,8 +83,8 @@ async function generate () {
 
   // -------------------------------------------------------------------------
 
-  function f (ch) { return features[ch] || { combiningClass: 0 } }
-  function hex (ch) { return (+ch).toString(16) }
+  function f (ch: string | number): CharacterFeatures { return features[ch] || { combiningClass: 0 } }
+  function hex (ch: string | number) { return (+ch).toString(16) }
 
   /*
   function decompose (ch, canonical) {

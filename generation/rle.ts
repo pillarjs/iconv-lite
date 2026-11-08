@@ -19,8 +19,7 @@ const rle = {
   //    incrementing the last character.
   // Why literal type is 1 and incremental is 0? To keep T+K*2 != 0. For empty strings (K=0) incremental mode doesn't make sense, while literal does, so
   // to avoid zero we swapped the type ids. No other reason.
-  /** @param {string[]} arr */
-  rleEncode (arr) {
+  rleEncode (arr: string[]) {
     const maxChunkNum = 50000 // Limit of N, so that it can be represented as a single char (we're targeting before surrogates, 0xD800=55296).
     let res = "" // Result string.
 
@@ -36,13 +35,13 @@ const rle = {
       return ""
     }
 
-    const encodeHeaderChar = (i) => {
+    const encodeHeaderChar = (i: number) => {
       // Check the character is below surrogates.
       if (!(i > 0 && i < 0xd800 - 0x22)) throw new RangeError("Invalid RLE header character")
       return String.fromCharCode(0x22 + i)
     }
 
-    const encodeChunk = (type, strlen, numstr, body) =>
+    const encodeChunk = (type: number, strlen: number, numstr: number, body: string) =>
       encodeHeaderChar(type + (strlen << 1)) + encodeHeaderChar(numstr) + body
 
     const flushChunks = () => {
@@ -72,7 +71,7 @@ const rle = {
       return true
     }
 
-    const isIncrementalStr = (str, baseStr, diff) =>
+    const isIncrementalStr = (str: string, baseStr: string, diff: number) =>
       str.length > 0 &&
             baseStr.length === str.length &&
             baseStr.slice(0, -1) === str.slice(0, -1) &&
@@ -115,8 +114,7 @@ const rle = {
   },
 
   // Call fn(str) with 'num' incrementing strings, starting from baseStr.
-  /** @param {string} baseStr @param {number} num @param {(value: string) => void} fn */
-  _forEachIncrementalStr (baseStr, num, fn) {
+  _forEachIncrementalStr (baseStr: string, num: number, fn: (value: string) => void) {
     if (num === 1) {
       fn(baseStr)
     } else if (num > 1) {
@@ -129,16 +127,14 @@ const rle = {
     }
   },
 
-  /** @param {string} str @returns {string[]} */
-  rleDecode (str) {
-    const res = []
+  rleDecode (str: string) {
+    const res: string[] = []
     this.rleDecodeForEach(str, (s) => res.push(s))
     return res
   },
 
   // Iterator over encoded str; calls fn(str, idx) for each string from original array.
-  /** @param {string} str @param {(value: string, index: number) => void} fn */
-  rleDecodeForEach (str, fn) {
+  rleDecodeForEach (str: string, fn: (value: string, index: number) => void) {
     let i = 0
     let idx = 0
     while (i < str.length - 1) {

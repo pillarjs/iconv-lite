@@ -1,4 +1,5 @@
-import { getFile, parseText, generateTable, writeTable, writeVlqTable, writeFile } from "./utils.js"
+import type { DBCSMap } from "./utils.ts"
+import { getFile, parseText, generateTable, writeTable, writeVlqTable, writeFile } from "./utils.ts"
 
 const sources = {
   $big5: "https://encoding.spec.whatwg.org/index-big5.txt", // Encodings with $ are not saved. They are used to calculate other encs.
@@ -14,14 +15,16 @@ const sources = {
 }
 
 async function generate () {
-  const data = Object.fromEntries(await Promise.all(
+  const sourceData: Record<string, string> = Object.fromEntries(await Promise.all(
     Object.entries(sources).map(async ([encoding, url]) => [encoding, await getFile(url)])
   ))
 
+  const data: Record<string, Record<string, number>> = {}
+
   // First, parse all files.
-  for (const enc in data) {
-    const dbcs = {}
-    parseText(data[enc]).forEach(function (a) {
+  for (const enc in sourceData) {
+    const dbcs: Record<string, number> = {}
+    parseText(sourceData[enc]).forEach(function (a) {
       const dbcsCode = parseInt(a[0])
       const unicode = parseInt(a[1])
       if (!isNaN(dbcsCode) && !isNaN(unicode)) { dbcs[dbcsCode] = unicode }
@@ -32,7 +35,7 @@ async function generate () {
 
   // Calculate difference between big5 and cp950, and write it to a file.
   // See http://encoding.spec.whatwg.org/#big5
-  const big5add = {}
+  const big5add: DBCSMap = {}
   for (let i = 0x8100; i < 0x10000; i++) { // Lead byte is 0x81 .. 0xFE
     const trail = i & 0xFF
     if (trail < 0x40 || (trail > 0x7E && trail < 0xA1) || trail > 0xFE) continue
@@ -46,22 +49,22 @@ async function generate () {
 
   // Calculate HKSCS codes that are duplicates of big5 codes and need to be skipped when encoding.
   console.log("Duplicate HKSCS codes that need to be skipped when encoded (see encodeSkipVals in big5hkscs): ")
-  const big5codes = {}
+  const big5codes: Record<number, boolean> = {}
   for (let i = 0xA100; i < 0x10000; i++) {
     const uCharCode = (big5add[i] !== undefined) ? big5add[i] : data.cp950[i]
     if (uCharCode !== undefined) {
-      big5codes[uCharCode] = true
+      big5codes[uCharCode as number] = true
     }
   }
   for (let i = 0x8100; i < 0xA100; i++) {
     const uCharCode = (big5add[i] !== undefined) ? big5add[i] : data.cp950[i]
-    if (uCharCode !== undefined && big5codes[uCharCode]) {
+    if (uCharCode !== undefined && big5codes[uCharCode as number]) {
       console.log("0x" + i.toString(16))
     }
   }
 
   // Add char sequences that are not in the index file (as given in http://encoding.spec.whatwg.org/#big5-decoder)
-  function toIdx (pointer) { const trail = pointer % 157; const lead = Math.floor(pointer / 157) + 0x81; return (lead << 8) + (trail + (trail < 0x3F ? 0x40 : 0x62)) }
+  function toIdx (pointer: number) { const trail = pointer % 157; const lead = Math.floor(pointer / 157) + 0x81; return (lead << 8) + (trail + (trail < 0x3F ? 0x40 : 0x62)) }
   big5add[toIdx(1133)] = [0x00CA, 0x0304]
   big5add[toIdx(1135)] = [0x00CA, 0x030C]
   big5add[toIdx(1164)] = [0x00EA, 0x0304]
@@ -71,7 +74,7 @@ async function generate () {
 
   // Calculate difference between GB18030 encoding and cp936.
   // See http://encoding.spec.whatwg.org/#gb18030-encoder
-  const gbkadd = {}
+  const gbkadd: Record<number, number> = {}
   for (let i = 0x8100; i < 0x10000; i++) { // Lead byte is 0x81 .. 0xFE
     const trail = i & 0xFF
     if (trail < 0x40 || trail === 0x7F || trail > 0xFE) continue
@@ -91,7 +94,7 @@ async function generate () {
   writeTable("gbk-added", generateTable(gbkadd).concat(gbk2005add))
 
   // Write GB18030 ranges
-  const ranges = { uChars: [], gbChars: [] }
+  const ranges: { uChars: number[], gbChars: number[] } = { uChars: [], gbChars: [] }
   for (const k in data.$gbRanges) {
     ranges.uChars.push(data.$gbRanges[k])
     ranges.gbChars.push(+k)
@@ -99,7 +102,7 @@ async function generate () {
   writeFile("gb18030-ranges", JSON.stringify(ranges))
 
   // Use http://encoding.spec.whatwg.org/#shift_jis-decoder
-  const shiftjis = {}
+  const shiftjis: Record<number, number> = {}
   for (let i = 0; i <= 0x80; i++) { shiftjis[i] = i }
   for (let i = 0xA1; i <= 0xDF; i++) { shiftjis[i] = 0xFF61 + i - 0xA1 }
 
@@ -119,7 +122,7 @@ async function generate () {
   writeVlqTable("shiftjis", shiftjis)
 
   // Fill out EUC-JP table according to http://encoding.spec.whatwg.org/#euc-jp
-  const eucJp = {}
+  const eucJp: Record<number, number> = {}
   for (let i = 0; i < 0x80; i++) { eucJp[i] = i }
   for (let i = 0xA1; i <= 0xDF; i++) { eucJp[(0x8E << 8) + i] = 0xFF61 + i - 0xA1 }
   for (let i = 0xA1; i <= 0xFE; i++) {
@@ -132,7 +135,7 @@ async function generate () {
   writeVlqTable("eucjp", eucJp)
 
   // Fill out EUC-KR Table and check that it is the same as cp949.
-  const eucKr = {}
+  const eucKr: Record<number, number> = {}
   for (let i = 0; i < 0x80; i++) { eucKr[i] = i }
   for (let i = 0x8100; i < 0xFF00; i++) {
     const lead = i >> 8; const byte = i & 0xFF; let ptr = null

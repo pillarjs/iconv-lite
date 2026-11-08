@@ -1,4 +1,4 @@
-// Generated data for sbcs codec. Don't edit manually. Regenerate using generation/gen-sbcs.js script.
+// Generated data for sbcs codec. Don't edit manually. Regenerate using generation/gen-sbcs.ts script.
 export default {
   "437": "cp437",
   "737": "cp737",

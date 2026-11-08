@@ -1,5 +1,5 @@
 import assert from "assert"
-import { generateVlqTable } from "../generation/utils.js"
+import { generateVlqTable } from "../generation/utils.ts"
 import { forEachVlqRun } from "../encodings/vlq-runs.js"
 
 function expand (payload: string) {

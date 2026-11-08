@@ -26,7 +26,8 @@
     "checkJs": false,
     "noEmit": true,
     "strict": true,
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true
   },
   "include": [
     "lib/**/*",
@@ -35,6 +36,7 @@
     "types/**/*",
     "test/**/*",
     "performance/**/*",
+    "generation/**/*.ts",
     "vitest*.config.*"
   ],
   "exclude": [

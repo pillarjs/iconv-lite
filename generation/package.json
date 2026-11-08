@@ -4,8 +4,8 @@
     "version": "1.0.0",
     "scripts": {
         "generate": "npm run generate:dbcs && npm run generate:sbcs",
-        "generate:dbcs": "node gen-dbcs.js",
-        "generate:sbcs": "node gen-sbcs.js"
+        "generate:dbcs": "node gen-dbcs.ts",
+        "generate:sbcs": "node gen-sbcs.ts"
     },
     "devDependencies": {
         "iconv": "^2.3.5"

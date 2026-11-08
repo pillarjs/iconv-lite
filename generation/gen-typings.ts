@@ -1,13 +1,14 @@
+import type { EncodingDefinitions } from "../lib/encoding-registry.js"
 import fs from "fs"
 import path from "path"
 
 import getEncodings from "../dist/encodings/index.js"
 
 function collectAllEncodings () {
-  const allNames = new Set()
-  const canonicalize = (name) => ("" + name).toLowerCase().replace(/:\d{4}$|[^0-9a-z]/g, "")
+  const allNames = new Set<string>()
+  const canonicalize = (name: string) => ("" + name).toLowerCase().replace(/:\d{4}$|[^0-9a-z]/g, "")
 
-  const processEncodingObject = (obj) => {
+  const processEncodingObject = (obj: EncodingDefinitions) => {
     for (const key in obj) {
       // Skip codecs
       if (key.startsWith("_")) continue
@@ -17,7 +18,7 @@ function collectAllEncodings () {
 
       if (typeof value === "string") {
         allNames.add(value) // Add the canonical name it points to
-      } else if (typeof value === "object" && value.name) {
+      } else if (typeof value === "object" && typeof value.name === "string") {
         allNames.add(value.name) // Add the name from the object
       }
     }
@@ -26,7 +27,7 @@ function collectAllEncodings () {
   processEncodingObject(getEncodings())
 
   // Add the canonicalized (lowercase, alphanumeric, no appended year) versions
-  const finalNames = new Set()
+  const finalNames = new Set<string>()
   allNames.forEach((name) => {
     finalNames.add(name)
     const canon = canonicalize(name)

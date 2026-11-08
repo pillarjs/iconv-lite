@@ -1,5 +1,5 @@
 import type { Backend, Iconv, Encoding } from "iconv-lite"
-import rle from "../../generation/rle.js"
+import rle from "../../generation/rle.ts"
 import iconv from "iconv-lite"
 
 type DecoderCase = { inputs: (ArrayLike<number> | string)[], outputs: string[] }

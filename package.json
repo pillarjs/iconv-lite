@@ -45,7 +45,7 @@
         "test:performance:check": "vitest run --config vitest.bench.config.js",
         "test:browser": "vitest run --config vitest.browser.config.js",
         "test:wpt": "node test/wpt/run.js",
-        "typegen": "npm run build && node generation/gen-typings.js"
+        "typegen": "npm run build && node generation/gen-typings.ts"
     },
     "browser": {
         "./dist/lib/index-node.js": "./dist/lib/index-web.js"

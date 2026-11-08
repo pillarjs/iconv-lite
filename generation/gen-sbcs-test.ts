@@ -1,13 +1,12 @@
-/* eslint no-console: "off" */
 "use strict"
 
 import { Iconv } from "iconv"
-import testUtils from "./rle.js"
+import testUtils from "./rle.ts"
 import fs from "fs"
 import path from "path"
 import assert from "assert"
 
-const skipEncodings = {
+const skipEncodings: Record<string, boolean> = {
   maccenteuro: true,
   cp808: true,
   mik: true,
@@ -110,7 +109,7 @@ const res = Object.fromEntries(
 
     // Create decode data
     const decoder = new Iconv(encoding, "utf-8")
-    const decodeArr = []
+    const decodeArr: string[] = []
 
     for (let i = 0; i < 0x100; i++) {
       let str = ""
@@ -118,7 +117,7 @@ const res = Object.fromEntries(
         str = decoder.convert(Buffer.from([i])).toString()
         assert(typeof str === "string" && str.length > 0)
       } catch (e) {
-        if (e.code !== "EILSEQ") throw e
+        if ((e as NodeJS.ErrnoException).code !== "EILSEQ") throw e
       }
       // WHATWG preserves unassigned Windows C1 bytes as control characters.
       if (isWindows && i >= 0x80 && i <= 0x9F && str === "") {
@@ -135,7 +134,7 @@ const res = Object.fromEntries(
 
     // Create encode data
     const encoder = new Iconv("utf-8", encoding)
-    const encodeArr = []
+    const encodeArr: string[] = []
     for (let i = 0; i < 0xfff0; i++) {
       // Skip surrogates
       if (i >= 0xd800 && i < 0xe000) {
@@ -150,7 +149,7 @@ const res = Object.fromEntries(
           .toString("binary")
         assert(typeof str === "string" && str.length > 0)
       } catch (e) {
-        if (e.code !== "EILSEQ") throw e
+        if ((e as NodeJS.ErrnoException).code !== "EILSEQ") throw e
       }
       // These controls also have a pointer in the WHATWG single-byte encoder.
       if (isWindows && i >= 0x80 && i <= 0x9F && decodeArr[i] === String.fromCharCode(i)) {
