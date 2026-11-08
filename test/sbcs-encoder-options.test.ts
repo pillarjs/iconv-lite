@@ -21,8 +21,8 @@ describe("SBCS encoder replacement settings", function () {
 
         for (const options of [undefined, { invalidCharHandler () {} }]) {
           expect(instance.encode("?A!\0\uFFFD🙂\uD800", alias, { ...options, defaultCharByte: 0 }), prime)
-            .toStrictEqual(utils.bytes([0x3F, 0x41, 0x21, 0, 0, 0, 0, 0]))
-          expect(instance.encode("?A!\0\uFFFD🙂\uD800", alias, options), prime).toStrictEqual(utils.bytes([0x3F, 0x41, 0x21, 0, 0x3F, 0x3F, 0x3F, 0x3F]))
+            .toStrictEqual(utils.bytes([0x3F, 0x41, 0x21, 0, 0, 0, 0]))
+          expect(instance.encode("?A!\0\uFFFD🙂\uD800", alias, options), prime).toStrictEqual(utils.bytes([0x3F, 0x41, 0x21, 0, 0x3F, 0x3F, 0x3F]))
         }
       }
     })

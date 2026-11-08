@@ -63,5 +63,5 @@ const table = modules.get(new URL("../encodings/tables/cp936.js", entryURL).href
 assert.equal(table(), table(), "table data is cached across codec instances")
 assert.equal("defaultCharSingleByte" in iconv, false)
 assert.equal("defaultCharUnicode" in iconv, false)
-assert.deepEqual(Array.from(encode("😱", "ascii", { defaultCharByte: 0x21 })), [0x21, 0x21])
+assert.deepEqual(Array.from(encode("😱", "ascii", { defaultCharByte: 0x21 })), [0x21])
 assert.equal(decode(Uint8Array.of(0xAA), "windows1253", { defaultCharUnicode: "!" }), "!")

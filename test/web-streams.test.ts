@@ -52,7 +52,7 @@ describe("Web Streams", function () {
     ["utf32be", "A🙂\uD800"],
     ["utf32", "A🙂\uD800"],
     ["cesu8", "A🙂B"],
-    ["latin1", "Aé世"],
+    ["latin1", "Aé世🙂\uD800"],
     ["shiftjis", "あ中文🙂"],
     ["gb18030", "中🙂"],
     ["big5", "AÊ\u0304🙂"],
@@ -305,7 +305,7 @@ describe("Web Streams", function () {
       expect(Array.from(iconv.encode("\uFFFD", "windows1252", options)!)).toStrictEqual([0x23])
       const output = source(["A\uFFFD\uD83D", "", "\uDE42\uD800"]).pipeThrough(transform)
       const chunks = await collect(output)
-      expect(Array.from(iconv.backend.concatByteResults(chunks))).toStrictEqual([0x41, 0x21, 0x21, 0x21, 0x21])
+      expect(Array.from(iconv.backend.concatByteResults(chunks))).toStrictEqual([0x41, 0x21, 0x21, 0x21])
     })
 
     it(`captures the DBCS replacement option in Web Streams (handler: ${withHandler})`, async function () {
