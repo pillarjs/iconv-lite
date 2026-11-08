@@ -1,4 +1,4 @@
-import assert from "assert"
+import { expect } from "vitest"
 import Iconv from "../lib/iconv.js"
 import utils from "./helpers/utils.js"
 
@@ -19,12 +19,12 @@ describe("Windows code pages and WHATWG label overrides", function () {
         for (const first of [alias, webLabel]) {
           const instance = new Iconv(iconv.backend)
           instance.getCodec(first)
-          assert.strictEqual(instance.getCodec(alias), instance.getCodec("cp" + codePage))
-          assert.notStrictEqual(instance.getCodec(alias), instance.getCodec(webLabel))
-          assert.strictEqual(instance.decode(utils.bytes([0x80]), alias), strictText)
-          assert.strictEqual(instance.decode(utils.bytes([0x80]), webLabel), "€")
-          assert.deepStrictEqual(instance.encode("€", alias), utils.bytes([0x3F]))
-          assert.deepStrictEqual(instance.encode("€", webLabel), utils.bytes([0x80]))
+          expect(instance.getCodec(alias)).toBe(instance.getCodec("cp" + codePage))
+          expect(instance.getCodec(alias)).not.toBe(instance.getCodec(webLabel))
+          expect(instance.decode(utils.bytes([0x80]), alias)).toBe(strictText)
+          expect(instance.decode(utils.bytes([0x80]), webLabel)).toBe("€")
+          expect(instance.encode("€", alias)).toStrictEqual(utils.bytes([0x3F]))
+          expect(instance.encode("€", webLabel)).toStrictEqual(utils.bytes([0x80]))
         }
       }
     })
@@ -37,25 +37,25 @@ describe("Windows code pages and WHATWG label overrides", function () {
       for (const alias of aliases) {
         const calls = []
         const options = { invalidCharHandler (char, index) { calls.push([char, index]) } }
-        assert.deepStrictEqual(instance.encode("A€", alias, options), utils.bytes([0x41, 0x21]))
-        assert.deepStrictEqual(calls, [["€", 1]])
+        expect(instance.encode("A€", alias, options)).toStrictEqual(utils.bytes([0x41, 0x21]))
+        expect(calls).toStrictEqual([["€", 1]])
         calls.length = 0
-        assert.deepStrictEqual(instance.encode("A€", webLabel, options), utils.bytes([0x41, 0x80]))
-        assert.deepStrictEqual(calls, [])
+        expect(instance.encode("A€", webLabel, options)).toStrictEqual(utils.bytes([0x41, 0x80]))
+        expect(calls).toStrictEqual([])
       }
     })
 
     it(codePage + " preserves incremental decoding and fatal behavior", function () {
       for (const alias of aliases) {
         const loose = iconv.getDecoder(alias)
-        assert.strictEqual(loose.write(utils.bytes([0x41])) + loose.write(utils.bytes([0x80])) + (loose.end() || ""), "A" + strictText)
+        expect(loose.write(utils.bytes([0x41])) + loose.write(utils.bytes([0x80])) + (loose.end() || "")).toBe("A" + strictText)
         if (codePage === 20127) {
-          assert.throws(() => iconv.decode(utils.bytes([0x80]), alias, { fatal: true }), TypeError)
+          expect(() => iconv.decode(utils.bytes([0x80]), alias, { fatal: true })).toThrowError(TypeError)
         } else {
-          assert.strictEqual(iconv.decode(utils.bytes([0x80]), alias, { fatal: true }), "\u0080")
-          assert.deepStrictEqual(iconv.encode("\u0080", alias), utils.bytes([0x80]))
+          expect(iconv.decode(utils.bytes([0x80]), alias, { fatal: true })).toBe("\u0080")
+          expect(iconv.encode("\u0080", alias)).toStrictEqual(utils.bytes([0x80]))
         }
-        assert.strictEqual(iconv.decode(utils.bytes([0x80]), webLabel, { fatal: true }), "€")
+        expect(iconv.decode(utils.bytes([0x80]), webLabel, { fatal: true })).toBe("€")
       }
     })
   }

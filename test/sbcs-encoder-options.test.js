@@ -1,4 +1,4 @@
-import assert from "assert"
+import { expect } from "vitest"
 import Iconv from "../lib/iconv.js"
 import utils from "./helpers/utils.js"
 import indexes from "./wpt/data/whatwg-windows-indexes.json" with { type: "json" }
@@ -20,11 +20,7 @@ describe("SBCS encoder replacement settings", function () {
         instance.defaultCharSingleByte = "!"
 
         for (const options of [undefined, { invalidCharHandler () {} }]) {
-          assert.deepStrictEqual(
-            instance.encode("?A!\0\uFFFD🙂\uD800", alias, options),
-            utils.bytes([0x3F, 0x41, 0x21, 0, 0x21, 0x21, 0x21, 0x21]),
-            prime
-          )
+          expect(instance.encode("?A!\0\uFFFD🙂\uD800", alias, options), prime).toStrictEqual(utils.bytes([0x3F, 0x41, 0x21, 0, 0x21, 0x21, 0x21, 0x21]))
         }
       }
     })
@@ -41,19 +37,19 @@ describe("SBCS encoder replacement settings", function () {
       for (const replacement of [0, 0x3F, 0x80, 0x81, 0xAA, 0xFF]) {
         instance.defaultCharSingleByte = String.fromCharCode(replacement)
         for (const options of [undefined, { invalidCharHandler () {} }]) {
-          assert.deepStrictEqual(instance.encode(text + "\uFFFD", encoding, options), utils.bytes([...bytes, replacement]))
+          expect(instance.encode(text + "\uFFFD", encoding, options)).toStrictEqual(utils.bytes([...bytes, replacement]))
         }
         const calls = []
-        assert.deepStrictEqual(instance.encode(text + "\uFFFD", encoding, {
+        expect(instance.encode(text + "\uFFFD", encoding, {
           invalidCharHandler (char, position) {
             calls.push([char, position])
             return text
           }
-        }), utils.bytes([...bytes, ...bytes]))
-        assert.deepStrictEqual(calls, [["\uFFFD", text.length]])
-        assert.throws(() => instance.encode("\uFFFD", encoding, {
+        })).toStrictEqual(utils.bytes([...bytes, ...bytes]))
+        expect(calls).toStrictEqual([["\uFFFD", text.length]])
+        expect(() => instance.encode("\uFFFD", encoding, {
           invalidCharHandler () { return "\uFFFD" }
-        }), TypeError)
+        })).toThrowError(TypeError)
       }
     })
   }
@@ -69,12 +65,12 @@ describe("SBCS encoder replacement settings", function () {
     const last = instance.getEncoder("windows1252")
     instance.defaultCharSingleByte = "?"
 
-    assert.deepStrictEqual(instance.encode("\0\uFFFD", "windows1252"), utils.bytes([0, 0x3F]))
-    assert.deepStrictEqual(original.write("\0\uFFFD"), utils.bytes([0, 0x3F]))
-    assert.deepStrictEqual(nul.write("\0\uFFFD"), utils.bytes([0, 0]))
-    assert.deepStrictEqual(last.write("\0\uFFFD"), utils.bytes([0, 0xFF]))
-    assert.deepStrictEqual(other.encode("\0\uFFFD", "windows1252"), utils.bytes([0, 0x3F]))
-    assert.strictEqual(instance.getCodec("cp1252"), codec)
+    expect(instance.encode("\0\uFFFD", "windows1252")).toStrictEqual(utils.bytes([0, 0x3F]))
+    expect(original.write("\0\uFFFD")).toStrictEqual(utils.bytes([0, 0x3F]))
+    expect(nul.write("\0\uFFFD")).toStrictEqual(utils.bytes([0, 0]))
+    expect(last.write("\0\uFFFD")).toStrictEqual(utils.bytes([0, 0xFF]))
+    expect(other.encode("\0\uFFFD", "windows1252")).toStrictEqual(utils.bytes([0, 0x3F]))
+    expect(instance.getCodec("cp1252")).toBe(codec)
   })
 
   it("rejects invalid replacements with fresh and cached codecs, then recovers", function () {
@@ -83,13 +79,13 @@ describe("SBCS encoder replacement settings", function () {
         const instance = new Iconv(iconv.backend)
         const original = cached ? instance.getEncoder("windows1252") : null
         instance.defaultCharSingleByte = replacement
-        assert.throws(() => instance.getEncoder("cp1252"), {
+        expect(() => instance.getEncoder("cp1252")).toThrowError(expect.objectContaining({
           name: "TypeError", message: "defaultCharSingleByte must be a single-byte character"
-        })
-        assert.throws(() => instance.encode("A", "windows1252", { invalidCharHandler () {} }), TypeError)
+        }))
+        expect(() => instance.encode("A", "windows1252", { invalidCharHandler () {} })).toThrowError(TypeError)
         instance.defaultCharSingleByte = "!"
-        assert.deepStrictEqual(instance.encode("\uFFFD", "windows1252"), utils.bytes([0x21]))
-        if (original) assert.deepStrictEqual(original.write("\uFFFD"), utils.bytes([0x3F]))
+        expect(instance.encode("\uFFFD", "windows1252")).toStrictEqual(utils.bytes([0x21]))
+        if (original) expect(original.write("\uFFFD")).toStrictEqual(utils.bytes([0x3F]))
       }
     }
   })
@@ -101,11 +97,11 @@ describe("SBCS encoder replacement settings", function () {
     const encoder = instance.getEncoder("windows1252", {
       invalidCharHandler () {
         instance.defaultCharSingleByte = "#"
-        assert.deepStrictEqual(instance.encode("\uFFFD", "cp1252"), utils.bytes([0x23]))
+        expect(instance.encode("\uFFFD", "cp1252")).toStrictEqual(utils.bytes([0x23]))
       }
     })
-    assert.deepStrictEqual(encoder.write("\uFFFD\uFFFD\uD800"), utils.bytes([0x21, 0x21]))
-    assert.deepStrictEqual(encoder.end(), utils.bytes([0x21]))
+    expect(encoder.write("\uFFFD\uFFFD\uD800")).toStrictEqual(utils.bytes([0x21, 0x21]))
+    expect(encoder.end()).toStrictEqual(utils.bytes([0x21]))
   })
 
   it("retains direct encoder construction with the codec's captured replacement", function () {
@@ -114,7 +110,7 @@ describe("SBCS encoder replacement settings", function () {
     const codec = instance.getCodec("windows1252")
     const encoder = new codec.encoder({}, codec, instance.backend)
     instance.defaultCharSingleByte = "#"
-    assert.deepStrictEqual(instance.encode("\uFFFD", "windows1252"), utils.bytes([0x23]))
-    assert.deepStrictEqual(encoder.write("\uFFFD"), utils.bytes([0x21]))
+    expect(instance.encode("\uFFFD", "windows1252")).toStrictEqual(utils.bytes([0x23]))
+    expect(encoder.write("\uFFFD")).toStrictEqual(utils.bytes([0x21]))
   })
 })

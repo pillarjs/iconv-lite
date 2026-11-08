@@ -5,7 +5,7 @@
 // These drive a `new TextDecoder(enc).decode(canonicalBytes)` conformance check
 // for shift_jis / euc-jp / euc-kr / big5 — the legacy multi-byte encodings that
 // ship no TextDecoder `.any.js` test upstream (only iframe/XHR ones), and full
-// Windows single-byte encode/decode checks in Node.js and webpack/Chrome.
+// Windows single-byte encode/decode checks in Node.js and Vitest Browser Mode.
 //
 //   node test/wpt/gen-indexes.js
 

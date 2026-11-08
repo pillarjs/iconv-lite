@@ -1,11 +1,11 @@
-import { strict as assert } from "assert"
+import { expect } from "vitest"
 import iconv, { encodeWebStream, decodeWebStream } from "iconv-lite"
 
 describe("iconv-lite with Web Streams", function () {
   it("exports the native Web Stream factories", function () {
-    assert.equal(encodeWebStream, iconv.encodeWebStream)
-    assert.equal(decodeWebStream, iconv.decodeWebStream)
-    assert(iconv.supportsWebStreams)
+    expect(encodeWebStream).toBe(iconv.encodeWebStream)
+    expect(decodeWebStream).toBe(iconv.decodeWebStream)
+    expect(iconv.supportsWebStreams).toBeTruthy()
   })
 
   it("encodes and decodes in a browser pipeline without setup", async function () {
@@ -14,8 +14,8 @@ describe("iconv-lite with Web Streams", function () {
     })
     const output = input.pipeThrough(encodeWebStream("win1251")).pipeThrough(decodeWebStream("win1251"))
     const reader = output.getReader()
-    assert.equal((await reader.read()).value, "Привет")
-    assert.equal((await reader.read()).done, true)
+    expect((await reader.read()).value).toBe("Привет")
+    expect((await reader.read()).done).toBe(true)
     reader.releaseLock()
   })
 })

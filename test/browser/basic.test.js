@@ -1,40 +1,54 @@
-import { strict as assert } from "assert"
+import { expect, vi } from "vitest"
 import iconv from "iconv-lite"
 
 describe("iconv-lite", function () {
-  it("can be imported successfully", function () {
+  it("uses native Uint8Array without Node globals", function () {
+    expect(typeof globalThis.Buffer).toBe("undefined")
+    expect(typeof globalThis.process).toBe("undefined")
+    const bytes = iconv.encode("abc", "utf8")
+    expect(Object.getPrototypeOf(bytes)).toBe(Uint8Array.prototype)
+    expect(bytes).toStrictEqual(Uint8Array.of(0x61, 0x62, 0x63))
+  })
+
+  it("can be imported when Node globals are present", async function () {
     // Emulate more complex environments that are both web- and node.js-compatible (e.g. Electron renderer process).
     // See https://github.com/ashtuchkin/iconv-lite/issues/204 for details.
-    process.versions.node = "12.0.0"
-
-    assert.equal(typeof iconv.encode, "function")
+    vi.stubGlobal("process", { versions: { node: "22.0.0" } })
+    try {
+      vi.resetModules()
+      const { default: browserIconv } = await import("iconv-lite")
+      expect(typeof browserIconv.encode).toBe("function")
+      expect(browserIconv.encode("abc", "utf8").constructor).toBe(Uint8Array)
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it("supports Web Streams automatically and exposes no Node stream methods", function () {
-    assert(iconv.supportsWebStreams)
-    assert(iconv.encodeWebStream("utf8") instanceof TransformStream)
-    assert(iconv.decodeWebStream("utf8") instanceof TransformStream)
+    expect(iconv.supportsWebStreams).toBeTruthy()
+    expect(iconv.encodeWebStream("utf8") instanceof TransformStream).toBeTruthy()
+    expect(iconv.decodeWebStream("utf8") instanceof TransformStream).toBeTruthy()
     for (const name of ["encodeStream", "decodeStream", "enableStreamingAPI", "supportsStreams"]) {
-      assert(!(name in iconv))
+      expect(!(name in iconv)).toBeTruthy()
     }
   })
 
   it("can encode/decode sbcs encodings", function () {
     var buf = iconv.encode("abc", "win1251")
     var str = iconv.decode(buf, "win1251")
-    assert.equal(str, "abc")
+    expect(str).toBe("abc")
   })
 
   it("can encode/decode dbcs encodings", function () {
     var buf = iconv.encode("abc", "shiftjis")
     var str = iconv.decode(buf, "shiftjis")
-    assert.equal(str, "abc")
+    expect(str).toBe("abc")
   })
 
   it("can encode/decode internal encodings", function () {
     var buf = iconv.encode("💩", "utf8")
     var str = iconv.decode(buf, "utf8")
-    assert.equal(str, "💩")
+    expect(str).toBe("💩")
   })
 
   it("supports passing Uint8Array to decode for all encodings", function () {
@@ -51,9 +65,10 @@ describe("iconv-lite", function () {
         var expected = "Lorem ipsum"
 
         var encoded = iconv.encode(expected, encoding)
+        expect(encoded.constructor, encoding).toBe(Uint8Array)
         var uint8Array = Uint8Array.from(encoded)
         var actual = iconv.decode(uint8Array, encoding)
-        assert.equal(actual, expected, encoding)
+        expect(actual, encoding).toBe(expected)
       })
   })
 })

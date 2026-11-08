@@ -1,7 +1,9 @@
 import { createRequire } from "node:module"
 import assert from "assert"
 import { Buffer } from "buffer"
-import iconv from "../lib/index-node.js"
+import utils from "./helpers/utils.js"
+
+const iconv = utils.requireIconv()
 const require = createRequire(import.meta.url)
 
 // Make all valid input combinations for a given encoding and call fn with it.
@@ -550,9 +552,7 @@ function strToHex (str) {
 // Generate tests for all DBCS encodings.
 iconv.encode("", "utf8") // Load all encodings.
 
-describe("Full DBCS encoding tests", function () {
-  this.timeout(10000) // These tests are pretty slow.
-
+describe("Full DBCS encoding tests", { timeout: 10000 }, function () {
   var Iconv
   try {
     Iconv = require("iconv").Iconv
@@ -562,9 +562,9 @@ describe("Full DBCS encoding tests", function () {
     if (iconv.encodings[enc].type === "_dbcs") {
       (function (enc) {
       // Create tests for this encoding.
-        it("Decode DBCS encoding '" + enc + "'", function () {
+        it("Decode DBCS encoding '" + enc + "'", function ({ skip }) {
           if (!Iconv) {
-            this.skip() // Skip if Iconv is available
+            skip() // Skip if Iconv is unavailable
           }
 
           var iconvChgs = iconvChanges[enc] || {}
@@ -630,9 +630,9 @@ describe("Full DBCS encoding tests", function () {
           }
         })
 
-        it("Encode DBCS encoding '" + enc + "'", function () {
+        it("Encode DBCS encoding '" + enc + "'", function ({ skip }) {
           if (!Iconv) {
-            this.skip() // Skip if Iconv is available
+            skip() // Skip if Iconv is unavailable
           }
 
           var iconvChgs = iconvChanges[enc] || {}

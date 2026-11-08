@@ -1,4 +1,4 @@
-import assert from "assert"
+import { expect } from "vitest"
 import Iconv from "../lib/iconv.js"
 import utils from "./helpers/utils.js"
 
@@ -11,21 +11,21 @@ describe("ShiftJIS tests", function () {
     var testString2 = "測試"
     var testStringBig5Buffer2 = utils.bytes([0x91, 0xaa, 0x8e, 0x8e])
 
-    assert.deepStrictEqual(iconv.encode(testString, "shiftjis"), testStringBig5Buffer)
-    assert.strictEqual(iconv.decode(testStringBig5Buffer, "shiftjis"), testString)
-    assert.deepStrictEqual(iconv.encode(testString2, "shiftjis"), testStringBig5Buffer2)
-    assert.strictEqual(iconv.decode(testStringBig5Buffer2, "shiftjis"), testString2)
+    expect(iconv.encode(testString, "shiftjis")).toStrictEqual(testStringBig5Buffer)
+    expect(iconv.decode(testStringBig5Buffer, "shiftjis")).toBe(testString)
+    expect(iconv.encode(testString2, "shiftjis")).toStrictEqual(testStringBig5Buffer2)
+    expect(iconv.decode(testStringBig5Buffer2, "shiftjis")).toBe(testString2)
   })
 
   it("ShiftJIS extended chars are decoded, but not encoded", function () {
     var buf = utils.bytes("ed40eefceeef"); var str = "纊＂ⅰ"; var res = "fa 5c fa 57 fa 40" // repeated block (these same chars are repeated in the different place)
     var buf2 = utils.bytes("f040f2fcf940"); var str2 = ""; var res2 = "3f 3f 3f"   // non-repeated, UA block.
 
-    assert.strictEqual(iconv.decode(buf, "shiftjis"), str)
-    assert.strictEqual(iconv.decode(buf2, "shiftjis"), str2)
+    expect(iconv.decode(buf, "shiftjis")).toBe(str)
+    expect(iconv.decode(buf2, "shiftjis")).toBe(str2)
 
-    assert.strictEqual(utils.hex(iconv.encode(str, "shiftjis")), res)
-    assert.strictEqual(utils.hex(iconv.encode(str2, "shiftjis")), res2)
+    expect(utils.hex(iconv.encode(str, "shiftjis"))).toBe(res)
+    expect(utils.hex(iconv.encode(str2, "shiftjis"))).toBe(res2)
   })
 
   it("ShiftJIS decodes the whole EUDC block, but does not encode it", function () {
@@ -37,8 +37,8 @@ describe("ShiftJIS tests", function () {
       var bytes = utils.bytes([lead + (lead < 0x1F ? 0x81 : 0xC1), trail + (trail < 0x3F ? 0x40 : 0x41)])
       var char = String.fromCharCode(0xE000 + pointer - 8836)
 
-      assert.strictEqual(iconv.decode(bytes, "shiftjis"), char, utils.hex(bytes))
-      assert.strictEqual(utils.hex(iconv.encode(char, "shiftjis")), "3f", utils.hex(bytes))
+      expect(iconv.decode(bytes, "shiftjis"), utils.hex(bytes)).toBe(char)
+      expect(utils.hex(iconv.encode(char, "shiftjis")), utils.hex(bytes)).toBe("3f")
     }
   })
 
@@ -54,8 +54,8 @@ describe("ShiftJIS tests", function () {
       const encoded = iconv.encode(text, "shiftjis", {
         invalidCharHandler (char, index) { calls.push([char, index]); return replacement }
       })
-      assert.strictEqual(utils.hex(encoded), expected)
-      assert.deepStrictEqual(calls, [["\uE000", 1], ["\uE69D", 2], ["\uE757", 3]])
+      expect(utils.hex(encoded)).toBe(expected)
+      expect(calls).toStrictEqual([["\uE000", 1], ["\uE69D", 2], ["\uE757", 3]])
     }
   })
 
@@ -63,12 +63,12 @@ describe("ShiftJIS tests", function () {
     const custom = new Iconv(iconv.backend)
     custom.defaultCharSingleByte = "!"
     for (const options of [undefined, { invalidCharHandler () {} }]) {
-      assert.strictEqual(utils.hex(custom.encode("A\uE000\uE69D\uE757B", "shiftjis", options)), "41 21 21 21 42")
+      expect(utils.hex(custom.encode("A\uE000\uE69D\uE757B", "shiftjis", options))).toBe("41 21 21 21 42")
     }
   })
 
   it("ShiftJIS includes extensions", function () {
-    assert.strictEqual(iconv.decode(utils.bytes("8740"), "shiftjis"), "①")
-    assert.strictEqual(utils.hex(iconv.encode("①", "shiftjis")), "87 40")
+    expect(iconv.decode(utils.bytes("8740"), "shiftjis")).toBe("①")
+    expect(utils.hex(iconv.encode("①", "shiftjis"))).toBe("87 40")
   })
 })

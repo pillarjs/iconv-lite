@@ -1,4 +1,4 @@
-import { strict as assert } from "assert"
+import { expect } from "vitest"
 import Iconv from "../lib/iconv.js"
 import webBackend from "../backends/web.js"
 import utils from "./helpers/utils.js"
@@ -18,25 +18,25 @@ describe("Iconv instances", function () {
     const { encode: defaultEncode, decode: defaultDecode } = defaultInstance
     const { encode: webEncode, decode: webDecode } = webInstance
 
-    assert.equal(defaultEncode("hello", "utf8").constructor, utils.BytesType)
-    assert.equal(webEncode("hello", "utf8").constructor, Uint8Array)
-    assert.equal(defaultDecode(defaultEncode("hello", "utf8"), "utf8"), "hello")
-    assert.equal(webDecode(webEncode("hello", "utf8"), "utf8"), "hello")
+    expect(defaultEncode("hello", "utf8").constructor).toBe(utils.BytesType)
+    expect(webEncode("hello", "utf8").constructor).toBe(Uint8Array)
+    expect(defaultDecode(defaultEncode("hello", "utf8"), "utf8")).toBe("hello")
+    expect(webDecode(webEncode("hello", "utf8"), "utf8")).toBe("hello")
   })
 
   it("keeps encoder replacement characters separate", function () {
     webInstance.defaultCharSingleByte = "!"
 
-    assert.deepEqual(webInstance.encode("\ufffd", "ascii"), Uint8Array.of(0x21))
-    assert.deepEqual(defaultInstance.encode("\ufffd", "ascii"), utils.bytes([0x3f]))
+    expect(webInstance.encode("\ufffd", "ascii")).toStrictEqual(Uint8Array.of(0x21))
+    expect(defaultInstance.encode("\ufffd", "ascii")).toStrictEqual(utils.bytes([0x3f]))
   })
 
   it("keeps decoder replacement characters separate", function () {
     webInstance.defaultCharUnicode = "!"
 
     for (const [encoding, byte] of [["cesu8", 0xFF], ["iso88593", 0xA5], ["windows1253", 0xAA]]) {
-      assert.equal(webInstance.decode(Uint8Array.of(byte), encoding), "!")
-      assert.equal(defaultInstance.decode(Uint8Array.of(byte), encoding), "�")
+      expect(webInstance.decode(Uint8Array.of(byte), encoding)).toBe("!")
+      expect(defaultInstance.decode(Uint8Array.of(byte), encoding)).toBe("�")
     }
   })
 
@@ -44,8 +44,8 @@ describe("Iconv instances", function () {
     webInstance.encodingExists("utf8")
     webInstance.encodings.customutf8 = "utf8"
 
-    assert.equal(webInstance.encodingExists("customutf8"), true)
-    assert.equal(defaultInstance.encodingExists("customutf8"), false)
+    expect(webInstance.encodingExists("customutf8")).toBe(true)
+    expect(defaultInstance.encodingExists("customutf8")).toBe(false)
   })
 
   it("changes the backend and resets codecs only on the selected instance", function () {
@@ -54,8 +54,8 @@ describe("Iconv instances", function () {
 
     webInstance.setBackend(defaultIconv.backend)
 
-    assert.notEqual(webInstance.getCodec("windows1251"), webCodec)
-    assert.equal(defaultInstance.getCodec("windows1251"), defaultCodec)
-    assert.equal(webInstance.encode("hello", "windows1251").constructor, utils.BytesType)
+    expect(webInstance.getCodec("windows1251")).not.toBe(webCodec)
+    expect(defaultInstance.getCodec("windows1251")).toBe(defaultCodec)
+    expect(webInstance.encode("hello", "windows1251").constructor).toBe(utils.BytesType)
   })
 })

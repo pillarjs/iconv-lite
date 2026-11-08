@@ -38,22 +38,18 @@ describe("Node Iconv instances", function () {
     assert.equal(webIconv.supportsWebStreams, true)
   })
 
-  it("collects Node stream chunks using the configured Web backend", function (done) {
+  it("collects Node stream chunks using the configured Web backend", async function () {
     const customIconv = new NodeIconv(webBackend)
     const { encodeStream } = customIconv
     const encoder = encodeStream("utf8")
 
-    encoder.collect(function (error, bytes) {
-      if (error) return done(error)
-      try {
-        assert.equal(bytes.constructor, Uint8Array)
-        assert.equal(webIconv.decode(bytes, "utf8"), "hello")
-        done()
-      } catch (error) {
-        done(error)
-      }
+    const collected = new Promise((resolve, reject) => {
+      encoder.collect((error, bytes) => error ? reject(error) : resolve(bytes))
     })
     encoder.write("hel")
     encoder.end("lo")
+    const bytes = await collected
+    assert.equal(bytes.constructor, Uint8Array)
+    assert.equal(webIconv.decode(bytes, "utf8"), "hello")
   })
 })

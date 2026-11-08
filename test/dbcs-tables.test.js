@@ -1,4 +1,4 @@
-import assert from "assert"
+import { expect } from "vitest"
 import { _dbcs as DBCSCodec } from "../encodings/dbcs-codec.js"
 import { forEachVlqRun } from "../encodings/vlq-runs.js"
 import utils from "./helpers/utils.js"
@@ -21,18 +21,18 @@ describe("DBCS table formats", function () {
     it(`encodes and decodes ${name}`, function () {
       const codec = codecFor(table)
       const encoder = codec.createEncoder({}, iconv)
-      assert.deepStrictEqual(Array.from(encoder.write("A中")), [0x41, 0x81, 0x40])
+      expect(Array.from(encoder.write("A中"))).toStrictEqual([0x41, 0x81, 0x40])
       const decoder = codec.createDecoder({}, iconv)
-      assert.equal(decoder.write(Uint8Array.of(0x41, 0x81, 0x40)), "A中")
+      expect(decoder.write(Uint8Array.of(0x41, 0x81, 0x40))).toBe("A中")
     })
   }
 
   it("preserves character sequences and supplementary characters in rows", function () {
     const codec = codecFor([asciiRow, ["8140", "\u0FFFÊ\u0304𠀀"]])
     const encoder = codec.createEncoder({}, iconv)
-    assert.deepStrictEqual(Array.from(encoder.write("AÊ\u0304𠀀")), [0x41, 0x81, 0x40, 0x81, 0x41])
+    expect(Array.from(encoder.write("AÊ\u0304𠀀"))).toStrictEqual([0x41, 0x81, 0x40, 0x81, 0x41])
     const decoder = codec.createDecoder({}, iconv)
-    assert.equal(decoder.write(Uint8Array.of(0x41, 0x81, 0x40, 0x81, 0x41)), "AÊ\u0304𠀀")
+    expect(decoder.write(Uint8Array.of(0x41, 0x81, 0x40, 0x81, 0x41))).toBe("AÊ\u0304𠀀")
   })
 
   it("reads a VLQ address with its high bit set", function () {
@@ -40,14 +40,14 @@ describe("DBCS table formats", function () {
     const payload = "u8zD.uj63mhE.A.C.A"
     const runs = []
     forEachVlqRun(payload, (...run) => runs.push(run))
-    assert.deepStrictEqual(runs, [[0x8135f437, 0xe7c7, 1]])
+    expect(runs).toStrictEqual([[0x8135f437, 0xe7c7, 1]])
     const codec = codecFor([asciiPayload, payload])
     const bytes = Uint8Array.of(0x81, 0x35, 0xf4, 0x37)
     for (let split = 0; split <= bytes.length; split++) {
       const decoder = codec.createDecoder({}, iconv)
       const text = decoder.write(bytes.subarray(0, split)) +
         decoder.write(bytes.subarray(split)) + (decoder.end() || "")
-      assert.equal(text, "\uE7C7")
+      expect(text).toBe("\uE7C7")
     }
   })
 })

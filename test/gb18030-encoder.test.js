@@ -1,4 +1,4 @@
-import { strict as assert } from "assert"
+import { expect } from "vitest"
 import Iconv from "../lib/iconv.js"
 import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
@@ -31,39 +31,39 @@ describe("GB18030 encoder", function () {
   for (const useHandler of [false, true]) {
     it(`applies all 18 asymmetric mappings ${useHandler ? "with" : "without"} a handler`, function () {
       const options = useHandler
-        ? { invalidCharHandler () { assert.fail("representable character") } }
+        ? { invalidCharHandler () { throw new Error("representable character") } }
         : undefined
       for (const [char, expected] of encoderTable) {
-        assert.equal(utils.hex(iconv.encode(char, "gb18030", options)), expected, utils.strToHex(char))
+        expect(utils.hex(iconv.encode(char, "gb18030", options)), utils.strToHex(char)).toBe(expected)
       }
     })
   }
 
   it("keeps the encoder mappings asymmetric with the 2022 decoder index", function () {
-    assert.equal(iconv.decode(utils.bytes("a6 d9"), "gb18030"), "\uFE10")
-    assert.equal(iconv.decode(utils.bytes("fe 67"), "gb18030"), "\u9FB7")
+    expect(iconv.decode(utils.bytes("a6 d9"), "gb18030")).toBe("\uFE10")
+    expect(iconv.decode(utils.bytes("fe 67"), "gb18030")).toBe("\u9FB7")
   })
 
   it("no longer collapses U+E78D and U+E82C into identical bytes", function () {
     // Both characters previously encoded to 83 36 cb 32.
-    assert.equal(utils.hex(iconv.encode("\uE78D\uE82C", "gb18030")), "a6 d9 fe 67")
+    expect(utils.hex(iconv.encode("\uE78D\uE82C", "gb18030"))).toBe("a6 d9 fe 67")
   })
 
   it("treats U+E5E5 as an encoder error in both encoder paths", function () {
-    assert.equal(utils.hex(iconv.encode("A\uE5E5B", "gb18030")), "41 3f 42")
+    expect(utils.hex(iconv.encode("A\uE5E5B", "gb18030"))).toBe("41 3f 42")
     const calls = []
     const encoded = iconv.encode("A\uE5E5B", "gb18030", {
       invalidCharHandler (char, index) { calls.push([char, index]) }
     })
-    assert.equal(utils.hex(encoded), "41 3f 42")
-    assert.deepEqual(calls, [["\uE5E5", 1]])
+    expect(utils.hex(encoded)).toBe("41 3f 42")
+    expect(calls).toStrictEqual([["\uE5E5", 1]])
   })
 
   it("uses a configured replacement byte for U+E5E5 in both encoder paths", function () {
     const custom = new Iconv(iconv.backend)
     custom.defaultCharSingleByte = "!"
     for (const options of [undefined, { invalidCharHandler () {} }]) {
-      assert.equal(utils.hex(custom.encode("A\uE5E5B", "gb18030", options)), "41 21 42")
+      expect(utils.hex(custom.encode("A\uE5E5B", "gb18030", options))).toBe("41 21 42")
     }
   })
 
@@ -79,15 +79,15 @@ describe("GB18030 encoder", function () {
         for (const chunk of chunks) output.push(encoder.write(chunk))
         const tail = encoder.end()
         if (tail) output.push(tail)
-        assert.equal(encoder.end(), undefined)
+        expect(encoder.end()).toBe(undefined)
         return utils.hex(utils.concatBufs(output))
       }
 
       for (let split = 0; split <= text.length; split++) {
-        assert.equal(encodeChunks([text.slice(0, split), "", text.slice(split)]), expected, `split ${split}`)
+        expect(encodeChunks([text.slice(0, split), "", text.slice(split)]), `split ${split}`).toBe(expected)
       }
       // Split supplementary characters into their individual UTF-16 code units.
-      assert.equal(encodeChunks(text.split("")), expected)
+      expect(encodeChunks(text.split(""))).toBe(expected)
     })
   }
 
@@ -97,8 +97,8 @@ describe("GB18030 encoder", function () {
       const encoded = iconv.encode("A😱\uE5E5B", "gb18030", {
         invalidCharHandler (char, index) { calls.push([char, index]); return replacement }
       })
-      assert.equal(utils.hex(encoded), ["41 95 30 83 35", expected, "42"].filter(Boolean).join(" "))
-      assert.deepEqual(calls, [["\uE5E5", 2]])
+      expect(utils.hex(encoded)).toBe(["41 95 30 83 35", expected, "42"].filter(Boolean).join(" "))
+      expect(calls).toStrictEqual([["\uE5E5", 2]])
     }
   })
 
@@ -107,10 +107,10 @@ describe("GB18030 encoder", function () {
     const encoder = iconv.getEncoder("gb18030", {
       invalidCharHandler (char, index) { calls.push([char, index]); return "\uE5E5" }
     })
-    assert.throws(() => encoder.write("A\uE5E5B"), /Replacement .* cannot be encoded in gb18030 at index 1/)
-    assert.deepEqual(calls, [["\uE5E5", 1]])
-    assert.equal(utils.hex(encoder.write("B\uE78D")), "42 a6 d9")
-    assert.equal(encoder.end(), undefined)
+    expect(() => encoder.write("A\uE5E5B")).toThrowError(/Replacement .* cannot be encoded in gb18030 at index 1/)
+    expect(calls).toStrictEqual([["\uE5E5", 1]])
+    expect(utils.hex(encoder.write("B\uE78D"))).toBe("42 a6 d9")
+    expect(encoder.end()).toBe(undefined)
   })
 
   it("cancels a write on U+E5E5 and allows reuse after a split surrogate pair", function () {
@@ -118,10 +118,10 @@ describe("GB18030 encoder", function () {
     const encoder = iconv.getEncoder("gb18030", {
       invalidCharHandler (char, index) { calls.push([char, index]); return true }
     })
-    assert.equal(utils.hex(encoder.write("A\uD83D")), "41")
-    assert.equal(encoder.write("\uDE31\uE5E5discarded"), null)
-    assert.deepEqual(calls, [["\uE5E5", 1]])
-    assert.equal(utils.hex(encoder.write("\uE78D")), "a6 d9")
-    assert.equal(encoder.end(), undefined)
+    expect(utils.hex(encoder.write("A\uD83D"))).toBe("41")
+    expect(encoder.write("\uDE31\uE5E5discarded")).toBe(null)
+    expect(calls).toStrictEqual([["\uE5E5", 1]])
+    expect(utils.hex(encoder.write("\uE78D"))).toBe("a6 d9")
+    expect(encoder.end()).toBe(undefined)
   })
 })

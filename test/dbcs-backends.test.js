@@ -1,4 +1,4 @@
-import assert from "assert"
+import { expect } from "vitest"
 import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
 
@@ -17,19 +17,19 @@ describe("DBCS backends", function () {
   for (const [encoding, text, hex] of cases) {
     it(`encodes ${encoding} using the backend's byte type`, function () {
       const bytes = iconv.encode(text, encoding)
-      assert.strictEqual(bytes.constructor, utils.BytesType)
-      assert.strictEqual(utils.hex(bytes), hex)
+      expect(bytes.constructor).toBe(utils.BytesType)
+      expect(utils.hex(bytes)).toBe(hex)
       const empty = iconv.encode("", encoding)
-      assert.strictEqual(empty.constructor, utils.BytesType)
-      assert.strictEqual(empty.length, 0)
+      expect(empty.constructor).toBe(utils.BytesType)
+      expect(empty.length).toBe(0)
     })
 
     it(`decodes ${encoding} from an offset Uint8Array view`, function () {
       const bytes = utils.bytes(hex)
       const padded = new Uint8Array(bytes.length + 8).fill(0xff)
       padded.set(bytes, 4)
-      assert.strictEqual(iconv.decode(padded.subarray(4, 4 + bytes.length), encoding), text)
-      assert.strictEqual(iconv.decode(new Uint8Array(0), encoding), "")
+      expect(iconv.decode(padded.subarray(4, 4 + bytes.length), encoding)).toBe(text)
+      expect(iconv.decode(new Uint8Array(0), encoding)).toBe("")
     })
   }
 
@@ -37,30 +37,30 @@ describe("DBCS backends", function () {
     it(`flushes pending ${encoding} output using the backend's byte type`, function () {
       const encoder = iconv.getEncoder(encoding)
       const first = encoder.write(text)
-      assert.strictEqual(first.constructor, utils.BytesType)
-      assert.strictEqual(first.length, 0)
+      expect(first.constructor).toBe(utils.BytesType)
+      expect(first.length).toBe(0)
       const tail = encoder.end()
-      assert.strictEqual(tail.constructor, utils.BytesType)
-      assert.strictEqual(utils.hex(tail), hex)
-      assert.strictEqual(encoder.end(), undefined)
+      expect(tail.constructor).toBe(utils.BytesType)
+      expect(utils.hex(tail)).toBe(hex)
+      expect(encoder.end()).toBe(undefined)
     })
   }
 
   it("replaces out-of-range GB18030 pointers on both backends", function () {
-    assert.strictEqual(iconv.decode(utils.bytes("fe 39 fe 39"), "gb18030"), "�")
+    expect(iconv.decode(utils.bytes("fe 39 fe 39"), "gb18030")).toBe("�")
   })
 
   it("keeps GBK encoding rules when decoding GB18030 sequences", function () {
     for (const encoding of ["gbk", "xgbk", "isoir58"]) {
-      assert.strictEqual(iconv.decode(utils.bytes("95 30 83 35"), encoding), "😱")
-      assert.strictEqual(utils.hex(iconv.encode("€😱", encoding)), "80 3f")
+      expect(iconv.decode(utils.bytes("95 30 83 35"), encoding)).toBe("😱")
+      expect(utils.hex(iconv.encode("€😱", encoding))).toBe("80 3f")
       const calls = []
       const encoded = iconv.encode("€😱", encoding, {
         invalidCharHandler (char) { calls.push(char); return "!" }
       })
-      assert.deepStrictEqual(calls, ["😱"])
-      assert.strictEqual(utils.hex(encoded), "80 21")
+      expect(calls).toStrictEqual(["😱"])
+      expect(utils.hex(encoded)).toBe("80 21")
     }
-    assert.strictEqual(utils.hex(iconv.encode("€😱", "gb18030")), "a2 e3 95 30 83 35")
+    expect(utils.hex(iconv.encode("€😱", "gb18030"))).toBe("a2 e3 95 30 83 35")
   })
 })

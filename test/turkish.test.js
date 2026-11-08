@@ -1,4 +1,4 @@
-import assert from "assert"
+import { expect } from "vitest"
 import utils from "./helpers/utils.js"
 var iconv = utils.requireIconv()
 
@@ -59,30 +59,18 @@ describe("Test Turkish encodings", function () {
     describe(encoding.name + ":", function () {
       it("Convert from buffer", function () {
         for (var key in encoding.encodedStrings)
-        { assert.strictEqual(
-          iconv.decode(encoding.encodedStrings[key], enc),
-          encoding.strings[key]
-        ) }
+        { expect(iconv.decode(encoding.encodedStrings[key], enc)).toBe(encoding.strings[key]) }
       })
 
       it("Convert to buffer", function () {
         for (var key in encoding.encodedStrings)
-        { assert.strictEqual(
-          utils.hex(iconv.encode(encoding.strings[key], enc)),
-          utils.hex(encoding.encodedStrings[key])
-        ) }
+        { expect(utils.hex(iconv.encode(encoding.strings[key], enc))).toBe(utils.hex(encoding.encodedStrings[key])) }
       })
 
       it("Try different variations of encoding", function () {
         encoding.variations.forEach(function (enc) {
-          assert.strictEqual(
-            iconv.decode(encoding.encodedStrings[key], enc),
-            encoding.strings[key]
-          )
-          assert.strictEqual(
-            utils.hex(iconv.encode(encoding.strings[key], enc)),
-            utils.hex(encoding.encodedStrings[key])
-          )
+          expect(iconv.decode(encoding.encodedStrings[key], enc)).toBe(encoding.strings[key])
+          expect(utils.hex(iconv.encode(encoding.strings[key], enc))).toBe(utils.hex(encoding.encodedStrings[key]))
         })
       })
 
@@ -92,10 +80,7 @@ describe("Test Turkish encodings", function () {
             .split("")
             .map(() => iconv.defaultCharSingleByte.charCodeAt(0))
         )
-        assert.strictEqual(
-          utils.hex(iconv.encode(encoding.strings.untranslatable, enc)),
-          utils.hex(untranslatableBytes)
-        ) // Only '?' characters.
+        expect(utils.hex(iconv.encode(encoding.strings.untranslatable, enc))).toBe(utils.hex(untranslatableBytes)) // Only '?' characters.
       })
     })
   })

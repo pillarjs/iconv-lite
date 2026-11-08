@@ -1,4 +1,4 @@
-import assert from "assert"
+// Keep this helper independent of the test framework: generators also use it.
 import iconv from "iconv-lite"
 
 const utils = {
@@ -20,7 +20,7 @@ const utils = {
     if (typeof arr === "string") {
       // Hex string - convert to array
       const str = arr.replace(/[\s_:.]/g, "") // Remove potential separators
-      assert(str.length % 2 === 0)
+      if (str.length % 2 !== 0) throw new Error("Expected an even-length hex string")
       arr = []
       for (let i = 0; i < str.length - 1; i += 2) {
         arr.push(parseInt(str.slice(i, i + 2), 16))
@@ -37,7 +37,7 @@ const utils = {
   },
 
   hex (bytes, nonStrict) {
-    assert(nonStrict || bytes instanceof utils.BytesType)
+    if (!nonStrict && !(bytes instanceof utils.BytesType)) throw new TypeError("Expected bytes from the selected backend")
     return Array.prototype.map
       .call(bytes, (byte) => ("0" + (byte & 0xff).toString(16)).slice(-2))
       .join(" ")
@@ -61,23 +61,22 @@ const utils = {
         const inputs = cases[idx].inputs
         const outputs = cases[idx].outputs
         for (let i = 0; i < inputs.length; i++) {
-          assert.strictEqual(
-            decoder.write(utils.bytes(inputs[i])),
-            outputs[i],
-            `position ${i} in case ${idx}`
-          )
+          const actual = decoder.write(utils.bytes(inputs[i]))
+          if (actual !== outputs[i]) {
+            throw new Error(`position ${i} in case ${idx}: expected ${JSON.stringify(outputs[i])}, got ${JSON.stringify(actual)}`)
+          }
         }
 
         if (outputs.length === inputs.length) {
-          assert(!decoder.end(), `end is not empty in case ${idx}`)
+          if (decoder.end()) throw new Error(`end is not empty in case ${idx}`)
         } else if (outputs.length === inputs.length + 1) {
-          assert.strictEqual(
-            decoder.end(),
-            outputs[outputs.length - 1],
-                        `end result unexpected in case ${idx}`
-          )
+          const actual = decoder.end()
+          const expected = outputs[outputs.length - 1]
+          if (actual !== expected) {
+            throw new Error(`end result in case ${idx}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`)
+          }
         } else {
-          assert(false, `invalid outputs array size in case ${idx}`)
+          throw new Error(`invalid outputs array size in case ${idx}`)
         }
       }
     }
@@ -119,7 +118,8 @@ const utils = {
     }
 
     const encodeHeaderChar = (i) => {
-      assert(i > 0 && i < 0xd800 - 0x22) // Check the character is below surrogates.
+      // Check the character is below surrogates.
+      if (!(i > 0 && i < 0xd800 - 0x22)) throw new RangeError("Invalid RLE header character")
       return String.fromCharCode(0x22 + i)
     }
 
@@ -162,8 +162,8 @@ const utils = {
     // Process input array of strings one by one.
     for (let i = 0; i < arr.length; i++) {
       const str = arr[i]
-      assert(typeof str === "string")
-      assert(str.length < maxChunkNum / 2, `Input string is too long: ${str.length}`)
+      if (typeof str !== "string") throw new TypeError("Expected an RLE input string")
+      if (str.length >= maxChunkNum / 2) throw new RangeError(`Input string is too long: ${str.length}`)
 
       if (
         str.length !== curStrLen ||
@@ -200,7 +200,7 @@ const utils = {
     if (num === 1) {
       fn(baseStr)
     } else if (num > 1) {
-      assert(baseStr.length >= 1)
+      if (baseStr.length < 1) throw new Error("Expected a non-empty RLE base string")
       const basePrefix = baseStr.slice(0, -1)
       const baseCharCode = baseStr.charCodeAt(baseStr.length - 1)
       for (let i = 0; i < num; i++) {
@@ -242,10 +242,10 @@ const utils = {
           fn(str, idx++)
         })
       } else {
-        assert.fail(`Unsupported chunk type: ${chunkType}`)
+        throw new Error(`Unsupported chunk type: ${chunkType}`)
       }
     }
-    assert.equal(i, str.length)
+    if (i !== str.length) throw new Error("Invalid RLE string length")
   }
 }
 

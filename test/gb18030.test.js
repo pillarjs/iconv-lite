@@ -1,4 +1,4 @@
-import assert from "assert"
+import { expect } from "vitest"
 import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
 
@@ -45,19 +45,17 @@ function forEachFourByteSequence (check) {
       }
     }
   }
-  assert.strictEqual(pointer, 1587600)
+  expect(pointer).toBe(1587600)
 }
 
-describe("GB18030 pointer ranges", function () {
-  this.timeout(30000)
-
+describe("GB18030 pointer ranges", { timeout: 30000 }, function () {
   for (const encoding of ["gb18030", "gbk"]) {
     it(`decodes assigned and unassigned ${encoding} boundaries at every chunk split`, function () {
       for (const [pointer, hex, expected] of pointerBoundaries) {
         const bytes = utils.bytes(hex)
-        assert.strictEqual(iconv.decode(bytes, encoding), expected, `pointer ${pointer}`)
+        expect(iconv.decode(bytes, encoding), `pointer ${pointer}`).toBe(expected)
         for (let split = 0; split <= bytes.length; split++) {
-          assert.strictEqual(decodeSplit(bytes, split, encoding), expected, `pointer ${pointer}, split ${split}`)
+          expect(decodeSplit(bytes, split, encoding), `pointer ${pointer}, split ${split}`).toBe(expected)
         }
       }
     })
@@ -67,18 +65,18 @@ describe("GB18030 pointer ranges", function () {
     const bytes = utils.bytes("41 84 31 a5 30 e3 32 9a 36 fe 39 fe 39 90 30 81 30 42")
     const expected = "A���\u{10000}B"
     for (let split = 0; split <= bytes.length; split++) {
-      assert.strictEqual(decodeSplit(bytes, split), expected, `split ${split}`)
+      expect(decodeSplit(bytes, split), `split ${split}`).toBe(expected)
     }
     const decoder = iconv.getDecoder("gb18030")
     let actual = ""
     for (let i = 0; i < bytes.length; i++) actual += decoder.write(bytes.subarray(i, i + 1))
-    assert.strictEqual(actual + decoder.end(), expected)
-    assert.strictEqual(decoder.end(), "")
+    expect(actual + decoder.end()).toBe(expected)
+    expect(decoder.end()).toBe("")
   })
 
   it("respects the offset and length of an input view", function () {
     const bytes = utils.bytes("ff 84 31 a5 30 90 30 81 30 ff")
-    assert.strictEqual(iconv.decode(bytes.subarray(1, -1), "gb18030"), "�\u{10000}")
+    expect(iconv.decode(bytes.subarray(1, -1), "gb18030")).toBe("�\u{10000}")
   })
 
   it("uses the configured replacement character for unassigned pointers", function () {
@@ -87,7 +85,7 @@ describe("GB18030 pointer ranges", function () {
     try {
       iconv.defaultCharUnicode = "!"
       iconv._codecDataCache = { __proto__: null }
-      assert.strictEqual(iconv.decode(utils.bytes("84 31 a5 30 e3 32 9a 36"), "gb18030"), "!!")
+      expect(iconv.decode(utils.bytes("84 31 a5 30 e3 32 9a 36"), "gb18030")).toBe("!!")
     } finally {
       iconv.defaultCharUnicode = savedDefault
       iconv._codecDataCache = savedCache
@@ -98,26 +96,26 @@ describe("GB18030 pointer ranges", function () {
     let unassigned = 0
     forEachFourByteSequence((bytes, pointer) => {
       const decoded = iconv.decode(bytes, "gb18030")
-      if (!decoded.isWellFormed()) assert.fail(`${utils.hex(bytes)} decoded to ill-formed UTF-16`)
+      if (!decoded.isWellFormed()) throw new Error(`${utils.hex(bytes)} decoded to ill-formed UTF-16`)
       if ((pointer >= 39420 && pointer < 189000) || pointer > 1237575) {
-        if (decoded !== "�") assert.fail(`${utils.hex(bytes)} should be unassigned`)
+        if (decoded !== "�") throw new Error(`${utils.hex(bytes)} should be unassigned`)
         unassigned++
       }
     })
-    assert.strictEqual(unassigned, 499604)
+    expect(unassigned).toBe(499604)
   })
 
-  it("decodes every four-byte sequence like the platform decoder", function () {
+  it("decodes every four-byte sequence like the platform decoder", function ({ skip }) {
     let native
-    try { native = new TextDecoder("gb18030") } catch { return this.skip() }
+    try { native = new TextDecoder("gb18030") } catch { return skip() }
     // Some small-ICU builds accept the label without providing the right decoder.
     for (const [, hex, expected] of pointerBoundaries) {
-      if (native.decode(utils.bytes(hex)) !== expected) return this.skip()
+      if (native.decode(utils.bytes(hex)) !== expected) return skip()
     }
     forEachFourByteSequence(bytes => {
       const actual = iconv.decode(bytes, "gb18030")
       const expected = native.decode(bytes)
-      if (actual !== expected) assert.fail(`${utils.hex(bytes)}: got ${utils.strToHex(actual)}, expected ${utils.strToHex(expected)}`)
+      if (actual !== expected) throw new Error(`${utils.hex(bytes)}: got ${utils.strToHex(actual)}, expected ${utils.strToHex(expected)}`)
     })
   })
 
@@ -129,7 +127,7 @@ describe("GB18030 pointer ranges", function () {
       pointerBytes(pointer, bytes)
       const expected = String.fromCodePoint(0x10000 + pointer - 189000)
       for (let split = 1; split <= 3; split++) {
-        assert.strictEqual(decodeSplit(bytes, split), expected, `pointer ${pointer}, split ${split}`)
+        expect(decodeSplit(bytes, split), `pointer ${pointer}, split ${split}`).toBe(expected)
       }
     }
   })

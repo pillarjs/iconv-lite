@@ -1,4 +1,4 @@
-import assert from "assert"
+import { expect } from "vitest"
 import unorm from "unorm"
 import utils from "./helpers/utils.js"
 import sbcsData from "./tables/sbcs-data.json" with { type: "json" }
@@ -39,9 +39,7 @@ const iconvEquivChars = {
 // Generate tests for all SBCS encodings.
 iconv.encode("", "utf8") // Load all encodings.
 
-describe("Full SBCS encoding tests", function () {
-  this.timeout(10000)
-
+describe("Full SBCS encoding tests", { timeout: 10000 }, function () {
   for (const enc in iconv.encodings) {
     if (iconv.encodings[enc].type === "_sbcs") {
       (function (enc) {
@@ -49,14 +47,11 @@ describe("Full SBCS encoding tests", function () {
         const testEncName = enc + (enc !== iconvName ? " (" + iconvName + ")" : "")
         const charData = sbcsData[iconvName]
 
-        assert(
-          charData != null,
-                    `Encoding ${iconvName} doesn't have test data in sbcs-data.json file`
-        )
+        expect(charData != null, `Encoding ${iconvName} doesn't have test data in sbcs-data.json file`).toBeTruthy()
 
-        it("Decode SBCS encoding " + testEncName, function () {
+        it("Decode SBCS encoding " + testEncName, function ({ skip }) {
           if (charData === false) {
-            this.skip()
+            skip()
           }
 
           const errors = []
@@ -86,15 +81,13 @@ describe("Full SBCS encoding tests", function () {
               .map((s) => "          " + s)
               .join("\n")
 
-            assert.fail(
-                            `Decoding mismatch: <input> | <expected> | <actual> | <expected char> | <actual char>\n${errs}\n       `
-            )
+            throw new Error(`Decoding mismatch: <input> | <expected> | <actual> | <expected char> | <actual char>\n${errs}\n       `)
           }
         })
 
-        it("Encode SBCS encoding " + testEncName, function () {
+        it("Encode SBCS encoding " + testEncName, function ({ skip }) {
           if (charData === false) {
-            this.skip()
+            skip()
           }
 
           const errors = []
@@ -176,9 +169,7 @@ describe("Full SBCS encoding tests", function () {
               .map((s) => "          " + s)
               .join("\n")
 
-            assert.fail(
-                            `Encoding mismatch: <input> | <input char> | <expected> | <actual>\n${errs}\n       `
-            )
+            throw new Error(`Encoding mismatch: <input> | <input char> | <expected> | <actual>\n${errs}\n       `)
           }
         })
 
@@ -203,8 +194,8 @@ describe("SBCS encode maps U+FFFD to defaultCharSingleByte", function () {
   encodings.forEach(function (enc) {
     it(enc + " encodes U+FFFD as ?", function () {
       const bytes = iconv.encode("\uFFFD", enc)
-      assert.strictEqual(bytes.length, 1)
-      assert.strictEqual(bytes[0], iconv.defaultCharSingleByte.charCodeAt(0))
+      expect(bytes.length).toBe(1)
+      expect(bytes[0]).toBe(iconv.defaultCharSingleByte.charCodeAt(0))
     })
   })
 })
@@ -212,9 +203,9 @@ describe("SBCS encode maps U+FFFD to defaultCharSingleByte", function () {
 describe("SBCS fatal decoding outside the Windows family", function () {
   for (const [encoding, byte] of [["iso88596", 0xA1], ["iso88593", 0xA5]]) {
     it(encoding + " rejects unassigned bytes only in fatal mode", function () {
-      assert.strictEqual(iconv.decode(utils.bytes([byte]), encoding), "\uFFFD")
-      assert.throws(() => iconv.decode(utils.bytes([byte]), encoding, { fatal: true }), TypeError)
-      assert.strictEqual(iconv.decode(utils.bytes([0x41]), encoding, { fatal: true }), "A")
+      expect(iconv.decode(utils.bytes([byte]), encoding)).toBe("\uFFFD")
+      expect(() => iconv.decode(utils.bytes([byte]), encoding, { fatal: true })).toThrowError(TypeError)
+      expect(iconv.decode(utils.bytes([0x41]), encoding, { fatal: true })).toBe("A")
     })
   }
 })
@@ -224,7 +215,7 @@ describe("SBCS decoder constructor compatibility", function () {
     const codec = iconv.getCodec("windows1253")
     const loose = new codec.decoder({}, codec, iconv.backend)
     const fatal = new codec.decoder({ fatal: true }, codec, iconv.backend)
-    assert.strictEqual(loose.write(utils.bytes([0xAA])), "\uFFFD")
-    assert.throws(() => fatal.write(utils.bytes([0xAA])), TypeError)
+    expect(loose.write(utils.bytes([0xAA]))).toBe("\uFFFD")
+    expect(() => fatal.write(utils.bytes([0xAA]))).toThrowError(TypeError)
   })
 })

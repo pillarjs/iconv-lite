@@ -13,6 +13,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # Retain Node 22.0 and odd releases excluded by the current Vitest engines.
+  # These ranges are only for compatibility jobs; package.json tracks current tooling.
+  VITEST_COMPAT_VERSION: '^3.2.7'
+  VITE_COMPAT_VERSION: '^6.4.5'
+
 # Cancel in progress workflows
 # in the scenario where we already had a run going for that PR/branch/tag but then triggered a new run
 concurrency:
@@ -113,6 +119,13 @@ jobs:
           npm config set loglevel error
         shell: bash
 
+      - name: Select compatible Vitest for Node ${{ matrix.node-version }}
+        if: matrix.node-version == '22.0.0' || matrix.node-version == 22 || matrix.node-version == 23 || matrix.node-version == 25
+        shell: bash
+        run: |
+          npm pkg delete 'devDependencies.@vitest/browser-playwright'
+          npm pkg set "devDependencies.vitest=$VITEST_COMPAT_VERSION" "devDependencies.@vitest/coverage-v8=$VITEST_COMPAT_VERSION" "devDependencies.@vitest/browser=$VITEST_COMPAT_VERSION" "devDependencies.vite=$VITE_COMPAT_VERSION"
+
       - name: Install dependencies
         run: npm install
 
@@ -162,28 +175,24 @@ jobs:
         with:
           parallel-finished: true
 
-  test_webpack:
-    name: Run tests webpack
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: ["22", "*"]
-
+  test_browser:
+    name: Run browser tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js LTS
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 'lts/*'
 
       - name: Install dependencies
         run: npm install
 
-      - name: Webpack test
-        shell: bash
-        run: |
-          npm run test:webpack
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser tests
+        run: npm run test:browser
