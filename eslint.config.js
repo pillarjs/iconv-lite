@@ -8,11 +8,10 @@ export default [
       "encodings/sbcs-data-generated.ts", // This a generate file
       "test/wpt/upstream" // Vendored upstream Web Platform Tests
     ],
-    ts: true,
-    filesTs: ["**/*.mts"]
+    ts: true
   }),
   {
-    files: ["test/**/*.test.{js,ts}"],
+    files: ["test/**/*.test.ts"],
     languageOptions: {
       globals: { describe: "readonly", it: "readonly", beforeEach: "readonly", afterEach: "readonly" }
     }

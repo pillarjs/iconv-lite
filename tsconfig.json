@@ -22,22 +22,20 @@
       "node",
       "vitest/globals"
     ],
-    "allowJs": true,
-    "checkJs": false,
     "noEmit": true,
     "strict": true,
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true
   },
   "include": [
-    "lib/**/*",
-    "backends/**/*",
-    "encodings/**/*",
-    "types/**/*",
-    "test/**/*",
-    "performance/**/*",
+    "lib/**/*.ts",
+    "backends/**/*.ts",
+    "encodings/**/*.ts",
+    "types/**/*.ts",
+    "test/**/*.ts",
+    "performance/**/*.ts",
     "generation/**/*.ts",
-    "vitest*.config.*"
+    "vitest*.config.ts"
   ],
   "exclude": [
     "node_modules",

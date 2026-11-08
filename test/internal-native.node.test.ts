@@ -5,7 +5,7 @@ import fs from "fs"
 import vm from "vm"
 import encodings from "../encodings/internal.js"
 
-// Keep byte-method overrides in a separate context; esm.node.test.js checks the
+// Keep byte-method overrides in a separate context; esm.node.test.ts checks the
 // native module graph without Node globals.
 describe("Web backend byte-method fallbacks", function () {
   for (const nativeByteMethods of [true, false]) {
