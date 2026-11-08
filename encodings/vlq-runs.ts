@@ -1,7 +1,7 @@
 // VLQ-encoded run-length codec for generated DBCS mapping tables.
 //
 // A payload is "<first unicode>.<first dbcs>.<unicode gaps>.<lengths>.<dbcs gaps>"
-// written by generateVlqTable in generation/utils.js.
+// written by generateVlqTable in generation/utils.ts.
 
 const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
