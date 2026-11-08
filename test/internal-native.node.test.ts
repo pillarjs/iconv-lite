@@ -1,5 +1,5 @@
 import Iconv from "../lib/iconv.js"
-import type { Backend } from "../lib/types.js"
+import type { Backend } from "iconv-lite"
 import assert from "assert"
 import fs from "fs"
 import vm from "vm"

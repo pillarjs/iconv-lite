@@ -1,19 +1,107 @@
-import type { Backend, Codec, CodecOptions, ConstructorCodec, DecodeOptions, DecoderStream, EncodeOptions, EncoderStream, Encoding, EncodingDefinitions, AddEncodingOptions } from "./types.js"
+import type { Encoding as BuiltinEncoding } from "../types/encodings.js"
+import type { Codec, CodecOptions, ConstructorCodec, EncodingDefinitions, AddEncodingOptions } from "./encoding-registry.js"
 import * as bomHandling from "./bom-handling.js"
 import { createEncodeWebStream, createDecodeWebStream } from "./web-streams.js"
 import getEncodings from "../encodings/index.js"
 import EncodingRegistry from "./encoding-registry.js"
 import { canonicalizeEncoding } from "./utils.js"
 
+/** Built-in suggestions and labels supplied by external encoding packages. */
+export type { BuiltinEncoding }
+export type Encoding = BuiltinEncoding | (string & {}) | number
+
+export interface DecodeOptions {
+  /**
+   * Throw a TypeError on invalid input instead of inserting U+FFFD. @default false
+   * Supported by UTF-8, UTF-16, UTF-32 and table-based single-byte codecs.
+   */
+  fatal?: boolean;
+  /**
+   * Strip the Byte Order Mark (BOM) from the input,
+   * when decoding, if the codec is BOM-aware. @default true
+   */
+  stripBOM?: boolean | (() => void);
+  /** Override the default endianness for `UTF-16` and `UTF-32` decodings. */
+  defaultEncoding?: Encoding;
+}
+
+export interface EncodeOptions {
+  /**
+   * Add a Byte Order Mark (BOM) to the output, when encoding,
+   * if the codec is BOM-aware. @default false
+   */
+  addBOM?: boolean | null;
+  /** Override the default endianness for `UTF-32` encoding. */
+  defaultEncoding?: Encoding;
+  /**
+   * Called when encoding a character that cannot be represented in the target encoding.
+   * Return `true` to discard the current write (or buffered end output) and return `null`.
+   * Later writes may still succeed. A cancellation also makes `iconv.encode()` return `null`.
+   * Return a string to encode it instead (an empty string omits the character).
+   * An unencodable replacement or any other return value throws a TypeError,
+   * without invoking the handler recursively.
+   * Return `false` or nothing to keep the default replacement bytes.
+   * Thrown errors propagate to the caller or become errors on `encodeStream()`.
+   *
+   * Used by single-byte and multibyte encoders, UTF-8, UTF-32, and binary.
+   * These encoders buffer a trailing high surrogate until the next nonempty write or `end()`.
+   * UTF-16, CESU-8, and UTF-7 preserve all UTF-16 code units and never invoke it.
+   * Hex and Base64 reject this option.
+   *
+   * @param char - The unencodable character.
+   * @param index - The zero-based code-point position in the original write where the character starts.
+   */
+  invalidCharHandler?: (char: string, index: number) => string | boolean | void;
+}
+
+export interface EncoderStream<Bytes extends Uint8Array = Buffer, CanCancel extends boolean = boolean> {
+  /** Encodes a chunk. A cancelling handler discards this write's output and returns `null`. */
+  write(str: string): CanCancel extends true ? Bytes | null : Bytes;
+  /** Flushes buffered characters. A cancelling handler may return `null` here too. */
+  end(): (CanCancel extends true ? Bytes | null : Bytes) | undefined;
+}
+
+export interface DecoderStream {
+  write(buf: Buffer | Uint8Array): string;
+  end(): string | undefined;
+  /** Optional complete-input fast path, used by decode() instead of write()/end(). */
+  decode?(buf: Buffer | Uint8Array): string;
+}
+
+export interface Backend<Bytes extends Uint8Array = Uint8Array> {
+  allocBytes(numBytes: number, fill?: number): Uint8Array;
+  bytesToResult(bytes: Uint8Array, finalLen: number): Bytes;
+  concatByteResults(bufs: Bytes[]): Bytes;
+  allocRawChars(numChars: number): Uint16Array;
+  rawCharsToResult(rawChars: Uint16Array, finalLen: number): string;
+  encodeString(str: string, encoding: "utf8" | "binary" | "hex" | "base64"): Bytes;
+  decodeBytes(bytes: Uint8Array, encoding: "binary" | "hex" | "base64"): string;
+  copyBytes(bytes: Uint8Array): Uint8Array;
+}
+
+/** The public API, derived from the shared implementation without its private members. */
+export interface WebIconv<Bytes extends Uint8Array = Uint8Array> extends Pick<Iconv<Bytes>, keyof Iconv<Bytes>> {}
+
 // Each instance owns its backend, codec cache, settings and streaming API.
 export default class Iconv<Bytes extends Uint8Array = Uint8Array> {
   declare backend: Backend<Bytes>
+  /** A cache of all loaded encoding definitions. */
   declare encodings: EncodingDefinitions<Bytes> | null
+  /** A cache of initialized codec objects. */
   declare _codecDataCache: Record<string, Codec<Bytes>>
+  /** The character used for untranslatable `Unicode` characters. @default "�" */
   declare defaultCharUnicode: string
+  /**
+   * The fallback byte for untranslatable characters. @default "?"
+   * Table-based single-byte encoders require one code unit in 0x00–0xFF and
+   * capture its byte value at creation, including when the codec is cached.
+   * Existing encoders and streams retain their setting.
+   */
   declare defaultCharSingleByte: string
-  declare toEncoding: Iconv<Bytes>["encode"]
-  declare fromEncoding: Iconv<Bytes>["decode"]
+  /** Legacy alias for {@link Iconv.encode}. */
+  declare readonly toEncoding: Iconv<Bytes>["encode"]
+  /** Legacy alias for {@link Iconv.decode}. */
+  declare readonly fromEncoding: Iconv<Bytes>["decode"]
   constructor (backend?: Backend<Bytes>) {
     // Load the registry on first use; DBCS table factories defer data allocation.
     this.encodings = null
@@ -43,6 +131,7 @@ export default class Iconv<Bytes extends Uint8Array = Uint8Array> {
     if (backend !== undefined) this.setBackend(backend)
   }
 
+  /** Encodes a `string` into backend bytes, using the provided `encoding`. */
   encode (str: string, encoding: Encoding, options?: EncodeOptions & { invalidCharHandler?: undefined }): Bytes
   encode (str: string, encoding: Encoding, options?: EncodeOptions): Bytes | null
   encode (str: string, encoding: Encoding, options?: EncodeOptions): Bytes | null {
@@ -60,6 +149,7 @@ export default class Iconv<Bytes extends Uint8Array = Uint8Array> {
     return (trail && trail.length > 0) ? this.backend.concatByteResults([res, trail]) : res
   }
 
+  /** Decodes a `Buffer` into a `string`, using the provided `encoding`. */
   decode (buf: Uint8Array, encoding: Encoding, options?: DecodeOptions): string {
     if (typeof buf === "string") {
       throw new TypeError("iconv-lite can't decode() strings. Please pass Buffer or Uint8Array instead.")
@@ -73,6 +163,7 @@ export default class Iconv<Bytes extends Uint8Array = Uint8Array> {
     return trail ? (res + trail) : res
   }
 
+  /** Checks if a given encoding is supported by `iconv-lite`. */
   encodingExists (enc: string | number): enc is Encoding {
     try {
       this.getCodec(enc)
@@ -82,6 +173,7 @@ export default class Iconv<Bytes extends Uint8Array = Uint8Array> {
     }
   }
 
+  /** Registers codec definitions atomically. Repeating equivalent definitions is a no-op. */
   addEncoding (definitions: EncodingDefinitions<Bytes>, options?: AddEncodingOptions) {
     const registry = this.encodings || getEncodings()
     const next = EncodingRegistry.extend(registry, definitions, options)
@@ -89,6 +181,10 @@ export default class Iconv<Bytes extends Uint8Array = Uint8Array> {
     if (next !== registry) this._codecDataCache = Object.create(null)
   }
 
+  /**
+   * Returns a codec object for the given `encoding`.
+   * @throws If the `encoding` is not recognized.
+   */
   getCodec (encoding: Encoding): Codec<Bytes> {
     if (!this.encodings) {
       this.encodings = getEncodings()
@@ -148,6 +244,7 @@ export default class Iconv<Bytes extends Uint8Array = Uint8Array> {
     }
   }
 
+  /** Creates and returns a low-level encoder stream. */
   getEncoder (encoding: Encoding, options?: EncodeOptions & { invalidCharHandler?: undefined }): EncoderStream<Bytes, false>
   getEncoder (encoding: Encoding, options?: EncodeOptions): EncoderStream<Bytes>
   getEncoder (encoding: Encoding, options?: EncodeOptions): EncoderStream<Bytes> {
@@ -169,6 +266,7 @@ export default class Iconv<Bytes extends Uint8Array = Uint8Array> {
     return encoder
   }
 
+  /** Creates and returns a low-level decoder stream. */
   getDecoder (encoding: Encoding, options?: DecodeOptions): DecoderStream {
     const codec = this.getCodec(encoding)
 
@@ -185,15 +283,18 @@ export default class Iconv<Bytes extends Uint8Array = Uint8Array> {
     return decoder
   }
 
+  /** @readonly Whether the environment provides the TransformStream used by Web Streams. */
   get supportsWebStreams () {
     return typeof TransformStream === "function"
   }
 
+  /** Creates a Web TransformStream from strings to encoded bytes. Available without setup. */
   encodeWebStream (encoding: Encoding, options?: EncodeOptions) {
     this.#checkWebStreams()
     return createEncodeWebStream(this.getEncoder(encoding, options))
   }
 
+  /** Creates a Web TransformStream from encoded bytes to strings. Available without setup. */
   decodeWebStream (encoding: Encoding, options?: DecodeOptions) {
     this.#checkWebStreams()
     return createDecodeWebStream(this.getDecoder(encoding, options))

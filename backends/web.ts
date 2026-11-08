@@ -5,7 +5,7 @@ import type { NativeUint8Array, NativeUint8ArrayConstructor } from "../lib/byte-
 //   performant way to unify these behaviors while keeping compatibility with Node <11 where there's no TextDecoder.
 //   Not too worried as it seems like an edge case mostly concerning utf-16/utf-32/cesu8 codecs, but something to be aware of.
 
-import type { Backend } from "../lib/types.js"
+import type { Backend } from "../lib/iconv.js"
 
 const utf8Encoder = new TextEncoder()
 const utf16Decoder = new TextDecoder("utf-16le", { ignoreBOM: true })

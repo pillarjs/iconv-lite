@@ -1,4 +1,4 @@
-import type { Backend, WebIconv, EncodeOptions, DecodeOptions } from "../lib/types.js"
+import type { Backend, WebIconv, EncodeOptions, DecodeOptions } from "../lib/iconv.js"
 import { EncodingHandler, EncodingBuffer } from "../lib/encoding-handler.js"
 import { forEachVlqRun } from "./vlq-runs.js"
 

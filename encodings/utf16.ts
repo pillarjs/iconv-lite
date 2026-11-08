@@ -1,4 +1,4 @@
-import type { Backend, WebIconv, EncodeOptions, DecodeOptions, DecoderStream } from "../lib/types.js"
+import type { Backend, WebIconv, EncodeOptions, DecodeOptions, DecoderStream } from "../lib/iconv.js"
 // == UTF16-LE / UTF16-BE codecs ===============================================
 //
 // Decoding uses the WHATWG-standard TextDecoder (available in both Node and browsers), so it

@@ -1,14 +1,19 @@
-import type { Backend, DecodeOptions, EncodeOptions, Encoding } from "./types.js"
-import Iconv from "./iconv.js"
+import type { TransformOptions } from "node:stream"
+import type { Backend, DecodeOptions, EncodeOptions, Encoding } from "./iconv.js"
+import CoreIconv from "./iconv.js"
 import createStreams from "./streams.js"
 import * as stream from "node:stream"
 
+/** The Node API derived from its implementation, excluding internal stream constructors. */
+export interface Iconv<Bytes extends Uint8Array = Buffer> extends Omit<NodeIconv<Bytes>, "IconvLiteEncoderStream" | "IconvLiteDecoderStream"> {}
+
 // Node-style streams belong only to the Node entry point. The shared core and
 // Web entry point use native Web Streams without loading this adapter.
-export default class NodeIconv<Bytes extends Uint8Array = Buffer> extends Iconv<Bytes> {
+export default class NodeIconv<Bytes extends Uint8Array = Buffer> extends CoreIconv<Bytes> {
   declare IconvLiteEncoderStream: ReturnType<typeof createStreams>["IconvLiteEncoderStream"]
   declare IconvLiteDecoderStream: ReturnType<typeof createStreams>["IconvLiteDecoderStream"]
-  declare supportsStreams: true
+  /** @readonly Whether Node-style streams are enabled. */
+  declare readonly supportsStreams: boolean
   constructor (backend?: Backend<Bytes>) {
     super(backend)
     const streams = createStreams(stream)
@@ -20,11 +25,13 @@ export default class NodeIconv<Bytes extends Uint8Array = Buffer> extends Iconv<
     }
   }
 
-  encodeStream (encoding: Encoding, options?: EncodeOptions) {
+  /** Creates a Node stream that encodes strings into bytes. */
+  encodeStream (encoding: Encoding, options?: EncodeOptions & Omit<TransformOptions, "defaultEncoding">) {
     return new this.IconvLiteEncoderStream(this.getEncoder(encoding, options), options, this)
   }
 
-  decodeStream (encoding: Encoding, options?: DecodeOptions) {
+  /** Creates a Node stream that decodes binary data into strings. */
+  decodeStream (encoding: Encoding, options?: DecodeOptions & Omit<TransformOptions, "defaultEncoding">) {
     return new this.IconvLiteDecoderStream(this.getDecoder(encoding, options), options)
   }
 }

@@ -1,4 +1,4 @@
-import type { Backend, WebIconv, EncodeOptions, DecodeOptions } from "../lib/types.js"
+import type { Backend, WebIconv, EncodeOptions, DecodeOptions } from "../lib/iconv.js"
 // Keep streaming state here and delegate platform-specific conversions to the
 // backend: native Buffer operations in Node, Web APIs and typed arrays in browsers.
 

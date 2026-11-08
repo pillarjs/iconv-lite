@@ -1,5 +1,41 @@
-import type { AddEncodingOptions, EncodingDefinition, EncodingDefinitions } from "./types.js"
+import type { Backend, WebIconv, EncodeOptions, DecodeOptions, EncoderStream, DecoderStream } from "./iconv.js"
 import { canonicalizeEncoding } from "./utils.js"
+
+export interface FactoryCodec<Bytes extends Uint8Array = Uint8Array> {
+  createEncoder(options: EncodeOptions | undefined, iconv: WebIconv<Bytes>): EncoderStream<Bytes>;
+  createDecoder(options: DecodeOptions | undefined, iconv: WebIconv<Bytes>): DecoderStream;
+  bomAware?: boolean;
+}
+
+/** Constructor-based codecs remain supported alongside factory-based codecs. */
+export interface ConstructorCodec<Bytes extends Uint8Array = Uint8Array> {
+  encoder: new (options: EncodeOptions | undefined, codec: ConstructorCodec<Bytes>, backend: Backend<Bytes>) => EncoderStream<Bytes>;
+  decoder: new (options: DecodeOptions | undefined, codec: ConstructorCodec<Bytes>, backend: Backend<Bytes>) => DecoderStream;
+  bomAware?: boolean;
+}
+
+export type Codec<Bytes extends Uint8Array = Buffer> = FactoryCodec<Bytes> | ConstructorCodec<Bytes>
+
+export interface CodecOptions {
+  /** Canonical label of this codec or its configured variant. */
+  encodingName: string;
+  [key: string]: unknown;
+}
+
+export type CodecConstructor<Bytes extends Uint8Array = Uint8Array> =
+  new (options: CodecOptions, iconv: WebIconv<Bytes>) => Codec<Bytes>
+
+export type EncodingDefinition<Bytes extends Uint8Array = Uint8Array> =
+  | string
+  | { type: string; [key: string]: unknown }
+  | CodecConstructor<Bytes>
+
+export type EncodingDefinitions<Bytes extends Uint8Array = Uint8Array> = Record<string, EncodingDefinition<Bytes>>
+
+export interface AddEncodingOptions {
+  /** Allow replacing existing codecs and aliases. Defaults to false. */
+  replace?: boolean;
+}
 
 // Validate a complete registration before publishing it to an Iconv instance.
 export default class EncodingRegistry {

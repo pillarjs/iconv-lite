@@ -1,4 +1,4 @@
-import type { EncodingDefinitions } from "../lib/types.js"
+import type { EncodingDefinitions } from "../lib/encoding-registry.js"
 
 // Keep imports explicit so this registry also works in browsers.
 import internal from "./internal.js"

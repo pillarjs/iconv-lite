@@ -1,4 +1,4 @@
-import type { Backend, EncodeOptions, EncoderStream } from "./types.js"
+import type { Backend, EncodeOptions, EncoderStream } from "./iconv.js"
 
 type InvalidCharHandler = NonNullable<EncodeOptions["invalidCharHandler"]>
 

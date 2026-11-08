@@ -1,4 +1,4 @@
-import type { Backend, WebIconv, EncodeOptions, DecodeOptions, ConstructorCodec, CodecOptions } from "../lib/types.js"
+import type { Backend, WebIconv, EncodeOptions, DecodeOptions, ConstructorCodec, CodecOptions } from "iconv-lite"
 import { expect } from "vitest"
 import Iconv from "../lib/iconv.js"
 import utils from "./helpers/utils.js"

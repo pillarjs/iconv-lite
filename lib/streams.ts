@@ -1,5 +1,5 @@
 import type { Transform, TransformOptions, TransformCallback } from "node:stream"
-import type { WebIconv, EncoderStream, DecoderStream, EncodeOptions, DecodeOptions } from "./types.js"
+import type { WebIconv, EncoderStream, DecoderStream, EncodeOptions, DecodeOptions } from "./iconv.js"
 
 export interface EncoderTransform<Bytes extends Uint8Array> extends Transform {
   collect(cb: (error: Error | null, result?: Bytes) => void): this

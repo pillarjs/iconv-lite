@@ -1,5 +1,5 @@
 // Vitest runs this setup before importing each test file in the Web backend project.
-import type { Iconv } from "../../lib/types.js"
+import type { Iconv } from "iconv-lite"
 import iconv from "../../lib/index-node.js"
 import backend from "../../backends/web.js"
 

@@ -1,5 +1,5 @@
 // NOTE: This backend uses Buffer APIs that are only available in Node v4.5+ and v5.10+.
-import type { Backend } from "../lib/types.js"
+import type { Backend } from "../lib/iconv.js"
 
 export default {
   // Keep the internal encodings on Node's native conversion paths.

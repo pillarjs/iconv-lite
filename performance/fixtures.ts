@@ -1,4 +1,4 @@
-import type { Backend, Iconv } from "../lib/types.js"
+import type { Backend, Iconv } from "iconv-lite"
 import iconv from "iconv"
 import path from "node:path"
 import { pathToFileURL } from "node:url"

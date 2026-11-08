@@ -1,5 +1,5 @@
 import type { NativeUint8Array, NativeUint8ArrayConstructor } from "../lib/byte-array-types.js"
-import type { Backend, WebIconv, EncodeOptions, DecodeOptions } from "../lib/types.js"
+import type { Backend, WebIconv, EncodeOptions, DecodeOptions } from "../lib/iconv.js"
 /**
  * UTF-7 (RFC 2152) and UTF-7-IMAP / Modified UTF-7 (RFC 3501) codecs.
  *

@@ -1,4 +1,4 @@
-import type { EncoderStream, DecoderStream, DecodeOptions } from "./types.js"
+import type { EncoderStream, DecoderStream, DecodeOptions } from "./iconv.js"
 
 const BOMChar = "\uFEFF"
 

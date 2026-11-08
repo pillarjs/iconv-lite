@@ -1,4 +1,4 @@
-import type { Backend, WebIconv, EncodeOptions, DecodeOptions, DecoderStream } from "../lib/types.js"
+import type { Backend, WebIconv, EncodeOptions, DecodeOptions, DecoderStream } from "../lib/iconv.js"
 /**
  * UTF-32LE / UTF-32BE / UTF-32 (auto) codecs.
  *

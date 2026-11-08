@@ -1,4 +1,4 @@
-import type { Backend, Iconv, Encoding } from "../../lib/types.js"
+import type { Backend, Iconv, Encoding } from "iconv-lite"
 import rle from "../../generation/rle.js"
 import iconv from "iconv-lite"
 

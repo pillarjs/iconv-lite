@@ -1,4 +1,4 @@
-import type { EncoderStream, DecoderStream } from "./types.js"
+import type { EncoderStream, DecoderStream } from "./iconv.js"
 
 // TransformStream owns backpressure, cancellation and error propagation. The
 // transformer only adapts the codec's synchronous write/end lifecycle.

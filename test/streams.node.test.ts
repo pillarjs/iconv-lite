@@ -1,5 +1,5 @@
 import type { ReadableOptions, TransformOptions } from "node:stream"
-import type { EncodeOptions, DecodeOptions, Encoding } from "../lib/types.js"
+import type { EncodeOptions, DecodeOptions, Encoding } from "iconv-lite"
 import { describe as describeVitest } from "vitest"
 import assert from "assert"
 import { Buffer } from "buffer"
