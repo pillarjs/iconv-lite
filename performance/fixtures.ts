@@ -1,10 +1,18 @@
+import type { Backend, Iconv } from "../lib/types.js"
 import iconv from "iconv"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { readFileSync } from "node:fs"
-import { canonicalEncoding, competitors } from "./competitors.js"
+import { canonicalEncoding, competitors } from "./competitors.ts"
 
-const encodingStrings = {
+export interface BenchmarkCase {
+  name: string
+  run?: () => unknown
+  expected: string | Uint8Array
+  resultType?: Uint8ArrayConstructor | typeof Buffer
+}
+
+const encodingStrings: Record<string, string> = {
   "windows-1251": "This is a test string 32 chars..",
   gbk: "这是中文字符测试。。！@￥%12",
   "gbk-ascii": "This is a test string 32 chars..",
@@ -24,7 +32,7 @@ const encodingStrings = {
 
 // Not every encoding is supported by the native TextDecoder (e.g. utf-7 is not part of
 // the WHATWG Encoding Standard), so we only add that comparison when the runtime supports it.
-function textDecoderSupports (encoding) {
+function textDecoderSupports (encoding: string) {
   try {
     const decoder = new TextDecoder(encoding)
     return Boolean(decoder)
@@ -42,14 +50,15 @@ export async function createCases () {
   const iconvPath = path.resolve(process.env.ICONV_LITE_BENCH_ROOT || path.join(import.meta.dirname, ".."))
   const pkg = JSON.parse(readFileSync(path.join(iconvPath, "package.json"), "utf8"))
   const entry = path.resolve(iconvPath, pkg.main || "index.js")
-  const { default: iconvLite } = await import(pathToFileURL(entry))
-  const implementations = []
+  const { default: iconvLite } = await import(pathToFileURL(entry).href)
+  const Codec = iconvLite.constructor as new (backend: Backend) => Iconv<Uint8Array>
+  const implementations: { name: string, codec: Iconv<Uint8Array>, bytes: Uint8ArrayConstructor | typeof Buffer }[] = []
   for (const backend of ["node", "web"]) {
-    const { default: implementation } = await import(pathToFileURL(path.resolve(path.dirname(entry), "../backends", backend + ".js")))
+    const { default: implementation } = await import(pathToFileURL(path.resolve(path.dirname(entry), "../backends", backend + ".js")).href)
     // Separate instances keep both backends and codec caches alive in the same comparison.
     implementations.push({
       name: `iconv-lite (${backend})`,
-      codec: new iconvLite.constructor(implementation),
+      codec: new Codec(implementation),
       bytes: backend === "node" ? Buffer : Uint8Array
     })
   }
@@ -60,8 +69,8 @@ export async function createCases () {
   ]) {
     console.log(`${name}: ${JSON.parse(readFileSync(packageURL, "utf8")).version}`)
   }
-  const cases = []
-  function add (name, run, expected, resultType) {
+  const cases: BenchmarkCase[] = []
+  function add (name: string, run: BenchmarkCase["run"], expected: string | Uint8Array, resultType?: BenchmarkCase["resultType"]) {
     cases.push({ name, run, expected, resultType })
   }
 
@@ -94,9 +103,9 @@ export async function createCases () {
       }
       for (const codec of alternatives) {
         add(`${label}/${size}/encode/${codec.name}`,
-          codec.encode && (() => codec.encode(string)), buffer)
+          codec.encode && (() => codec.encode!(string)), buffer)
         add(`${label}/${size}/decode/${codec.name}`,
-          codec.decode && (() => codec.decode(buffer)), string)
+          codec.decode && (() => codec.decode!(buffer)), string)
       }
     }
   }
@@ -105,7 +114,7 @@ export async function createCases () {
   for (const [label, bytes] of [
     ["gb18030-gap", [0x84, 0x31, 0xa5, 0x30]],
     ["gb18030-out-of-range", [0xe3, 0x32, 0x9a, 0x36]]
-  ]) {
+  ] as const) {
     for (const [size, repeat] of Object.entries(sizes)) {
       const buffer = new Uint8Array(bytes.length * repeat)
       for (let i = 0; i < repeat; i++) buffer.set(bytes, i * bytes.length)
@@ -116,7 +125,7 @@ export async function createCases () {
       }
       for (const codec of competitors("gb18030")) {
         add(`${label}/${size}/decode/${codec.name}`,
-          () => codec.decode(buffer), expected)
+          () => codec.decode!(buffer), expected)
       }
     }
   }
@@ -135,7 +144,7 @@ export async function createCases () {
     }
     for (const codec of competitors(encoding)) {
       add(`${encoding}/byte-chunks/decode/${codec.name}`,
-        codec.decodeChunks && (() => codec.decodeChunks(buffer)), encodingStrings[encoding])
+        codec.decodeChunks && (() => codec.decodeChunks!(buffer)), encodingStrings[encoding])
     }
   }
 
@@ -143,7 +152,7 @@ export async function createCases () {
 }
 
 // Competitor differences are skips, but an iconv-lite regression must fail the run.
-export function checkCase ({ name, run, expected, resultType }) {
+export function checkCase ({ name, run, expected, resultType }: BenchmarkCase) {
   let reason
   try {
     if (!run) reason = "unsupported operation"
@@ -153,7 +162,7 @@ export function checkCase ({ name, run, expected, resultType }) {
         ? actual === expected
         : actual instanceof Uint8Array && Buffer.from(actual).equals(Buffer.from(expected))
       if (!equal) reason = typeof expected === "string" ? "decoded text differs" : "encoded bytes differ"
-      else if (resultType && actual.constructor !== resultType) reason = "encoded byte type differs"
+      else if (resultType && (actual as object).constructor !== resultType) reason = "encoded byte type differs"
     }
   } catch (error) {
     reason = (error instanceof Error ? error.message : String(error)) || "operation threw"

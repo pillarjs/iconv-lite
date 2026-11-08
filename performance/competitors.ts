@@ -4,21 +4,27 @@ import { createMultibyteEncoder, createMultibyteDecoder } from "@exodus/bytes/mu
 import { utf8fromStringLoose, utf8toStringLoose } from "@exodus/bytes/utf8.js"
 import { utf16fromString, utf16toStringLoose } from "@exodus/bytes/utf16.js"
 
+interface Competitor {
+  encode?: (text: string) => Uint8Array
+  decode?: (bytes: Uint8Array) => string
+  decodeChunks?: (bytes: Uint8Array) => string
+}
+
 const empty = new Uint8Array(0)
 
 // Keep the benchmark labels while selecting the equivalent public codec names.
-export function canonicalEncoding (encoding) {
-  return { big5hkscs: "big5", eucjp: "euc-jp", cp949: "euc-kr" }[encoding] || encoding
+export function canonicalEncoding (encoding: string) {
+  return ({ big5hkscs: "big5", eucjp: "euc-jp", cp949: "euc-kr" } as Record<string, string>)[encoding] || encoding
 }
 
-function exodusCodec (encoding) {
+function exodusCodec (encoding: string): Competitor | undefined {
   if (encoding === "utf8") {
     return { encode: utf8fromStringLoose, decode: utf8toStringLoose }
   }
   if (encoding === "utf-16le" || encoding === "utf-16be") {
     const format = encoding === "utf-16le" ? "uint8-le" : "uint8-be"
     return {
-      encode: string => utf16fromString(string, format),
+      encode: string => utf16fromString(string, format) as Uint8Array,
       decode: bytes => utf16toStringLoose(bytes, format)
     }
   }
@@ -42,8 +48,8 @@ function exodusCodec (encoding) {
   }
 }
 
-function nanoCodec (encoding) {
-  const codec = nano[encoding.replaceAll("-", "_")]
+function nanoCodec (encoding: string): Competitor | undefined {
+  const codec = nano[encoding.replaceAll("-", "_") as keyof typeof nano]
   if (!codec) return
   return {
     // iconv-lite's automatic UTF-32 encoding adds a BOM by default.
@@ -53,7 +59,7 @@ function nanoCodec (encoding) {
   }
 }
 
-export function competitors (encoding) {
+export function competitors (encoding: string) {
   const canonical = canonicalEncoding(encoding)
   return [
     { name: "@exodus/bytes", ...exodusCodec(canonical) },

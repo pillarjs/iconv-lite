@@ -1,5 +1,5 @@
 import { test } from "vitest"
-import { checkCase, createCases } from "./fixtures.js"
+import { checkCase, createCases } from "./fixtures.ts"
 
 for (const entry of await createCases()) {
   test(entry.name, context => {

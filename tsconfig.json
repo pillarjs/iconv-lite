@@ -25,7 +25,8 @@
     "allowJs": true,
     "checkJs": false,
     "noEmit": true,
-    "strict": true
+    "strict": true,
+    "allowImportingTsExtensions": true
   },
   "include": [
     "lib/**/*",
