@@ -43,9 +43,11 @@ export default {
   koi: "koi8r",
   koi8: "koi8r",
 
+  // WHATWG KOI8-U includes the Belarusian letters from KOI8-RU.
+  koi8u: "koi8ru",
+
   // Mac
-  xmaccyrillic: "maccyrillic",
-  xmacukrainian: "maccyrillic",
+  xmacukrainian: "xmaccyrillic",
   xmacroman: "macintosh",
 
   // EUC-JP

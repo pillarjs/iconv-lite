@@ -2,6 +2,7 @@ import fs from "fs"
 import path from "path"
 import { Iconv } from "iconv"
 import { Buffer } from "buffer"
+import { getFile, parseText } from "./utils.ts"
 
 // Generate encoding families using original iconv.
 const destFileName = "encodings/sbcs-data-generated.ts"
@@ -74,6 +75,22 @@ encodingFamilies.forEach(function (family) {
     }
   })
 })
+
+// These web encodings differ from libiconv's older Macintosh tables.
+// Keep explicit macRoman/macCyrillic/macUkraine codecs unchanged.
+for (const encoding of ["macintosh", "x-mac-cyrillic"]) {
+  const source = await getFile(`https://encoding.spec.whatwg.org/index-${encoding}.txt`)
+  const entries = parseText(source)
+  if (entries.length !== 128) throw new Error(`Incomplete single-byte index for ${encoding}`)
+  const chars = entries.map(([pointer, codePoint], index) => {
+    const code = Number(codePoint)
+    if (Number(pointer) !== index || !Number.isInteger(code) || code < 0x80 || code > 0xFFFF || (code >= 0xD800 && code <= 0xDFFF)) {
+      throw new Error(`Invalid single-byte index entry for ${encoding}: ${pointer} ${codePoint}`)
+    }
+    return String.fromCharCode(code)
+  }).join("")
+  encodings[encoding.replace(/-/g, "")] = { type: "_sbcs", chars }
+}
 
 // Write encodings.
 fs.writeFileSync(path.join(import.meta.dirname, "..", destFileName),

@@ -2,6 +2,10 @@
 
 ### ⚠️ Breaking changes
 
+- Align KOI8-U, Macintosh and x-mac-cyrillic web labels with the WHATWG indexes.
+
+    `koi8-u` now uses the KOI8-RU mappings for `AE` / `BE` (`ў` / `Ў`). Macintosh labels decode `BD` as Greek omega (`U+03A9`), `DB` as `€`, and `F0` as the Apple private-use character (`U+F8FF`). `x-mac-cyrillic` and `x-mac-ukrainian` map `A2` / `B6` to `Ґ` / `ґ` and `FF` to `€`. Encoding uses the same tables without Unicode normalization. Explicit KOI8-U code pages (`21866`, `cp21866`, `ibm1168`) and legacy `macroman`, `maccyrillic`, `macukraine`, `10000` and `10007` retain their original mappings.
+
 - Reject encoding labels containing non-ASCII characters instead of stripping them or folding them into ASCII (for example, the Kelvin sign in `Koi8-r`). Surrounding ASCII whitespace and case-insensitive ASCII matching remain supported.
 
 - Resolve legacy ASCII, Latin-1, Latin-5 and Thai labels to their WHATWG Windows encodings.
