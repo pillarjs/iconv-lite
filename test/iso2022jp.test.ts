@@ -42,9 +42,7 @@ const ESC_ASCII = "\x1b(B"
 const ESC_ROMAN = "\x1b(J"
 const ESC_JIS0208 = "\x1b$B"
 
-// Behavior follows the WHATWG Encoding Standard (https://encoding.spec.whatwg.org/#iso-2022-jp),
-// with one deliberate difference in the encoder: it shifts back to ASCII before CR/LF (RFC 1468
-// requires lines to end in ASCII), where WHATWG would stay in the Roman set.
+// Behavior follows the WHATWG Encoding Standard (https://encoding.spec.whatwg.org/#iso-2022-jp).
 
 describe("ISO-2022-JP codec", function () {
   it("is registered under its WHATWG labels", function () {
@@ -145,13 +143,35 @@ describe("ISO-2022-JP codec", function () {
     expect(enc("ｶﾞ｡")).toBe(enc("カ゛。"))
   })
 
-  it("shifts back to ASCII before line breaks (RFC 1468)", function () {
-    expect(enc("¥\n")).toBe(ESC_ROMAN + "\\" + ESC_ASCII + "\n")
-    expect(enc("¥\r\n¥")).toBe(ESC_ROMAN + "\\" + ESC_ASCII + "\r\n" + ESC_ROMAN + "\\" + ESC_ASCII)
-    expect(enc("管\n理")).toBe(ESC_JIS0208 + "4I" + ESC_ASCII + "\n" + ESC_JIS0208 + "M}" + ESC_ASCII)
+  it.each(["\r", "\n", "\r\n"])("uses WHATWG state transitions around %j", function (lineBreak) {
+    const cases = [
+      ["¥" + lineBreak, ESC_ROMAN + "\\" + lineBreak + ESC_ASCII],
+      ["¥" + lineBreak + "¥", ESC_ROMAN + "\\" + lineBreak + "\\" + ESC_ASCII],
+      ["‾" + lineBreak + "‾", ESC_ROMAN + "~" + lineBreak + "~" + ESC_ASCII],
+      ["¥" + lineBreak + "\\", ESC_ROMAN + "\\" + lineBreak + ESC_ASCII + "\\"],
+      ["¥" + lineBreak + "~", ESC_ROMAN + "\\" + lineBreak + ESC_ASCII + "~"],
+      ["管" + lineBreak + "理", ESC_JIS0208 + "4I" + ESC_ASCII + lineBreak + ESC_JIS0208 + "M}" + ESC_ASCII]
+    ]
+    for (const [input, expected] of cases) {
+      expect(enc(input)).toBe(expected)
+      expect(dec(expected)).toBe(input)
+      for (let i = 0; i <= input.length; i++) {
+        for (let j = i; j <= input.length; j++) {
+          expect(encodeChunks([input.slice(0, i), input.slice(i, j), input.slice(j)]), `split at ${i}, ${j}`).toBe(expected)
+        }
+      }
+    }
   })
 
-  it("encodes unmappable characters as '?' in ASCII", function () {
+  it("keeps shared ASCII characters in Roman state", function () {
+    for (let code = 0; code < 0x80; code++) {
+      if ([0x0e, 0x0f, 0x1b, 0x5c, 0x7e].includes(code)) continue
+      const char = String.fromCharCode(code)
+      expect(enc("¥" + char + "‾")).toBe(ESC_ROMAN + "\\" + char + "~" + ESC_ASCII)
+    }
+  })
+
+  it("encodes unmappable characters as '?'", function () {
     expect(enc("a😀b")).toBe("a?b") // A surrogate pair is one character.
     expect(enc("\ud800")).toBe("?") // Lone surrogates.
     expect(enc("\udc00a")).toBe("?a")
@@ -159,7 +179,29 @@ describe("ISO-2022-JP codec", function () {
     expect(enc("é")).toBe("?")
     expect(enc("a\x1b\x0e\x0fb")).toBe("a???b") // Would otherwise change the decoder's state.
     expect(enc("管😀")).toBe(ESC_JIS0208 + "4I" + ESC_ASCII + "?")
-    expect(enc("¥é")).toBe(ESC_ROMAN + "\\" + ESC_ASCII + "?")
+    expect(enc("¥é")).toBe(ESC_ROMAN + "\\?" + ESC_ASCII)
+  })
+
+  it.each(["é", "😀", "\ud800", "\udc00", "\x0e", "\x0f", "\x1b"])("preserves Roman state when replacing %j", function (char) {
+    const input = "¥" + char + "‾"
+    const expected = ESC_ROMAN + "\\?~" + ESC_ASCII
+    expect(enc(input)).toBe(expected)
+    for (let split = 0; split <= input.length; split++) {
+      expect(encodeChunks([input.slice(0, split), "", input.slice(split)])).toBe(expected)
+    }
+  })
+
+  it.each([
+    [0x21, ESC_ROMAN + "\\!~" + ESC_ASCII],
+    [0x0a, ESC_ROMAN + "\\\n~" + ESC_ASCII],
+    [0x5c, ESC_ROMAN + "\\" + ESC_ASCII + "\\" + ESC_ROMAN + "~" + ESC_ASCII],
+    [0x7e, ESC_ROMAN + "\\" + ESC_ASCII + "~" + ESC_ROMAN + "~" + ESC_ASCII]
+  ] as const)("uses the ASCII meaning of replacement byte %j", function (defaultCharByte, expected) {
+    for (const invalidCharHandler of [undefined, () => false]) {
+      const bytes = iconv.encode("¥é‾", "iso-2022-jp", { defaultCharByte, invalidCharHandler })!
+      expect(iconv.decode(bytes, "binary")).toBe(expected)
+      expect(iconv.decode(bytes, "iso-2022-jp")).toBe("¥" + String.fromCharCode(defaultCharByte) + "‾")
+    }
   })
 
   it("keeps encoder state across writes", function () {

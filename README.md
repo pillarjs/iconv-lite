@@ -354,14 +354,14 @@ It is not recommended for large or bulk text, where the native `utf8`/`utf16` en
 
 ## ISO-2022-JP
 
-ISO-2022-JP (RFC 1468) is the stateful 7-bit Japanese encoding common in email. It follows the
-[WHATWG Encoding Standard](https://encoding.spec.whatwg.org/#iso-2022-jp) decoder algorithm.
+ISO-2022-JP is the stateful 7-bit Japanese encoding common in email. Encoding and decoding follow the
+[WHATWG Encoding Standard](https://encoding.spec.whatwg.org/#iso-2022-jp).
  * Decoding supports ASCII, JIS X 0201 Roman and Katakana, and JIS X 0208 (`ESC $ @` and `ESC $ B`). Escape sequences
    and characters may be split across stream chunks. Ill-formed input is replaced with �, including two escape
    sequences in a row with nothing between them (a WHATWG rule that prevents hiding content).
- * Encoding uses ASCII, JIS X 0201 Roman (for ¥ and ‾) and JIS X 0208, and always ends in ASCII. Unlike WHATWG, it
-   also switches back to ASCII before every line break, as RFC 1468 requires. Halfwidth katakana are encoded as
-   fullwidth, and characters with no mapping become `?`.
+ * Encoding uses ASCII, JIS X 0201 Roman (for ¥ and ‾) and JIS X 0208, and always ends in ASCII. CR and LF preserve
+   Roman state; they switch JIS X 0208 back to ASCII. Halfwidth katakana are encoded as fullwidth, and characters
+   with no mapping become `?` using the same state transitions as an ASCII input character.
  * Supports `fatal`, `defaultCharUnicode`, `defaultCharByte` and `invalidCharHandler`. The replacement byte must
    be ASCII and cannot be ESC (`0x1B`), SO (`0x0E`) or SI (`0x0F`), which would change or invalidate the encoding state.
  * Character mappings are the same as the `EUC-JP` codec (and browsers). They differ from the JIS mappings used by

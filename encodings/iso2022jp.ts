@@ -5,7 +5,7 @@ import { getDefaultCharByte, TextEncoderWithHandler } from "../lib/encoding-hand
 import { getDefaultCharUnicode, replaceDecodeErrors } from "../lib/decoding.js"
 
 /**
- * ISO-2022-JP codec (RFC 1468), following the WHATWG Encoding Standard.
+ * ISO-2022-JP codec following the WHATWG Encoding Standard.
  *
  * A stateful 7-bit encoding: escape sequences switch between character sets.
  *  - ESC ( B  ASCII
@@ -16,12 +16,7 @@ import { getDefaultCharUnicode, replaceDecodeErrors } from "../lib/decoding.js"
  * JIS X 0208 is the 94x94 plane EUC-JP stores at (0xA1-0xFE)x2, so its tables are derived from the
  * EUC-JP codec instead of shipping new data.
  *
- * The one deliberate difference from WHATWG: the encoder shifts back to ASCII before CR and LF (RFC
- * 1468 requires lines to end in ASCII), where WHATWG would stay in the Roman set. Both outputs decode
- * the same.
- *
  * @see https://encoding.spec.whatwg.org/#iso-2022-jp
- * @see https://tools.ietf.org/html/rfc1468
  */
 
 const ESC = 0x1b
@@ -97,7 +92,7 @@ class Iso2022JpCodec {
 /**
  * ISO-2022-JP encoder: the WHATWG algorithm, stateful across writes. Characters that can't be
  * encoded (and ESC, SO, SI, which would change the decoder's state) become
- * the configured replacement byte, always written in ASCII.
+ * the configured ASCII replacement character, using the same state transitions as other input.
  */
 class Iso2022JpEncoder<Bytes extends Uint8Array> {
   declare encodeTable: Uint16Array
@@ -134,21 +129,19 @@ class Iso2022JpEncoder<Bytes extends Uint8Array> {
     return pos
   }
 
-  _unmappable (out: Uint8Array, pos: number) {
-    if (this.state !== ASCII) { pos = this._shift(out, pos, ASCII) }
-    out[pos++] = this.#defaultByte
-    return pos
+  _unmappable (out: Uint8Array, pos: number): number {
+    return this._encodeChar(this.#defaultByte, out, pos)
   }
 
   /**
    * Encodes one UTF-16 code unit (surrogates are handled by the caller).
    */
-  _encodeChar (code: number, out: Uint8Array, pos: number) {
+  _encodeChar (code: number, out: Uint8Array, pos: number): number {
     if (code < 0x80) {
       if (code === 0x0e || code === 0x0f || code === ESC) { return this._unmappable(out, pos) }
-      // Roman shares ASCII except "\" and "~". Lines must end in ASCII (RFC 1468).
+      // Roman shares ASCII except "\" and "~", including CR and LF.
       if (this.state !== ASCII &&
-          !(this.state === ROMAN && code !== 0x5c && code !== 0x7e && code !== 0x0a && code !== 0x0d)) {
+          !(this.state === ROMAN && code !== 0x5c && code !== 0x7e)) {
         pos = this._shift(out, pos, ASCII)
       }
       out[pos++] = code

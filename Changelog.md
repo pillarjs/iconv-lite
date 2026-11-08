@@ -24,7 +24,7 @@
 
 - Add the ISO-2022-JP codec - by [@cadelass](https://github.com/cadelass) in [#425](https://github.com/pillarjs/iconv-lite/pull/425)
 
-    `iso-2022-jp` (alias `csiso2022jp`) is now supported for decoding and encoding, following the WHATWG Encoding Standard. The encoder also switches back to ASCII before each line break, as RFC 1468 requires. It reuses the EUC-JP tables without adding another mapping table.
+    `iso-2022-jp` (alias `csiso2022jp`) is now supported for decoding and encoding, following the WHATWG Encoding Standard. It reuses the EUC-JP tables without adding another mapping table.
 
 - Configure replacement text for SBCS, DBCS, CESU-8 and UTF-32 decoders with `{ defaultCharUnicode: "<invalid>" }`.
 

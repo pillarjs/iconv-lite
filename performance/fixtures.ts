@@ -24,7 +24,7 @@ const encodingStrings: Record<string, string> = {
   eucjp: "日本語の文字列テスト˘abc12",
   "iso-2022-jp": "日本語の文字列テストabc12",
   "iso-2022-jp-ascii": "This is a test string 32 chars..",
-  "iso-2022-jp-transitions": "a管b理¥x‾\\~\r\n日本",
+  "iso-2022-jp-transitions": "a管b理¥x\r\n‾\\~\n日本",
   cp949: "한국어문자열테스트abc12",
   utf8: "这是中文字符测试。。！@￥%12This is a test string 48 chars..",
   "utf-16le": "这是中文字符测试。。！@￥%12This is a test string 48 chars..",
