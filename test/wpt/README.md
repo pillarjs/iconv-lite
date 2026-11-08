@@ -23,13 +23,9 @@ node test/wpt/run.ts textdecoder-fatal # filter by filename substring
 node test/wpt/run.ts "" --strict       # exit non-zero on any failure
 ```
 
-Many assertions fail on purpose — they document real gaps between iconv-lite and
-the WHATWG Encoding Standard, e.g.:
-
-| Test | Why it fails |
-| --- | --- |
-| `textdecoder-labels` | labels for unsupported encodings such as `x-user-defined` are unrecognized |
-| `textdecoder-mistakes` | `x-user-defined` is not supported |
+`textencoder-constructor-non-utf`, `textdecoder-labels` and `textdecoder-mistakes`
+pass, including `x-user-defined`. CI runs these files in strict mode alongside
+`single-byte-decoder`. The report tracks remaining conformance gaps in other files.
 
 `api-invalid-label` passes, as does the `textdecoder-mistakes` check for invalid
 non-ASCII labels. The shim lowercases only ASCII letters so it does not hide

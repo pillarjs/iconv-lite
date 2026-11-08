@@ -14,6 +14,7 @@ export interface BenchmarkCase {
 
 const encodingStrings: Record<string, string> = {
   "windows-1251": "This is a test string 32 chars..",
+  "x-user-defined": "ASCII\0\t\n\u007F\uF780\uF781\uF7A0\uF7FE\uF7FF",
   gbk: "这是中文字符测试。。！@￥%12",
   "gbk-ascii": "This is a test string 32 chars..",
   gb18030: "这是中文字符测试😱𠕇abc12",

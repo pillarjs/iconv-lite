@@ -1,6 +1,12 @@
 // Manually added data to be used by sbcs codec in addition to generated one.
 
 export default {
+  // https://encoding.spec.whatwg.org/#x-user-defined
+  xuserdefined: {
+    type: "_sbcs",
+    chars: Array.from({ length: 128 }, (_, i) => String.fromCharCode(0xF780 + i)).join("")
+  },
+
   // Not supported by iconv, not sure why.
   10029: "maccenteuro",
   maccenteuro: {

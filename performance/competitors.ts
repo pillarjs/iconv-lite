@@ -28,7 +28,7 @@ function exodusCodec (encoding: string): Competitor | undefined {
       decode: bytes => utf16toStringLoose(bytes, format)
     }
   }
-  if (encoding === "windows-1251") {
+  if (encoding === "windows-1251" || encoding === "x-user-defined") {
     return {
       encode: createSinglebyteEncoder(encoding),
       decode: createSinglebyteDecoder(encoding, true)

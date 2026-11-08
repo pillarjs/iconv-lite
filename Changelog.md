@@ -22,6 +22,10 @@
 
 ### 🚀 Improvements
 
+- Add `x-user-defined` encoding and decoding following the WHATWG Encoding Standard.
+
+    ASCII is preserved and bytes `80`–`FF` map to `U+F780`–`U+F7FF`. The codec supports incremental conversions, Node and Web Streams, configurable encoding replacements and handlers. Every byte is valid, including in fatal decoding mode.
+
 - Support `{ fatal: true }` in table-based multibyte decoders, including Big5, Shift_JIS, EUC-JP, EUC-KR, GBK and GB18030.
 
     Invalid and truncated sequences throw `TypeError` in one-shot decoding, incremental decoders and streams. After a fatal write, bytes restored by the WHATWG decoder algorithm and unread input remain available to subsequent writes; finalization resets the decoder even when it throws.

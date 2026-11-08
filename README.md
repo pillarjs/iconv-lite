@@ -265,6 +265,7 @@ during either `write()` or `end()` makes the one-shot `encode()` return `null`.
     IBM/DOS codepages, Macintosh family, KOI8 family, all others supported by iconv library. 
     Aliases like 'latin1', 'us-ascii' also supported.
  *  All widespread multibyte encodings: CP932, CP936, CP949, CP950, GB2312, GBK, GB18030, Big5, Shift_JIS, EUC-JP, ISO-2022-JP.
+ *  `x-user-defined`: preserves ASCII and maps bytes `80`–`FF` to `U+F780`–`U+F7FF`, following WHATWG. Encoding reverses these mappings and uses the configured replacement or handler for other characters.
 
 See [all supported encodings on wiki](https://github.com/ashtuchkin/iconv-lite/wiki/Supported-Encodings).
 
