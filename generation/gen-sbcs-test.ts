@@ -5,6 +5,7 @@ import testUtils from "./rle.ts"
 import fs from "fs"
 import path from "path"
 import assert from "assert"
+import whatwgIndexes from "../test/wpt/data/whatwg-koi8-mac-indexes.json" with { type: "json" }
 
 const skipEncodings: Record<string, boolean> = {
   maccenteuro: true,
@@ -92,6 +93,7 @@ const encodings = [
   "iso646-jp",
   "hp-roman8",
   "macintosh",
+  "xmaccyrillic",
   "ascii",
   "tis620",
   "mik"
@@ -105,6 +107,19 @@ const res = Object.fromEntries(
       return [encoding, false]
     }
     console.log(`Processing ${encoding}`)
+    const index = encoding === "macintosh"
+      ? whatwgIndexes.macintosh
+      : encoding === "xmaccyrillic" ? whatwgIndexes["x-mac-cyrillic"] : undefined
+    if (index) {
+      // The public web codecs use WHATWG mappings rather than libiconv's variants.
+      const decode = Array.from({ length: 256 }, (_, byte) => String.fromCodePoint(byte < 128 ? byte : index[byte - 128]))
+      const encode = new Array<string>(0xFFF0).fill("")
+      for (let byte = 0; byte < decode.length; byte++) {
+        const code = decode[byte].charCodeAt(0)
+        if (!encode[code]) encode[code] = String.fromCharCode(byte)
+      }
+      return [encoding, { decode: testUtils.rleEncode(decode), encode: testUtils.rleEncode(encode) }]
+    }
     const isWindows = encoding.startsWith("windows-")
 
     // Create decode data

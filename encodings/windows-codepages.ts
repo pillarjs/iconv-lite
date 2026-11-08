@@ -27,5 +27,10 @@ export default {
   28599: "cp28599",
   cp28599: sbcsData.iso88599,
   28601: "cp28601",
-  cp28601: sbcsData.iso885911
+  cp28601: sbcsData.iso885911,
+
+  // Explicit KOI8-U code pages retain the original table; the web label uses KOI8-RU.
+  21866: "cp21866",
+  cp21866: sbcsData.koi8u,
+  ibm1168: "cp21866"
 }

@@ -1,4 +1,4 @@
-// Vendors the WHATWG indexes needed by decode-compare.ts and Windows SBCS tests, from
+// Vendors the WHATWG indexes needed by decode-compare.ts and SBCS tests, from
 // the canonical source the spec (and WPT) derive from:
 //   https://encoding.spec.whatwg.org/indexes.json
 //
@@ -16,7 +16,8 @@ const URL = "https://encoding.spec.whatwg.org/indexes.json"
 const TABLES = {
   "whatwg-multibyte-indexes.json": ["jis0208", "jis0212", "big5", "euc-kr"],
   "whatwg-windows-indexes.json": [874, 1250, 1251, 1252, 1253, 1254, 1255, 1256, 1257, 1258]
-    .map(cp => "windows-" + cp)
+    .map(cp => "windows-" + cp),
+  "whatwg-koi8-mac-indexes.json": ["koi8-u", "macintosh", "x-mac-cyrillic"]
 }
 
 async function main () {

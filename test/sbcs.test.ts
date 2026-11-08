@@ -7,6 +7,7 @@ const iconv = utils.requireIconv()
 
 const aliases: Record<string, string> = {
   cp20127: "ascii",
+  cp21866: "koi8-u",
   cp28591: "iso8859-1",
   cp28599: "iso8859-9",
   cp28601: "iso8859-11",

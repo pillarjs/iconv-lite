@@ -164,6 +164,10 @@ jobs:
         run: npm run typecheck
 
       # Node 22.0 lacks native TypeScript support; its library tests still run above.
+      - name: Check single-byte WPT conformance
+        if: matrix.node-version != '22.0.0'
+        run: node test/wpt/run.ts single-byte-decoder --strict
+
       - name: WPT encoding conformance report
         if: matrix.node-version != '22.0.0'
         shell: bash

@@ -37,10 +37,10 @@ invalid input from iconv-lite. Numeric code pages and lenient ASCII separator
 matching remain iconv-lite extensions beyond WHATWG's label table; passing these
 tests does not imply identical label acceptance to the native `TextDecoder` API.
 
-`single-byte-decoder` passes all Windows label variants, including ASCII/Latin-1,
-Latin-5 and Thai aliases. Its seven remaining failures concern KOI8/Macintosh
-table mappings. The shared Windows suite also checks every byte (including
-`0xFF`), encoding, fatal errors, label spelling and codec caching for these aliases.
+`single-byte-decoder` passes all 168 TextDecoder label cases, including Windows,
+KOI8-U and Macintosh. CI runs this file in strict mode. The shared Windows and
+KOI8/Macintosh suites also check every byte (including `0xFF`, omitted upstream),
+encoding, fatal errors, label spelling, codec caching and incremental decoding.
 
 ## Layout
 
@@ -63,6 +63,8 @@ table mappings. The shared Windows suite also checks every byte (including
 - [`gen-indexes.ts`](./gen-indexes.ts) — refreshes `data/whatwg-multibyte-indexes.json`
   (jis0208/jis0212/big5/euc-kr) and `data/whatwg-windows-indexes.json`
   (Windows-874 and Windows-1250–1258) from `encoding.spec.whatwg.org/indexes.json`.
+  It also refreshes `data/whatwg-koi8-mac-indexes.json` for KOI8-U, Macintosh and
+  x-mac-cyrillic, used by [`../koi8-mac.test.ts`](../koi8-mac.test.ts).
   The Windows indexes also drive [`../windows-sbcs.test.ts`](../windows-sbcs.test.ts)
   in both Node backends and Vitest Browser Mode: all 256 bytes, both decoding error
   modes, every BMP scalar for encoding, aliases and incremental decoding.
