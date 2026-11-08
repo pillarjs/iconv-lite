@@ -29,7 +29,7 @@ the WHATWG Encoding Standard, e.g.:
 | Test | Why it fails |
 | --- | --- |
 | `textdecoder-labels` | labels for unsupported encodings such as `x-user-defined` are unrecognized |
-| `textdecoder-mistakes` | unsupported encodings, non-Windows mapping differences and legacy multibyte error handling |
+| `textdecoder-mistakes` | `x-user-defined` is not supported |
 
 `api-invalid-label` passes, as does the `textdecoder-mistakes` check for invalid
 non-ASCII labels. The shim lowercases only ASCII letters so it does not hide
@@ -41,6 +41,10 @@ tests does not imply identical label acceptance to the native `TextDecoder` API.
 KOI8-U and Macintosh. CI runs this file in strict mode. The shared Windows and
 KOI8/Macintosh suites also check every byte (including `0xFF`, omitted upstream),
 encoding, fatal errors, label spelling, codec caching and incremental decoding.
+
+The `Replacement, push back ASCII characters` cases in `textdecoder-mistakes` pass
+in replacement and fatal modes for every listed encoding. Shared multibyte tests
+also cover chunk boundaries, truncated input and restored bytes after fatal writes.
 
 ## Layout
 
@@ -80,9 +84,6 @@ encoding, fatal errors, label spelling, codec caching and incremental decoding.
   through the shim (a `wpt serve` browser run would measure the browser instead).
   Single-byte and all six multi-byte mappings are covered via `single-byte-decoder`
   and `decode-compare.ts`.
-- `{ fatal: true }` for legacy multibyte encodings — these decoders still replace
-  invalid input; fatal decoding is supported for UTF-8, UTF-16, UTF-32 and
-  table-based single-byte encodings.
 
 ```sh
 node test/wpt/update.ts   # refresh the vendored tests
