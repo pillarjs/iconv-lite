@@ -17,8 +17,8 @@ export default defineConfig({
         name: backend,
         environment: "node",
         globals: true,
-        include: ["test/*.test.{js,ts}"],
-        setupFiles: ["./test/env/" + backend + "-backend.js"],
+        include: ["test/*.test.ts"],
+        setupFiles: ["./test/env/" + backend + "-backend.ts"],
         allowOnly: false
       }
     })),

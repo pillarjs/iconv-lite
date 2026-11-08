@@ -22,8 +22,8 @@ export default defineConfig({
   test: {
     maxWorkers: 2,
     globals: true,
-    include: ["test/*.test.{js,ts}", "test/browser/*.test.{js,ts}"],
-    exclude: ["**/*.node.test.{js,ts}"],
+    include: ["test/*.test.ts", "test/browser/*.test.ts"],
+    exclude: ["**/*.node.test.ts"],
     allowOnly: false,
     browser: {
       enabled: true,

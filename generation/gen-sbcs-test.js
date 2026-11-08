@@ -2,7 +2,7 @@
 "use strict"
 
 import { Iconv } from "iconv"
-import testUtils from "../test/helpers/utils.js"
+import testUtils from "./rle.js"
 import fs from "fs"
 import path from "path"
 import assert from "assert"
