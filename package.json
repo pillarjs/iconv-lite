@@ -30,7 +30,7 @@
     },
     "scripts": {
         "prebuild": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\"",
-        "build": "tsc -p tsconfig.build.json && node scripts/copy-types.js",
+        "build": "tsc -p tsconfig.build.json",
         "prepare": "npm run build",
         "typecheck": "tsc -p tsconfig.json",
         "lint": "eslint",
@@ -45,7 +45,7 @@
         "test:performance:check": "vitest run --config vitest.bench.config.js",
         "test:browser": "vitest run --config vitest.browser.config.js",
         "test:wpt": "node test/wpt/run.js",
-        "typegen": "node generation/gen-typings.js"
+        "typegen": "npm run build && node generation/gen-typings.js"
     },
     "browser": {
         "./dist/lib/index-node.js": "./dist/lib/index-web.js"
@@ -68,7 +68,6 @@
         "vitest": "^5.1.0",
         "wpt-runner": "^7.0.0"
     },
-    "dependencies": {},
     "workspaces": [
         "generation"
     ],

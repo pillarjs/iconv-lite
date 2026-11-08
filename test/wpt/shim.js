@@ -5,7 +5,7 @@
 import fs from "fs"
 import path from "path"
 import vm from "vm"
-import iconv from "../../lib/index-node.js"
+import iconv from "iconv-lite"
 
 // Build the WHATWG label -> canonical-name map from the same encodings table the
 // tests use, so `decoder.encoding` reports the spec's canonical name. The map is

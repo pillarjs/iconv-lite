@@ -17,7 +17,7 @@ describe("Web backend byte-method fallbacks", function () {
           Uint8Array.prototype.toBase64 = undefined;
         `, backendContext)
       }
-      vm.runInNewContext(fs.readFileSync(new URL("../backends/web.js", import.meta.url), "utf8").replace("export default", "globalThis.exports ="), backendContext)
+      vm.runInNewContext(fs.readFileSync(new URL("../dist/backends/web.js", import.meta.url), "utf8").replace("export default", "globalThis.exports ="), backendContext)
       const backend = backendContext.exports
       const Bytes = vm.runInNewContext("Uint8Array", backendContext)
       for (const [encoding, text, bytes] of [

@@ -14,8 +14,8 @@ const provider = legacyProvider ? "playwright" : (await import(providerPackage))
 export default defineConfig({
   resolve: {
     alias: [
-      { find: /^iconv-lite$/, replacement: fileURLToPath(new URL("./lib/index-web.js", import.meta.url)) },
-      { find: /^iconv-lite\/web$/, replacement: fileURLToPath(new URL("./lib/index-web.js", import.meta.url)) },
+      { find: /^iconv-lite$/, replacement: fileURLToPath(new URL("./lib/index-web.ts", import.meta.url)) },
+      { find: /^iconv-lite\/web$/, replacement: fileURLToPath(new URL("./lib/index-web.ts", import.meta.url)) },
       { find: /^iconv-lite\/encodings\//, replacement: fileURLToPath(new URL("./encodings/", import.meta.url)) }
     ]
   },

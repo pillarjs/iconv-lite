@@ -1,7 +1,7 @@
 import fs from "fs"
 import path from "path"
 
-import getEncodings from "../encodings/index.js"
+import getEncodings from "../dist/encodings/index.js"
 
 function collectAllEncodings () {
   const allNames = new Set()
@@ -55,7 +55,7 @@ function generateTypingsFile () {
 export type Encoding =\n${supportedEncodingType}\n  | (string & {})
 `
 
-  const outputPath = path.join(import.meta.dirname, "..", "types", "encodings.d.ts")
+  const outputPath = path.join(import.meta.dirname, "..", "types", "encodings.ts")
   fs.writeFileSync(outputPath, fileContent, "utf8")
 }
 

@@ -5,11 +5,11 @@ export default defineConfig({
   test: {
     maxWorkers: 2,
     projects: ["node", "web"].map(backend => ({
-      // Exercise sources during migration; native import tests exercise dist.
+      // Exercise TypeScript sources; native import tests exercise dist.
       resolve: {
         alias: [
-          { find: /^iconv-lite$/, replacement: fileURLToPath(new URL("./lib/index-node.js", import.meta.url)) },
-          { find: /^iconv-lite\/web$/, replacement: fileURLToPath(new URL("./lib/index-web.js", import.meta.url)) },
+          { find: /^iconv-lite$/, replacement: fileURLToPath(new URL("./lib/index-node.ts", import.meta.url)) },
+          { find: /^iconv-lite\/web$/, replacement: fileURLToPath(new URL("./lib/index-web.ts", import.meta.url)) },
           { find: /^iconv-lite\/encodings\//, replacement: fileURLToPath(new URL("./encodings/", import.meta.url)) }
         ]
       },
@@ -24,8 +24,8 @@ export default defineConfig({
     })),
     coverage: {
       provider: "v8",
-      include: ["lib/**/*.{js,ts}", "encodings/**/*.{js,ts}", "backends/**/*.{js,ts}"],
-      exclude: ["**/*.d.ts", "lib/index-web.{js,ts}"],
+      include: ["lib/**/*.ts", "encodings/**/*.ts", "backends/**/*.ts"],
+      exclude: ["**/*.d.ts", "lib/index-web.ts"],
       reporter: ["text", "lcov", "html"],
       thresholds: { statements: 90, branches: 90, functions: 95, lines: 90 }
     }

@@ -118,7 +118,7 @@ function encodeVlq (n) {
   return s
 }
 
-// Convert a dbcs map into a VLQ-encoded run-length payload, decoded at load time by decodeVlqRuns in encodings/vlq-runs.js.
+// Convert a dbcs map into a VLQ-encoded run-length payload, decoded at load time by decodeVlqRuns in encodings/vlq-runs.ts.
 //
 // Consecutive dbcs codes with consecutive unicode code points collapse into a single run;
 // gap columns hold the distance from the end of one run to the start of the next.
@@ -163,7 +163,8 @@ export function writeVlqTable (name, dbcs) {
 }
 
 export function writeFile (name, body) {
-  fs.writeFileSync(path.join(import.meta.dirname, "../encodings/tables", name + ".js"),
-    "// Generated encoding table. Allocate and cache its data on first use.\nlet table\n\n" +
+  const type = body.startsWith("{") ? "{ uChars: number[], gbChars: number[] }" : body.startsWith("[") ? "(string | number)[][]" : "string"
+  fs.writeFileSync(path.join(import.meta.dirname, "../encodings/tables", name + ".ts"),
+    "// Generated encoding table. Allocate and cache its data on first use.\nlet table: " + type + " | undefined\n\n" +
         "export default function getTable () {\n  return table ||= " + body.trimEnd() + "\n}\n")
 }

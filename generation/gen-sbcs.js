@@ -4,7 +4,7 @@ import { Iconv } from "iconv"
 import { Buffer } from "buffer"
 
 // Generate encoding families using original iconv.
-const destFileName = "encodings/sbcs-data-generated.js"
+const destFileName = "encodings/sbcs-data-generated.ts"
 
 const encodingFamilies = [
   {

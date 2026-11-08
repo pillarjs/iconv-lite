@@ -1,12 +1,21 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "noEmit": false,
     "noEmitOnError": true,
     "declaration": true,
     "rootDir": ".",
-    "outDir": "dist"
+    "outDir": "dist",
+    "allowJs": false,
+    "allowImportingTsExtensions": false
   },
-  "include": ["lib/**/*", "backends/**/*", "encodings/**/*", "types/**/*"]
+  "include": [
+    "lib/**/*",
+    "backends/**/*",
+    "encodings/**/*",
+    "types/**/*"
+  ]
 }

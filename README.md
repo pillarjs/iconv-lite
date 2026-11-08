@@ -11,7 +11,7 @@
 * Faster than [node-iconv](https://github.com/bnoordhuis/node-iconv) (see below for performance comparison).
 * Intuitive encode/decode API, including Streaming support.
 * Native ES modules for Node.js and browsers, with automatic backend selection in compatible bundlers.
-* Typescript [type definition file](https://github.com/ashtuchkin/iconv-lite/blob/master/lib/index.d.ts) included.
+* Typescript [type definition file](https://github.com/ashtuchkin/iconv-lite/blob/master/lib/types.ts) included.
 * React Native is supported (need to install `stream` module to enable Streaming API).
 
 ## Usage

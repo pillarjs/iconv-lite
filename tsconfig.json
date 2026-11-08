@@ -1,10 +1,27 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM"],
+    "lib": [
+      "ES2024",
+      "DOM"
+    ],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "types": ["node", "vitest/globals"],
+    "paths": {
+      "iconv-lite": [
+        "./lib/index-node.ts"
+      ],
+      "iconv-lite/web": [
+        "./lib/index-web.ts"
+      ],
+      "iconv-lite/encodings/*.js": [
+        "./encodings/*.ts"
+      ]
+    },
+    "types": [
+      "node",
+      "vitest/globals"
+    ],
     "allowJs": true,
     "checkJs": false,
     "noEmit": true,
@@ -19,5 +36,9 @@
     "performance/**/*",
     "vitest*.config.*"
   ],
-  "exclude": ["node_modules", "dist", "test/wpt/upstream"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test/wpt/upstream"
+  ]
 }
