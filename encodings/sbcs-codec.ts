@@ -2,9 +2,6 @@ import type { Backend, WebIconv, EncodeOptions, DecodeOptions } from "../lib/ico
 import { EncodingHandler, EncodingBuffer, getDefaultCharByte, DEFAULT_CHAR_BYTE } from "../lib/encoding-handler.js"
 import { getDefaultCharUnicode } from "../lib/decoding.js"
 
-// Single-byte codec. Needs a 'chars' string parameter that contains 256 or 128 chars that
-// correspond to encoded bytes (if 128 - then lower half is ASCII).
-
 interface SBCSOptions { encodingName: string, type?: string, chars: string }
 
 class SBCSCodec {
@@ -17,7 +14,6 @@ class SBCSCodec {
       throw new Error("SBCS codec is called without the data.")
     }
 
-    // Prepare char buffer for decoding.
     if (!codecOptions.chars || (codecOptions.chars.length !== 128 && codecOptions.chars.length !== 256)) {
       throw new Error("Encoding '" + codecOptions.type + "' has incorrect 'chars' (must be of len 128 or 256)")
     }
@@ -39,7 +35,7 @@ class SBCSCodec {
     this.decodeBuf = decodeBuf
     this.encodingName = codecOptions.encodingName
 
-    // Build one shared table. Per-encoder replacements never modify its entries.
+    // Shared table; replacement bytes belong to encoders.
     const encodeBuf = iconv.backend.allocBytes(65536, DEFAULT_CHAR_BYTE)
     for (let i = 0; i < decodeBuf.length; i++) {
       const code = decodeBuf[i]
@@ -68,6 +64,7 @@ class SBCSEncoder<Bytes extends Uint8Array> {
 
   #defaultCharByte: number
   #handler: EncodingHandler | undefined
+  #pendingSurrogate = false
 
   constructor (opts: EncodeOptions | undefined, codec: SBCSCodec, backend: Backend<Bytes>) {
     this.backend = backend
@@ -81,22 +78,33 @@ class SBCSEncoder<Bytes extends Uint8Array> {
 
   write (str: string) {
     if (!this.#handler) {
-      const bytes = this.backend.allocBytes(str.length)
+      const bytes = this.backend.allocBytes(str.length + Number(this.#pendingSurrogate))
       const encodeBuf = this.encodeBuf
-      if (this.#defaultCharByte === DEFAULT_CHAR_BYTE) {
-        for (let i = 0; i < str.length; i++) {
-          bytes[i] = encodeBuf[str.charCodeAt(i)]
-        }
-      } else {
-        for (let i = 0; i < str.length; i++) {
-          const code = str.charCodeAt(i)
-          const byte = encodeBuf[code]
-          bytes[i] = byte !== DEFAULT_CHAR_BYTE || (code !== 0xFFFD && code === this.decodeBuf[DEFAULT_CHAR_BYTE])
-            ? byte
-            : this.#defaultCharByte
-        }
+      let offset = 0
+      let length = 0
+      if (this.#pendingSurrogate && str.length > 0) {
+        this.#pendingSurrogate = false
+        bytes[length++] = this.#defaultCharByte
+        if ((str.charCodeAt(0) & 0xFC00) === 0xDC00) offset++
       }
-      return this.backend.bytesToResult(bytes, bytes.length)
+      for (; offset < str.length; offset++) {
+        const code = str.charCodeAt(offset)
+        if ((code & 0xFC00) === 0xD800) {
+          if (offset + 1 === str.length) {
+            this.#pendingSurrogate = true
+            break
+          }
+          // One replacement per surrogate pair.
+          if ((str.charCodeAt(offset + 1) & 0xFC00) === 0xDC00) offset++
+          bytes[length++] = this.#defaultCharByte
+          continue
+        }
+        const byte = encodeBuf[code]
+        bytes[length++] = byte !== DEFAULT_CHAR_BYTE || (code !== 0xFFFD && code === this.decodeBuf[DEFAULT_CHAR_BYTE])
+          ? byte
+          : this.#defaultCharByte
+      }
+      return this.backend.bytesToResult(bytes, length)
     }
 
     return this.#writeWithHandler(str, false)
@@ -122,8 +130,7 @@ class SBCSEncoder<Bytes extends Uint8Array> {
           return null
         }
         if (replacement === undefined) {
-          // Preserve the existing fallback: one byte per UTF-16 code unit.
-          for (let i = 0; i < char.length; i++) output.writeByte(this.#defaultCharByte)
+          output.writeByte(this.#defaultCharByte)
         } else {
           for (const replacementChar of replacement) {
             if (!this.#isRepresentable(replacementChar)) throw this.#handler!.replacementError(replacementChar, index)
@@ -140,6 +147,10 @@ class SBCSEncoder<Bytes extends Uint8Array> {
 
   end () {
     if (this.#handler?.hasPending) return this.#writeWithHandler("", true)
+    if (this.#pendingSurrogate) {
+      this.#pendingSurrogate = false
+      return this.backend.bytesToResult(this.backend.allocBytes(1, this.#defaultCharByte), 1)
+    }
   }
 }
 
@@ -159,7 +170,6 @@ class SBCSDecoder {
   }
 
   write (buf: Uint8Array) {
-    // Strings are immutable in JS -> we use ucs2 buffer to speed up computations.
     const decodeBuf = this.decodeBuf
     const chars = this.backend.allocRawChars(buf.length)
 
@@ -175,8 +185,7 @@ class SBCSDecoder {
       }
     }
     const result = this.backend.rawCharsToResult(chars, chars.length)
-    // Keep unassigned markers in the shared table for fatal decoding and encoding.
-    // A callback inserts replacement text literally, including '$' patterns.
+    // Keep U+FFFD markers in the table; insert replacement text literally.
     return this.fatal || this.#defaultCharUnicode === "\uFFFD"
       ? result
       : result.replace(/\uFFFD/g, () => this.#defaultCharUnicode)

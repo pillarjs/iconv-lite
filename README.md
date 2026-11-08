@@ -104,6 +104,11 @@ The option also works with `getEncoder()`, `encodeStream()` and `encodeWebStream
 Each encoder captures its setting at creation. The default is `0x3F` (`?`).
 Replacement settings do not modify shared codec tables.
 
+Single-byte encoders emit one replacement byte per unrepresentable Unicode code
+point. For example, `iconv.encode('🙂', 'windows-1252')` returns one `0x3F` byte.
+Incremental encoders buffer a trailing high surrogate across empty writes until
+the next nonempty write or `end()`. Consume the bytes returned by `end()` as well.
+
 `invalidCharHandler(char, index)` runs when encoding would replace or truncate an
 input character. Its result controls what happens:
 

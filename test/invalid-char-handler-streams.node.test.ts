@@ -20,7 +20,7 @@ describe("invalidCharHandler (Node streams)", function () {
       encoder.write("A\uFFFD\uD83D")
       encoder.write("")
       encoder.end("\uDE42\uD800")
-      assert.deepEqual(await collected, utils.bytes([0x41, 0x21, 0x21, 0x21, 0x21]))
+      assert.deepEqual(await collected, utils.bytes([0x41, 0x21, 0x21, 0x21]))
     })
   }
 
@@ -68,7 +68,7 @@ describe("invalidCharHandler (Node streams)", function () {
 
     encoder.write("A\uD83D")
     encoder.end("\uDE42B")
-    assert.deepStrictEqual(Array.from(await collected), [0x41, 0x3F, 0x3F, 0x42])
+    assert.deepStrictEqual(Array.from(await collected), [0x41, 0x3F, 0x42])
     assert.deepStrictEqual(calls, [{ char: "🙂", index: 1 }])
   })
 

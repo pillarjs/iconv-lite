@@ -127,7 +127,7 @@ describe("invalidCharHandler (SBCS)", function () {
       }
     })
 
-    expect(res).toStrictEqual(utils.bytes([0x41, 0x3F, 0x3F, 0x3F, 0x42]))
+    expect(res).toStrictEqual(utils.bytes([0x41, 0x3F, 0x3F, 0x42]))
     expect(calls.length).toBe(2)
     expect(calls[0].char).toBe("🙂")
     expect(calls[0].index).toBe(1)
@@ -144,7 +144,7 @@ describe("invalidCharHandler (SBCS)", function () {
     expect(Array.from(encoder.write("A\uD83D")!)).toStrictEqual([0x41])
     expect(Array.from(encoder.write("")!)).toStrictEqual([])
     expect(calls).toStrictEqual([])
-    expect(Array.from(encoder.write("\uDE42世B")!)).toStrictEqual([0x3F, 0x3F, 0x3F, 0x42])
+    expect(Array.from(encoder.write("\uDE42世B")!)).toStrictEqual([0x3F, 0x3F, 0x42])
     expect(calls).toStrictEqual([{ char: "🙂", index: 1 }, { char: "世", index: 1 }])
     expect(encoder.end()).toBe(undefined)
   })
@@ -160,7 +160,7 @@ describe("invalidCharHandler (SBCS)", function () {
       const tail = encoder.end()
       if (tail) chunks.push(tail)
 
-      expect(utils.concatBufs(chunks)).toStrictEqual(utils.bytes([0x41, 0x3F, 0x3F, 0x3F, 0x42, 0x3F]))
+      expect(utils.concatBufs(chunks)).toStrictEqual(utils.bytes([0x41, 0x3F, 0x3F, 0x42, 0x3F]))
       expect(calls).toStrictEqual(["🙂", "世", "\uD800"])
       expect(encoder.end()).toBe(undefined)
     }
@@ -251,9 +251,9 @@ describe("invalidCharHandler (SBCS)", function () {
     expect(caught).toBe(error)
   })
 
-  it("preserves immediate surrogate replacement without a handler", function () {
+  it("buffers split surrogate pairs without a handler", function () {
     const encoder = iconv.getEncoder("latin1")
-    expect(Array.from(encoder.write("\uD83D"))).toStrictEqual([0x3F])
+    expect(Array.from(encoder.write("\uD83D"))).toStrictEqual([])
     expect(Array.from(encoder.write("\uDE42"))).toStrictEqual([0x3F])
     expect(encoder.end()).toBe(undefined)
   })

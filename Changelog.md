@@ -2,6 +2,10 @@
 
 ### ⚠️ Breaking changes
 
+- Emit one replacement byte per unencodable Unicode code point in single-byte encoders. Fixes [#368](https://github.com/pillarjs/iconv-lite/issues/368).
+
+    Supplementary characters such as `🙂` now encode as `?` instead of `??`, including with `defaultCharByte` or a handler that keeps the default replacement. Incremental encoders buffer a trailing high surrogate until the next nonempty write or `end()`, so pairs split between chunks also produce one replacement.
+
 - Remove the public `iconv.defaultCharSingleByte` and `iconv.defaultCharUnicode` properties.
 
     Use the per-conversion `defaultCharByte` and `defaultCharUnicode` options instead.
