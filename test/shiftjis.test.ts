@@ -61,9 +61,8 @@ describe("ShiftJIS tests", function () {
 
   it("ShiftJIS uses the configured replacement byte for EUDC in both encoder paths", function () {
     const custom = new Iconv(iconv.backend)
-    custom.defaultCharSingleByte = "!"
     for (const options of [undefined, { invalidCharHandler () {} }]) {
-      expect(utils.hex(custom.encode("A\uE000\uE69D\uE757B", "shiftjis", options))).toBe("41 21 21 21 42")
+      expect(utils.hex(custom.encode("A\uE000\uE69D\uE757B", "shiftjis", { ...options, defaultCharByte: 0x21 }))).toBe("41 21 21 21 42")
     }
   })
 

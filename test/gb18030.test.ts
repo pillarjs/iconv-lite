@@ -80,16 +80,7 @@ describe("GB18030 pointer ranges", { timeout: 30000 }, function () {
   })
 
   it("uses the configured replacement character for unassigned pointers", function () {
-    const savedDefault = iconv.defaultCharUnicode
-    const savedCache = iconv._codecDataCache
-    try {
-      iconv.defaultCharUnicode = "!"
-      iconv._codecDataCache = Object.create(null)
-      expect(iconv.decode(utils.bytes("84 31 a5 30 e3 32 9a 36"), "gb18030")).toBe("!!")
-    } finally {
-      iconv.defaultCharUnicode = savedDefault
-      iconv._codecDataCache = savedCache
-    }
+    expect(iconv.decode(utils.bytes("84 31 a5 30 e3 32 9a 36"), "gb18030", { defaultCharUnicode: "!" })).toBe("!!")
   })
 
   it("emits well-formed UTF-16 for every four-byte sequence and replaces all unassigned pointers", function () {

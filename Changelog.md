@@ -2,6 +2,10 @@
 
 ### ⚠️ Breaking changes
 
+- Remove the public `iconv.defaultCharSingleByte` and `iconv.defaultCharUnicode` properties.
+
+    Use the per-conversion `defaultCharByte` and `defaultCharUnicode` options instead.
+
 - Align KOI8-U, Macintosh and x-mac-cyrillic web labels with the WHATWG indexes.
 
     `koi8-u` now uses the KOI8-RU mappings for `AE` / `BE` (`ў` / `Ў`). Macintosh labels decode `BD` as Greek omega (`U+03A9`), `DB` as `€`, and `F0` as the Apple private-use character (`U+F8FF`). `x-mac-cyrillic` and `x-mac-ukrainian` map `A2` / `B6` to `Ґ` / `ґ` and `FF` to `€`. Encoding uses the same tables without Unicode normalization. Explicit KOI8-U code pages (`21866`, `cp21866`, `ibm1168`) and legacy `macroman`, `maccyrillic`, `macukraine`, `10000` and `10007` retain their original mappings.
@@ -12,7 +16,25 @@
 
     `ascii` and `iso-8859-1` (including `us-ascii` and `latin1`) now use Windows-1252. `iso-8859-9` and `latin5` use Windows-1254; `iso-8859-11` and `tis-620` use Windows-874. This applies to encoding, decoding, handlers, fatal mode and streams. For example, byte `80` decodes to `€` with `ascii` or `latin1`, and encoding `€` produces `80`. Explicit ISO code pages `28591`, `28599` and `28601` (including their `cp` forms) retain their original tables; `cp367` and `ibm367` retain 7-bit ASCII. Use `binary` for byte-preserving Latin-1 conversion.
 
+### 🚀 Improvements
+
+- Configure replacement text for SBCS, DBCS, CESU-8 and UTF-32 decoders with `{ defaultCharUnicode: "<invalid>" }`.
+
+    Accept literal strings, including empty text, with `U+FFFD` as the default. Each decoder and stream captures its own replacement. Valid `U+FFFD` input is preserved, and fatal decoding still rejects invalid input where supported.
+
+- Configure the replacement byte for table-based single-byte and multibyte encoders with `{ defaultCharByte: 0x21 }`.
+
+    Accept integers from `0` to `255`, with `0x3F` (`?`) as the default. Each encoder and stream captures its own replacement.
+
 ### 🐞 Bug fixes
+
+- Throw `TypeError` consistently for invalid or truncated UTF-32 input in fatal mode, including incremental decoding and streams.
+
+- Preserve Big5 encoding order when an isolated UTF-16 surrogate follows a pending character sequence. Emit the pending character before its replacement and prevent combining marks from joining across the invalid input.
+
+- Stop treating `U+FEFF` replacement text as an input BOM when decoding CESU-8 and UTF-32.
+
+- Keep caller options unchanged in Node encoding and decoding streams, including frozen option objects.
 
 - Add Windows code page aliases `65000` / `cp65000` for UTF-7 and `65001` / `cp65001` for UTF-8. Addresses [#109](https://github.com/pillarjs/iconv-lite/issues/109).
 

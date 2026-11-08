@@ -72,11 +72,11 @@ describe("Test Turkish encodings", function () {
         })
       })
 
-      it("Untranslatable chars are converted to defaultCharSingleByte", function () {
+      it("Untranslatable chars use the default replacement byte", function () {
         const untranslatableBytes = utils.bytes(
           encoding.strings.untranslatable
             .split("")
-            .map(() => iconv.defaultCharSingleByte.charCodeAt(0))
+            .map(() => 0x3F)
         )
         expect(utils.hex(iconv.encode(encoding.strings.untranslatable, enc))).toBe(utils.hex(untranslatableBytes)) // Only '?' characters.
       })

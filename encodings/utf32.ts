@@ -23,6 +23,8 @@ import type { Backend, WebIconv, EncodeOptions, DecodeOptions, DecoderStream } f
  */
 
 import { TextEncoderWithHandler, isUnicodeScalar } from "../lib/encoding-handler.js"
+import { getDefaultCharUnicode, replaceDecodeErrors } from "../lib/decoding.js"
+import { BOM_BYTES } from "../lib/bom-handling.js"
 
 function createEncoder<Bytes extends Uint8Array> (options: EncodeOptions | undefined, iconv: WebIconv<Bytes>, isLE: boolean) {
   const encoder = new Utf32Encoder(iconv.backend, isLE)
@@ -33,6 +35,8 @@ function createEncoder<Bytes extends Uint8Array> (options: EncodeOptions | undef
 
 /** Unicode replacement character, emitted by the encoder for ill-formed input. */
 const REPLACEMENT = 0xFFFD
+const UTF32LE_BOM = [0xFF, 0xFE, 0x00, 0x00] as const
+const UTF32BE_BOM = [0x00, 0x00, 0xFE, 0xFF] as const
 
 /** Max args for one String.fromCharCode.apply() before risking a call-stack overflow. */
 const CHARS_CHUNK = 8192
@@ -49,14 +53,14 @@ const utf16leDecoder = new TextDecoder("utf-16le", { ignoreBOM: true })
 /** UTF-32LE codec. */
 class Utf32LECodec {
   createEncoder<Bytes extends Uint8Array> (options: EncodeOptions | undefined, iconv: WebIconv<Bytes>) { return createEncoder(options, iconv, true) }
-  createDecoder (options: DecodeOptions | undefined, iconv: WebIconv) { return new Utf32Decoder(true, iconv.defaultCharUnicode.charCodeAt(0), !!(options && options.fatal)) }
+  createDecoder (options: DecodeOptions | undefined, iconv: WebIconv) { return new Utf32Decoder(true, options) }
   get bomAware () { return true }
 }
 
 /** UTF-32BE codec. */
 class Utf32BECodec {
   createEncoder<Bytes extends Uint8Array> (options: EncodeOptions | undefined, iconv: WebIconv<Bytes>) { return createEncoder(options, iconv, false) }
-  createDecoder (options: DecodeOptions | undefined, iconv: WebIconv) { return new Utf32Decoder(false, iconv.defaultCharUnicode.charCodeAt(0), !!(options && options.fatal)) }
+  createDecoder (options: DecodeOptions | undefined, iconv: WebIconv) { return new Utf32Decoder(false, options) }
   get bomAware () { return true }
 }
 
@@ -152,20 +156,22 @@ class Utf32Encoder<Bytes extends Uint8Array> {
  */
 class Utf32Decoder {
   declare isLE: boolean
-  declare badChar: number
   declare fatal: boolean
   declare overflow: number[]
   declare units: Uint16Array<ArrayBuffer>
 
+  #defaultCharUnicode: string
+
+  get [BOM_BYTES] () { return this.isLE ? UTF32LE_BOM : UTF32BE_BOM }
+
   /**
    * @param {boolean} isLE Little-endian when true.
-   * @param {number} badChar Code unit emitted for ill-formed input.
-   * @param {boolean} fatal Throw on ill-formed input instead of emitting the bad-char.
+   * @param {DecodeOptions} options Replacement text and fatal decoding settings.
    */
-  constructor (isLE: boolean, badChar: number, fatal: boolean) {
+  constructor (isLE: boolean, options: DecodeOptions | undefined) {
     this.isLE = isLE
-    this.badChar = badChar
-    this.fatal = fatal
+    this.#defaultCharUnicode = getDefaultCharUnicode(options)
+    this.fatal = !!options?.fatal
     this.overflow = []
     this.units = new Uint16Array(0) // Decoded code units, reused across writes; grows lazily.
   }
@@ -179,7 +185,7 @@ class Utf32Decoder {
 
     const isLE = this.isLE
     const overflow = this.overflow
-    const badChar = this.badChar
+    const errors: number[] | undefined = this.#defaultCharUnicode === "\uFFFD" ? undefined : []
     const fatal = this.fatal
     // Each code point yields at most 2 UTF-16 units; +2 of slack covers rounding and a finished overflow.
     const maxUnits = (((overflow.length + src.length) >> 2) + 1) * 2
@@ -192,7 +198,7 @@ class Utf32Decoder {
     if (overflow.length > 0) {
       for (; i < src.length && overflow.length < 4; i++) { overflow.push(src[i]) }
       if (overflow.length === 4) {
-        pos = pushCodepoint(units, pos, readCodepoint(overflow, 0, isLE), badChar, fatal)
+        pos = pushCodepoint(units, pos, readCodepoint(overflow, 0, isLE), fatal, errors)
         overflow.length = 0
       }
     }
@@ -203,27 +209,27 @@ class Utf32Decoder {
     if (isLE && count > 0 && (src.byteOffset + i) % 4 === 0) {
       const codepoints = new Uint32Array(src.buffer, src.byteOffset + i, count)
       for (let k = 0; k < count; k++) {
-        pos = pushCodepoint(units, pos, codepoints[k], badChar, fatal)
+        pos = pushCodepoint(units, pos, codepoints[k], fatal, errors)
       }
       i += count * 4
     } else {
       for (; i < src.length - 3; i += 4) {
-        pos = pushCodepoint(units, pos, readCodepoint(src, i, isLE), badChar, fatal)
+        pos = pushCodepoint(units, pos, readCodepoint(src, i, isLE), fatal, errors)
       }
     }
 
     // Keep the trailing bytes that don't complete a code point for the next chunk.
     for (; i < src.length; i++) { overflow.push(src[i]) }
 
-    return stringFromUnits(units, pos)
+    return replaceDecodeErrors(stringFromUnits(units, pos), errors, this.#defaultCharUnicode)
   }
 
-  /** @returns {string|undefined} U+FFFD for a code point left truncated at end of input (or throws when fatal). */
+  /** @returns {string|undefined} Replacement text for a truncated code point (or throws when fatal). */
   end () {
     if (this.overflow.length === 0) { return }
     this.overflow.length = 0
-    if (this.fatal) { throw new Error("Truncated UTF-32 code unit at end of input") }
-    return String.fromCharCode(this.badChar)
+    if (this.fatal) { throw new TypeError("Truncated UTF-32 code unit at end of input") }
+    return this.#defaultCharUnicode
   }
 }
 
@@ -261,16 +267,16 @@ function readCodepoint (src: Uint8Array | number[], pos: number, isLE: boolean) 
 /**
  * Decode steps 2 and 3: validate one code point as a Unicode scalar value (definition D76) and append
  * its UTF-16 form. A surrogate code point (D800..DFFF) or a value above 0x10FFFF is not a scalar value,
- * so it becomes `badChar`, or throws when `fatal`. (Code points are read unsigned, so a value with the
- * high bit set is just > 0x10FFFF.)
+ * so it becomes U+FFFD and is recorded for custom replacement, or throws when `fatal`.
+ * Code points are read unsigned, so a value with the high bit set is just > 0x10FFFF.
  * @param {Uint16Array} units
  * @param {number} pos Current code-unit write position.
  * @param {number} codepoint An unsigned value in 0..0xFFFFFFFF.
- * @param {number} badChar
  * @param {boolean} fatal
+ * @param {number[]|undefined} errors Optional positions to replace with custom text.
  * @returns {number} The new code-unit write position.
  */
-function pushCodepoint (units: Uint16Array, pos: number, codepoint: number, badChar: number, fatal: boolean) {
+function pushCodepoint (units: Uint16Array, pos: number, codepoint: number, fatal: boolean, errors: number[] | undefined) {
   // Step 3 fast path: a BMP scalar value below the surrogate range (the common case for real text).
   if (codepoint < 0xD800) {
     units[pos++] = codepoint
@@ -280,8 +286,9 @@ function pushCodepoint (units: Uint16Array, pos: number, codepoint: number, badC
   // Step 2: reject non-scalar values. Past the check above, codepoint >= 0xD800, so codepoint <= 0xDFFF
   // means a surrogate code point; codepoint > 0x10FFFF is out of range.
   if (codepoint > 0x10FFFF || codepoint <= 0xDFFF) {
-    if (fatal) { throw new Error("Invalid UTF-32 code unit: 0x" + codepoint.toString(16)) }
-    units[pos++] = badChar
+    if (fatal) { throw new TypeError("Invalid UTF-32 code unit: 0x" + codepoint.toString(16)) }
+    errors?.push(pos)
+    units[pos++] = REPLACEMENT
     return pos
   }
 
@@ -342,7 +349,7 @@ class Utf32AutoDecoder {
     this.decoder = null
     this.initialBufs = []
     this.initialBufsLen = 0
-    this.options = options || {}
+    this.options = { ...options, defaultCharUnicode: getDefaultCharUnicode(options) }
     this.iconv = iconv
   }
 

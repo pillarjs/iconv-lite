@@ -61,9 +61,8 @@ describe("GB18030 encoder", function () {
 
   it("uses a configured replacement byte for U+E5E5 in both encoder paths", function () {
     const custom = new Iconv(iconv.backend)
-    custom.defaultCharSingleByte = "!"
     for (const options of [undefined, { invalidCharHandler () {} }]) {
-      expect(utils.hex(custom.encode("A\uE5E5B", "gb18030", options))).toBe("41 21 42")
+      expect(utils.hex(custom.encode("A\uE5E5B", "gb18030", { ...options, defaultCharByte: 0x21 }))).toBe("41 21 42")
     }
   })
 

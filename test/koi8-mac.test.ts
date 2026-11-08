@@ -80,8 +80,7 @@ describe("KOI8 and Macintosh WHATWG mappings", function () {
         const codec = instance.getCodec(first)
         for (const label of labels) {
           expect(instance.getCodec(" \t" + label.toUpperCase() + "\r\n")).toBe(codec)
-          instance.defaultCharUnicode = "!"
-          expect(instance.decode(utils.bytes(allBytes), label)).toBe(expected)
+          expect(instance.decode(utils.bytes(allBytes), label, { defaultCharUnicode: "!" })).toBe(expected)
         }
       }
     })
@@ -106,12 +105,13 @@ describe("KOI8 and Macintosh WHATWG mappings", function () {
       const input = expected + removed
 
       for (const replacement of new Set([0, 0x3F, ...changedBytes, 0xFF])) {
-        instance.defaultCharSingleByte = String.fromCharCode(replacement)
+        const options = { defaultCharByte: replacement }
         const output = utils.bytes([...allBytes, ...Array.from(removed, () => replacement)])
         for (const label of labels) {
-          expect(instance.encode(input, label), label).toStrictEqual(output)
+          expect(instance.encode(input, label, options), label).toStrictEqual(output)
           const calls: [string, number][] = []
           expect(instance.encode(input, label, {
+            ...options,
             invalidCharHandler (char, index) { calls.push([char, index]) }
           }), label).toStrictEqual(output)
           expect(calls, label).toStrictEqual(Array.from(removed, (char, index) => [char, expected.length + index]))
@@ -126,10 +126,10 @@ describe("KOI8 and Macintosh WHATWG mappings", function () {
       const replacement = changedBytes.map(byte => expected[byte]).join("")
 
       for (const fallback of changedBytes) {
-        instance.defaultCharSingleByte = String.fromCharCode(fallback)
         for (const label of labels) {
           const calls: [string, number][] = []
           expect(instance.encode("A" + removed, label, {
+            defaultCharByte: fallback,
             invalidCharHandler (char, index) {
               calls.push([char, index])
               return replacement
@@ -138,6 +138,7 @@ describe("KOI8 and Macintosh WHATWG mappings", function () {
           expect(calls, label).toStrictEqual(Array.from(removed, (char, index) => [char, index + 1]))
           for (const char of removed) {
             expect(() => instance.encode("\uFFFD", label, {
+              defaultCharByte: fallback,
               invalidCharHandler () { return char }
             }), label).toThrowError(TypeError)
           }

@@ -23,6 +23,12 @@ export interface DecodeOptions {
   stripBOM?: boolean | (() => void);
   /** Override the default endianness for `UTF-16` and `UTF-32` decodings. */
   defaultEncoding?: Encoding;
+  /**
+   * Literal replacement text for decoding errors in SBCS, DBCS, CESU-8 and UTF-32.
+   * May be empty. @default "�"
+   * Fatal decoding still throws where supported.
+   */
+  defaultCharUnicode?: string;
 }
 
 export interface EncodeOptions {
@@ -33,6 +39,11 @@ export interface EncodeOptions {
   addBOM?: boolean | null;
   /** Override the default endianness for `UTF-32` encoding. */
   defaultEncoding?: Encoding;
+  /**
+   * Replacement byte for unrepresentable characters in table-based single-byte and multibyte encodings.
+   * Must be an integer in 0x00–0xFF. @default 0x3F
+   */
+  defaultCharByte?: number;
   /**
    * Called when encoding a character that cannot be represented in the target encoding.
    * Return `true` to discard the current write (or buffered end output) and return `null`.
@@ -89,15 +100,6 @@ export default class Iconv<Bytes extends Uint8Array = Uint8Array> {
   declare encodings: EncodingDefinitions<Bytes> | null
   /** A cache of initialized codec objects. */
   declare _codecDataCache: Record<string, Codec<Bytes>>
-  /** The character used for untranslatable `Unicode` characters. @default "�" */
-  declare defaultCharUnicode: string
-  /**
-   * The fallback byte for untranslatable characters. @default "?"
-   * Table-based single-byte encoders require one code unit in 0x00–0xFF and
-   * capture its byte value at creation, including when the codec is cached.
-   * Existing encoders and streams retain their setting.
-   */
-  declare defaultCharSingleByte: string
   /** Legacy alias for {@link Iconv.encode}. */
   declare readonly toEncoding: Iconv<Bytes>["encode"]
   /** Legacy alias for {@link Iconv.decode}. */
@@ -106,8 +108,6 @@ export default class Iconv<Bytes extends Uint8Array = Uint8Array> {
     // Load the registry on first use; DBCS table factories defer data allocation.
     this.encodings = null
     this._codecDataCache = Object.create(null)
-    this.defaultCharUnicode = "�"
-    this.defaultCharSingleByte = "?"
 
     // Preserve standalone calls through named exports and destructured methods.
     for (const method of [

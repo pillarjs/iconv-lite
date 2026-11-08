@@ -71,11 +71,11 @@ describe("Test Greek encodings", function () {
         })
       })
 
-      it("Untranslatable chars are converted to defaultCharSingleByte", function () {
+      it("Untranslatable chars use the default replacement byte", function () {
         const untranslatableBytes = utils.bytes(
           baseStrings.untranslatable
             .split("")
-            .map(() => iconv.defaultCharSingleByte.charCodeAt(0))
+            .map(() => 0x3F)
         )
         expect(utils.hex(iconv.encode(baseStrings.untranslatable, enc))).toBe(utils.hex(untranslatableBytes)) // Only '?' characters.
       })

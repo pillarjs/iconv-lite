@@ -47,21 +47,19 @@ describe("Windows single-byte WHATWG mappings", function () {
             const codec = instance.getCodec(first)
             expect(instance.getCodec(encoding)).toBe(codec)
             expect(instance.getCodec(" \t\n\f\r" + alias.toUpperCase() + " \t\n\f\r")).toBe(codec)
-            instance.defaultCharSingleByte = "!"
-            expect(instance.encode("\uFFFD", alias)).toStrictEqual(utils.bytes([0x21]))
-            expect(instance.encode("\uFFFD", encoding)).toStrictEqual(utils.bytes([0x21]))
+            expect(instance.encode("\uFFFD", alias, { defaultCharByte: 0x21 })).toStrictEqual(utils.bytes([0x21]))
+            expect(instance.encode("\uFFFD", encoding)).toStrictEqual(utils.bytes([0x3F]))
           }
         }
       })
     }
 
-    it(encoding + " only replaces unassigned bytes with the instance setting", function () {
+    it(encoding + " only replaces unassigned bytes with the configured text", function () {
       const instance = new Iconv(iconv.backend)
       const codec = instance.getCodec(encoding)
-      instance.defaultCharUnicode = "!"
       const customExpected = codePoints.map(code => code === null ? "!" : String.fromCodePoint(code)).join("")
 
-      expect(instance.decode(utils.bytes(allBytes), encoding)).toBe(customExpected)
+      expect(instance.decode(utils.bytes(allBytes), encoding, { defaultCharUnicode: "!" })).toBe(customExpected)
       expect(instance.getCodec(encoding)).toBe(codec)
       expect(instance.decode(utils.bytes(validBytes), encoding, { fatal: true })).toBe(validText)
       expect(instance.encode("!\uFFFD", encoding)).toStrictEqual(utils.bytes([0x21, 0x3F]))
@@ -134,13 +132,12 @@ describe("Windows single-byte WHATWG mappings", function () {
       it(encoding + " inserts custom replacements literally across chunk boundaries", function () {
         const instance = new Iconv(iconv.backend)
         for (const replacement of ["!", "🙂", "<bad>", "$&$`$'$$", "", "\u0000"]) {
-          instance.defaultCharUnicode = replacement
-          const decoder = instance.getDecoder(encoding)
+          const decoder = instance.getDecoder(encoding, { defaultCharUnicode: replacement })
           for (const byte of unassignedBytes) {
             expect(decoder.write(utils.bytes([0x41, byte]))).toBe("A" + replacement)
             expect(decoder.write(utils.bytes([]))).toBe("")
             expect(decoder.write(utils.bytes([byte, 0x81]))).toBe(replacement + "\u0081")
-            expect(() => instance.decode(utils.bytes([byte]), encoding, { fatal: true })).toThrowError(TypeError)
+            expect(() => instance.decode(utils.bytes([byte]), encoding, { defaultCharUnicode: replacement, fatal: true })).toThrowError(TypeError)
           }
           expect(!decoder.end()).toBeTruthy()
         }
@@ -151,15 +148,13 @@ describe("Windows single-byte WHATWG mappings", function () {
         const defaultDecoder = instance.getDecoder(encoding)
         const codec = instance.getCodec(encoding)
         const originalTable = Array.from((codec as InstanceType<typeof SBCSCodec>).decodeBuf)
-        instance.defaultCharUnicode = "!"
-        const customDecoder = instance.getDecoder(aliases[1])
+        const customDecoder = instance.getDecoder(aliases[1], { defaultCharUnicode: "!" })
         const fatalDecoder = instance.getDecoder(encoding, { fatal: true })
-        instance.defaultCharUnicode = "?"
         const input = utils.bytes(unassignedBytes)
 
         expect(defaultDecoder.write(input)).toBe("\uFFFD".repeat(input.length))
         expect(customDecoder.write(input)).toBe("!".repeat(input.length))
-        expect(instance.decode(input, encoding)).toBe("?".repeat(input.length))
+        expect(instance.decode(input, encoding, { defaultCharUnicode: "?" })).toBe("?".repeat(input.length))
         expect(() => fatalDecoder.write(input)).toThrowError(TypeError)
         expect(fatalDecoder.write(utils.bytes([0x41, 0x81]))).toBe("A\u0081")
         expect(Array.from((codec as InstanceType<typeof SBCSCodec>).decodeBuf)).toStrictEqual(originalTable)

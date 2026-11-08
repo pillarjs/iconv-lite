@@ -8,6 +8,22 @@ describe("invalidCharHandler (Node streams)", function () {
   let iconv: Iconv<Uint8Array<ArrayBufferLike>>
   beforeEach(function () { iconv = new Iconv(defaultIconv.backend) })
 
+  for (const withHandler of [false, true]) {
+    it(`captures the SBCS replacement option in Node streams (handler: ${withHandler})`, async function () {
+      const options = { defaultCharByte: 0x21, ...(withHandler ? { invalidCharHandler () {} } : {}) }
+      const encoder = iconv.encodeStream("cp1252", options)
+      options.defaultCharByte = 0x23
+      assert.deepEqual(iconv.encode("\uFFFD", "windows1252", options), utils.bytes([0x23]))
+      const collected = new Promise<Uint8Array>((resolve, reject) => {
+        encoder.collect((error, bytes) => error ? reject(error) : resolve(bytes!))
+      })
+      encoder.write("A\uFFFD\uD83D")
+      encoder.write("")
+      encoder.end("\uDE42\uD800")
+      assert.deepEqual(await collected, utils.bytes([0x41, 0x21, 0x21, 0x21, 0x21]))
+    })
+  }
+
   it("continues encoding after handler stops a stream chunk", async function () {
     const calls = []
     const stream = iconv.encodeStream("latin1", {

@@ -21,9 +21,9 @@ can use `const { default: iconv } = await import('iconv-lite')` inside an async
 function. Direct `require('iconv-lite')` is no longer a supported entry point.
 Encoding and decoding remain synchronous once the module has loaded.
 
-Use the default export to change settings such as `defaultCharUnicode`. Functions
-are also available as named exports, for example `import { encode, decode } from
-'iconv-lite'`.
+Use the default export for the conversion API and pass settings through options.
+Functions are also available as named exports, for example
+`import { encode, decode } from 'iconv-lite'`.
 
 The public package entry points are `iconv-lite`, `iconv-lite/web`, and
 `iconv-lite/encodings/*.js`.
@@ -92,11 +92,17 @@ codec and backend contracts, and TypeScript types.
 
 ### Handling unrepresentable characters
 
-For table-based single-byte encodings, `iconv.defaultCharSingleByte` selects the
-fallback byte (`"?"` by default). It must be a one-character string with a code
-unit between `0x00` and `0xFF`; the code unit is the byte value, not a character
-to encode. Each new encoder or stream validates and captures the current setting,
-even when the codec is cached. Existing encoders and streams keep their setting.
+For table-based single-byte and multibyte encodings, pass `defaultCharByte` to
+select the fallback byte for that encoder. It must be an integer between `0x00`
+and `0xFF`:
+
+```javascript
+iconv.encode('Hello 世界', 'windows-1252', { defaultCharByte: 0x21 }); // "Hello !!"
+```
+
+The option also works with `getEncoder()`, `encodeStream()` and `encodeWebStream()`.
+Each encoder captures its setting at creation. The default is `0x3F` (`?`).
+Replacement settings do not modify shared codec tables.
 
 `invalidCharHandler(char, index)` runs when encoding would replace or truncate an
 input character. Its result controls what happens:
@@ -139,11 +145,18 @@ valid write. Stream errors propagate through the stream's error mechanism.
 Legacy multibyte encodings such as Shift_JIS, GB18030 and Big5 do not yet support
 this option.
 
-For table-based single-byte encodings, `iconv.defaultCharUnicode` sets the text
-inserted for each undefined byte in replacement mode. Each new decoder or stream
-captures the current setting, even when its encoding table is already cached.
-Existing decoders keep their replacement text. The text is inserted literally;
-`{ fatal: true }` takes precedence and throws instead.
+For table-based single-byte and multibyte encodings, CESU-8 and UTF-32, pass
+`defaultCharUnicode` to choose the text inserted for each decoding error:
+
+```javascript
+iconv.decode(Uint8Array.of(0xAA), 'windows-1253', { defaultCharUnicode: '<invalid>' });
+```
+
+The value must be a string; `""` omits invalid input. Text is inserted literally,
+and valid input representing `U+FFFD` is preserved.
+The option also works with `getDecoder()`, `decodeStream()` and `decodeWebStream()`.
+Each decoder captures its replacement at creation. The default is `U+FFFD` (`�`).
+Where supported, `{ fatal: true }` takes precedence and throws instead.
 
 ### Browsers
 

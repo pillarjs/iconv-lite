@@ -94,9 +94,11 @@ provides:
 | `createDecoder(options, iconv)` | Return a fresh decoder for each call. |
 | `bomAware` | Optional boolean enabling iconv-lite's BOM wrappers. |
 
-`options` can be `undefined`. The `iconv` argument exposes the owning instance's
-backend, replacement characters, and conversion methods. Codec instances are
-cached; conversion state belongs in each encoder or decoder, not in the codec.
+`options` can be `undefined` and carries per-conversion replacement settings
+(`defaultCharByte` for encoders and `defaultCharUnicode` for decoders). The `iconv`
+argument exposes the owning instance's backend and conversion methods.
+Codec instances are cached; conversion state belongs in each
+encoder or decoder, not in the codec.
 Changing the backend clears cached codecs while retaining the definitions.
 
 Constructor-based codecs remain supported: expose `encoder` and `decoder`

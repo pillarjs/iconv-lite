@@ -154,34 +154,126 @@ function checkDecodeStream (opts: ConversionCheckOptions) {
 }
 
 describe("Streaming mode", function () {
-  for (const withHandler of [false, true]) {
-    it(`captures the SBCS encoder replacement in Node streams (handler: ${withHandler})`, async function () {
-      const instance = new NodeIconv(iconv.backend)
-      instance.encodingExists("windows1252")
-      instance.defaultCharSingleByte = "!"
-      const stream = instance.encodeStream("cp1252", withHandler ? { invalidCharHandler () {} } : undefined)
-      instance.defaultCharSingleByte = "#"
-      assert.deepStrictEqual(instance.encode("\uFFFD", "windows1252"), utils.bytes([0x23]))
-      stream.write("A\uFFFD\uD83D")
-      stream.end("\uDE42\uD800")
-      const chunks = []
-      for await (const chunk of stream) chunks.push(chunk)
-      assert.deepStrictEqual(Array.from(Buffer.concat(chunks)), [0x41, 0x21, 0x21, 0x21, 0x21])
+  for (const frozen of [false, true]) {
+    it(`preserves caller options in Node streams (frozen: ${frozen})`, async function () {
+      const options = {
+        defaultCharByte: 0x21,
+        defaultCharUnicode: "<invalid>",
+        decodeStrings: true,
+        encoding: "hex" as const,
+        highWaterMark: 1024
+      }
+      const original = { ...options }
+      if (frozen) Object.freeze(options)
+      const encoder = iconv.encodeStream("cp1253", options)
+      const decoder = iconv.decodeStream("cp1253", options)
+      assert.deepStrictEqual(options, original)
+      assert.strictEqual(encoder.writableHighWaterMark, 1024)
+      assert.strictEqual(decoder.readableHighWaterMark, 1024)
+      encoder.end("A世")
+      decoder.end(utils.bytes([0x41, 0xAA]))
+      let encoded = ""
+      let decoded = ""
+      for await (const chunk of encoder) encoded += chunk
+      for await (const chunk of decoder) decoded += chunk
+      assert.strictEqual(encoded, "4121")
+      assert.strictEqual(decoded, "A<invalid>")
+      assert.deepStrictEqual(options, original)
     })
   }
 
-  it("captures the SBCS replacement when a Node stream is created", async function () {
+  for (const withHandler of [false, true]) {
+    it(`captures the DBCS replacement option in Node streams (handler: ${withHandler})`, async function () {
+      const instance = new NodeIconv(iconv.backend)
+      instance.encodingExists("gbk")
+      const options = { defaultCharByte: 0x21, ...(withHandler ? { invalidCharHandler () {} } : {}) }
+      const stream = instance.encodeStream("gbk", options)
+      options.defaultCharByte = 0x23
+      assert.deepStrictEqual(instance.encode("\uD800", "gbk", options), utils.bytes([0x23]))
+      stream.write("A\uE7C7\uD83D")
+      stream.end("\uDE42\uD800")
+      const chunks = []
+      for await (const chunk of stream) chunks.push(chunk)
+      assert.deepStrictEqual(Array.from(Buffer.concat(chunks)), [0x41, 0x21, 0x21, 0x21])
+    })
+  }
+
+  for (const [encoding, invalid] of [
+    ["cesu8", "ff"], ["utf32le", "00 d8 00 00"],
+    ["utf32be", "00 00 d8 00"], ["utf32", "00 d8 00 00"]
+  ]) {
+    it(encoding + " preserves literal replacement BOMs in Node streams", async function () {
+      for (const replacement of ["\uFEFFx", ""]) {
+        for (const addBOM of [false, true]) {
+          let calls = 0
+          const options = Object.freeze({ defaultCharUnicode: replacement, stripBOM () { calls++ } })
+          const input = utils.concatBufs([
+            iconv.encode("", encoding, { addBOM }), utils.bytes(invalid),
+            iconv.encode("\uFEFFA", encoding, { addBOM: false })
+          ])
+          const stream = iconv.decodeStream(encoding, options)
+          for (const byte of input) stream.write(utils.bytes([byte]))
+          stream.end()
+          let output = ""
+          for await (const chunk of stream) output += chunk
+          assert.strictEqual(output, replacement + "\uFEFFA")
+          assert.strictEqual(calls, addBOM ? 1 : 0)
+        }
+      }
+    })
+  }
+
+  for (const [encoding, input] of [
+    ["gb18030", "41 84 31 a5 30 81"], ["cesu8", "41 ff e0"],
+    ["utf32", "41 00 00 00 00 d8 00 00 00"]
+  ]) {
+    it(encoding + " captures replacement text through Node stream writes and finalization", async function () {
+      for (const replacement of ["🙂", "<invalid>", "", "$&$`$'$$"]) {
+        const options = { defaultCharUnicode: replacement }
+        const stream = iconv.decodeStream(encoding, options)
+        options.defaultCharUnicode = "!"
+        stream.write(utils.bytes(input))
+        stream.end(utils.bytes([]))
+        let output = ""
+        for await (const chunk of stream) output += chunk
+        assert.strictEqual(output, "A" + replacement + replacement)
+      }
+    })
+  }
+
+  it("captures literal SBCS replacement options in Node streams", async function () {
     const instance = new NodeIconv(iconv.backend)
-    instance.getCodec("windows-1253")
-    instance.defaultCharUnicode = "🙂"
-    const stream = instance.decodeStream("windows-1253")
-    instance.defaultCharUnicode = "!"
-    stream.write(utils.bytes([0x41, 0xAA]))
-    stream.end(utils.bytes([0x81, 0xAA]))
-    let output = ""
-    for await (const chunk of stream) output += chunk
-    assert.strictEqual(output, "A🙂\u0081🙂")
+    for (const replacement of ["🙂", "<invalid>", "$&$`$'$$", "", "\0"]) {
+      const options = { defaultCharUnicode: replacement }
+      const stream = instance.decodeStream("cp1253", options)
+      options.defaultCharUnicode = "?"
+      stream.write(utils.bytes([0xAA]))
+      stream.write(utils.bytes([]))
+      stream.end(utils.bytes([0xAA]))
+      let output = ""
+      for await (const chunk of stream) output += chunk
+      assert.strictEqual(output, replacement + replacement)
+    }
   })
+
+  it("keeps fatal decoding ahead of replacement options in Node streams", checkDecodeStream({
+    encoding: "cp1253",
+    encodingOptions: { defaultCharUnicode: "", fatal: true },
+    input: [[0xAA]],
+    checkError: error => assert(error instanceof TypeError)
+  }))
+
+  for (const encoding of ["utf32le", "utf32be", "utf32"]) {
+    for (const truncated of [false, true]) {
+      const invalid = truncated ? "00" : encoding === "utf32be" ? "00 00 d8 00" : "00 d8 00 00"
+      it(`${encoding} propagates fatal TypeError during ${truncated ? "flush" : "write"}`, checkDecodeStream({
+        encoding,
+        encodingOptions: { fatal: true, defaultCharUnicode: "" },
+        input: [iconv.encode("A".repeat(8), encoding), utils.bytes(invalid)],
+        checkError: error => assert(error instanceof TypeError)
+      }))
+    }
+  }
 
   it("preserves Windows C1 controls in fatal mode", checkDecodeStream({
     encoding: "windows-1252",

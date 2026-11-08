@@ -58,7 +58,7 @@ describe("Full SBCS encoding tests", { timeout: 10000 }, function () {
 
           const errors: { inputHex?: string, inputChar?: string, input?: string, strExpected: string, strActual: string }[] = []
           utils.rleDecodeForEach(charData.decode, (strExpected, i) => {
-            if (!strExpected) strExpected = iconv.defaultCharUnicode
+            if (!strExpected) strExpected = "\uFFFD"
 
             const buf = utils.bytes([i])
             const strActual = iconv.decode(buf, enc)
@@ -97,7 +97,7 @@ describe("Full SBCS encoding tests", { timeout: 10000 }, function () {
           utils.rleDecodeForEach(charData.encode, (strExpectedBin, i) => {
             const str = String.fromCharCode(i)
             const errorCharHex = utils.hex(
-              utils.bytes([iconv.defaultCharSingleByte.charCodeAt(0)])
+              utils.bytes([0x3F])
             )
 
             const strExpectedBytes = Array.prototype.map.call(strExpectedBin, (char: string) =>
@@ -190,14 +190,14 @@ describe("Full SBCS encoding tests", { timeout: 10000 }, function () {
   }
 })
 
-describe("SBCS encode maps U+FFFD to defaultCharSingleByte", function () {
+describe("SBCS encode maps U+FFFD to the default replacement byte", function () {
   const encodings = ["windows1252", "windows874", "iso88593", "koi8r"]
 
   encodings.forEach(function (enc) {
     it(enc + " encodes U+FFFD as ?", function () {
       const bytes = iconv.encode("\uFFFD", enc)
       expect(bytes.length).toBe(1)
-      expect(bytes[0]).toBe(iconv.defaultCharSingleByte.charCodeAt(0))
+      expect(bytes[0]).toBe(0x3F)
     })
   })
 })

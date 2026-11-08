@@ -33,10 +33,9 @@ describe("Windows code pages and WHATWG label overrides", function () {
       const instance = new Iconv(iconv.backend)
       instance.encodingExists(webLabel)
       instance.encodingExists(codePage)
-      instance.defaultCharSingleByte = "!"
       for (const alias of aliases) {
         const calls: unknown[] = []
-        const options = { invalidCharHandler (char: string, index: number) { calls.push([char, index]) } }
+        const options = { defaultCharByte: 0x21, invalidCharHandler (char: string, index: number) { calls.push([char, index]) } }
         expect(instance.encode("A€", alias, options)).toStrictEqual(utils.bytes([0x41, 0x21]))
         expect(calls).toStrictEqual([["€", 1]])
         calls.length = 0

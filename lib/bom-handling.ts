@@ -2,6 +2,9 @@ import type { EncoderStream, DecoderStream, DecodeOptions } from "./iconv.js"
 
 const BOMChar = "\uFEFF"
 
+// Internal decoder metadata: distinguish an input BOM from literal replacement text.
+export const BOM_BYTES = Symbol("bomBytes")
+
 export class PrependBOM<Bytes extends Uint8Array> {
   declare encoder: EncoderStream<Bytes> & { writeWithBOM?: (str: string) => Bytes | null }
   declare addBOM: boolean
@@ -24,9 +27,10 @@ export class PrependBOM<Bytes extends Uint8Array> {
 }
 
 export class StripBOM {
-  declare decoder: DecoderStream
+  declare decoder: DecoderStream & { readonly [BOM_BYTES]?: readonly number[] }
   declare pass: boolean
   declare options: Omit<DecodeOptions, "stripBOM"> & { stripBOM?: boolean | (() => void) }
+  #bomOffset = 0
   constructor (decoder: DecoderStream, options?: DecodeOptions) {
     this.decoder = decoder
     this.pass = false
@@ -35,7 +39,19 @@ export class StripBOM {
 
   write (buf: Uint8Array) {
     let res = this.decoder.write(buf)
-    if (this.pass || !res) { return res }
+    if (this.pass) { return res }
+
+    const bom = this.decoder[BOM_BYTES]
+    if (bom) {
+      for (let i = 0; i < buf.length && this.#bomOffset < bom.length; i++) {
+        if (buf[i] !== bom[this.#bomOffset]) {
+          this.pass = true
+          return res
+        }
+        this.#bomOffset++
+      }
+    }
+    if (!res) { return res }
 
     if (res[0] === BOMChar) {
       res = res.slice(1)
