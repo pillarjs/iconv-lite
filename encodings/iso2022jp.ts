@@ -235,7 +235,8 @@ class Iso2022JpDecoder {
 
   _error (out: Uint16Array, pos: number) {
     if (this.#fatal) {
-      this._reset()
+      // Keep the character set selected by earlier bytes when a streaming write throws.
+      this.reprocess = false
       throw new TypeError("Invalid ISO-2022-JP sequence")
     }
     this.#errors?.push(pos)
@@ -385,27 +386,30 @@ class Iso2022JpDecoder {
     this.#errors = this.#replacement === "\uFFFD" ? undefined : []
     const out = new Uint16Array(4)
     let pos = 0
-    for (;;) { // The WHATWG handler for end-of-queue, until it returns "finished".
-      if (this.state === TRAIL) {
-        this.state = LEAD
-        pos = this._error(out, pos)
-      } else if (this.state === ESCAPE_START) {
-        this.output = false
-        this.state = this.outputState
-        pos = this._error(out, pos)
-      } else if (this.state === ESCAPE) {
-        const lead = this.lead
-        this.lead = 0
-        this.output = false
-        this.state = this.outputState
-        pos = this._error(out, pos)
-        pos = this._decodeByte(lead, out, pos) // In the LEAD state this moves to TRAIL.
-      } else {
-        break
+    try {
+      for (;;) { // The WHATWG handler for end-of-queue, until it returns "finished".
+        if (this.state === TRAIL) {
+          this.state = LEAD
+          pos = this._error(out, pos)
+        } else if (this.state === ESCAPE_START) {
+          this.output = false
+          this.state = this.outputState
+          pos = this._error(out, pos)
+        } else if (this.state === ESCAPE) {
+          const lead = this.lead
+          this.lead = 0
+          this.output = false
+          this.state = this.outputState
+          pos = this._error(out, pos)
+          pos = this._decodeByte(lead, out, pos) // In the LEAD state this moves to TRAIL.
+        } else {
+          break
+        }
       }
+      return pos > 0 ? replaceDecodeErrors(this.backend.rawCharsToResult(out, pos), this.#errors, this.#replacement) : undefined
+    } finally {
+      this._reset()
     }
-    this._reset()
-    return pos > 0 ? replaceDecodeErrors(this.backend.rawCharsToResult(out, pos), this.#errors, this.#replacement) : undefined
   }
 }
 

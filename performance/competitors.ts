@@ -34,7 +34,7 @@ function exodusCodec (encoding: string): Competitor | undefined {
       decode: createSinglebyteDecoder(encoding, true)
     }
   }
-  if (["gbk", "gb18030", "big5", "shift_jis", "euc-jp", "euc-kr"].includes(encoding)) {
+  if (["gbk", "gb18030", "big5", "shift_jis", "euc-jp", "iso-2022-jp", "euc-kr"].includes(encoding)) {
     return {
       encode: createMultibyteEncoder(encoding),
       decode: createMultibyteDecoder(encoding, true),

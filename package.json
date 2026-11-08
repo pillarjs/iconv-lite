@@ -30,7 +30,7 @@
     },
     "scripts": {
         "prebuild": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\"",
-        "build": "tsc -p tsconfig.build.json",
+        "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.build.json --emitDeclarationOnly --removeComments false",
         "prepare": "npm run build",
         "presize": "npm run build",
         "size": "size-limit",

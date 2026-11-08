@@ -226,9 +226,31 @@ describe("ISO-2022-JP codec", function () {
         decoder.write(buf(input.slice(split)))
         decoder.end()
       }, `split at ${split}`).toThrow(TypeError)
-      expect(decoder.write(buf("ok"))).toBe("ok")
-      expect(decoder.end()).toBeUndefined()
     }
+  })
+
+  it.each([
+    [ESC_ROMAN + "\xff", "~", "‾"],
+    ["\x1b(I\xff", "B", "ﾂ"],
+    [ESC_JIS0208 + "\x80", "4I", "管"],
+    [ESC_JIS0208 + "4\x80", "4I", "管"],
+    [ESC_JIS0208 + "4\x1b", "(Ba", "a"],
+    ["\x1bx", "ok", "ok"],
+    ["\x1b$A", "ok", "ok"]
+  ])("preserves the active character set after a fatal write %j", function (input, next, expected) {
+    const decoder = iconv.getDecoder("iso-2022-jp", { fatal: true })
+    expect(() => decoder.write(buf(input))).toThrow(TypeError)
+    expect(decoder.write(buf(next))).toBe(expected)
+    expect(decoder.end()).toBeUndefined()
+    expect(decoder.write(buf("~"))).toBe("~")
+  })
+
+  it.each([ESC_ROMAN + "\x1b", ESC_JIS0208 + "4", ESC_JIS0208 + "\x1b$"])("resets after a fatal end %j", function (input) {
+    const decoder = iconv.getDecoder("iso-2022-jp", { fatal: true })
+    decoder.write(buf(input))
+    expect(() => decoder.end()).toThrow(TypeError)
+    expect(decoder.write(buf("~"))).toBe("~")
+    expect(decoder.end()).toBeUndefined()
   })
 
   it("captures replacement options per conversion", function () {

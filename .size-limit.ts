@@ -23,13 +23,13 @@ export default [
     path: "dist/encodings/**/*",
     rolldown: false,
     brotli: false,
-    limit: "420 kB"
+    limit: "400 kB"
   },
   {
     name: "Published JavaScript and declarations",
     path: "dist/**/*",
     rolldown: false,
     brotli: false,
-    limit: "480 kB"
+    limit: "450 kB"
   }
 ] satisfies SizeLimitConfig

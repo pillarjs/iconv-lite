@@ -28,7 +28,7 @@ the WHATWG Encoding Standard, e.g.:
 
 | Test | Why it fails |
 | --- | --- |
-| `textdecoder-labels` | labels for unsupported encodings such as `iso-2022-jp` and `x-user-defined` are unrecognized |
+| `textdecoder-labels` | labels for unsupported encodings such as `x-user-defined` are unrecognized |
 | `textdecoder-mistakes` | unsupported encodings, non-Windows mapping differences and legacy multibyte error handling |
 
 `api-invalid-label` passes, as does the `textdecoder-mistakes` check for invalid

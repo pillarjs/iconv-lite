@@ -102,6 +102,7 @@ iconv.encode('Hello 世界', 'windows-1252', { defaultCharByte: 0x21 }); // "Hel
 
 The option also works with `getEncoder()`, `encodeStream()` and `encodeWebStream()`.
 Each encoder captures its setting at creation. The default is `0x3F` (`?`).
+ISO-2022-JP restricts the replacement to ASCII bytes other than ESC, SO and SI.
 Replacement settings do not modify shared codec tables.
 
 Single-byte encoders emit one replacement byte per unrepresentable Unicode code
@@ -135,7 +136,7 @@ the existing encoding behavior.
 ### Rejecting invalid encoded input
 
 Pass `{ fatal: true }` to throw a `TypeError` when decoding invalid input.
-This is supported by UTF-8, UTF-16, UTF-32 and table-based single-byte encodings,
+This is supported by UTF-8, UTF-16, UTF-32, ISO-2022-JP and table-based single-byte encodings,
 including Windows-874 and Windows-125x. The default remains replacement decoding.
 
 ```javascript
@@ -150,7 +151,7 @@ valid write. Stream errors propagate through the stream's error mechanism.
 Legacy multibyte encodings such as Shift_JIS, GB18030 and Big5 do not yet support
 this option.
 
-For table-based single-byte and multibyte encodings, CESU-8 and UTF-32, pass
+For table-based single-byte and multibyte encodings, ISO-2022-JP, CESU-8 and UTF-32, pass
 `defaultCharUnicode` to choose the text inserted for each decoding error:
 
 ```javascript
