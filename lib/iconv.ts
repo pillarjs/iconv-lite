@@ -1,4 +1,4 @@
-import type { Encoding as BuiltinEncoding } from "../types/encodings.js"
+import type { BuiltinEncoding } from "../encodings/index.js"
 import type { Codec, CodecOptions, ConstructorCodec, EncodingDefinitions, AddEncodingOptions } from "./encoding-registry.js"
 import * as bomHandling from "./bom-handling.js"
 import { createEncodeWebStream, createDecodeWebStream } from "./web-streams.js"
