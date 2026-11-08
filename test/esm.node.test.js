@@ -27,10 +27,29 @@ describe("ES module entry points", function () {
   it("supports dynamic import from CommonJS", function () {
     execFileSync(process.execPath, ["--input-type=commonjs", "-e", `
       (async () => {
-        const { default: iconv } = await import("iconv-lite")
+        const assert = require("node:assert/strict")
+        const { default: iconv, encode } = await import("iconv-lite")
+        const { default: web } = await import("iconv-lite/web")
+        const { default: getEncodings } = await import("iconv-lite/encodings/index.js")
+        assert.equal(encode, iconv.encode)
+        assert.equal(typeof getEncodings().utf8, "object")
+        assert.notEqual(iconv, web)
+        assert.equal(web.encode("hello", "utf8").constructor, Uint8Array)
+        assert.equal("encodeStream" in web, false)
         if (!Buffer.isBuffer(iconv.encode("hello", "utf8"))) throw new Error("Default Node backend must return Buffer")
         if (iconv.decode(iconv.encode("中文", "gbk"), "gbk") !== "中文") throw new Error("Round trip failed")
       })().catch(error => { console.error(error); process.exitCode = 1 })
+    `], { cwd: fileURLToPath(new URL("..", import.meta.url)), stdio: "pipe" })
+  })
+
+  it("selects the compiled Web entry point under browser conditions", function () {
+    execFileSync(process.execPath, ["--conditions=browser", "--input-type=module", "-e", `
+      import assert from "node:assert/strict"
+      import iconv from "iconv-lite"
+      import web from "iconv-lite/web"
+      assert.equal(iconv, web)
+      assert.equal(iconv.encode("hello", "utf8").constructor, Uint8Array)
+      assert.equal("encodeStream" in iconv, false)
     `], { cwd: fileURLToPath(new URL("..", import.meta.url)), stdio: "pipe" })
   })
 

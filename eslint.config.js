@@ -3,6 +3,7 @@ import neostandard from "neostandard"
 export default [
   ...neostandard({
     ignores: [
+      "dist/**",
       "encodings/tables/*.js", // Generated lazy table factories
       "encodings/sbcs-data-generated.js", // This a generate file
       "test/wpt/upstream" // Vendored upstream Web Platform Tests
@@ -11,7 +12,7 @@ export default [
     filesTs: ["**/*.mts"]
   }),
   {
-    files: ["test/**/*.test.js"],
+    files: ["test/**/*.test.{js,ts}"],
     languageOptions: {
       globals: { describe: "readonly", it: "readonly", beforeEach: "readonly", afterEach: "readonly" }
     }

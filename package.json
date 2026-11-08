@@ -10,14 +10,11 @@
         "icu"
     ],
     "files": [
-        "backends/",
-        "lib/",
-        "encodings/",
-        "types/"
+        "dist/"
     ],
     "author": "Alexander Shtuchkin <ashtuchkin@gmail.com>",
-    "main": "./lib/index-node.js",
-    "typings": "./lib/index.d.ts",
+    "main": "./dist/lib/index-node.js",
+    "typings": "./dist/lib/index.d.ts",
     "homepage": "https://github.com/pillarjs/iconv-lite",
     "bugs": "https://github.com/pillarjs/iconv-lite/issues",
     "funding": {
@@ -32,6 +29,10 @@
         "node": ">=22"
     },
     "scripts": {
+        "prebuild": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\"",
+        "build": "tsc -p tsconfig.build.json && node scripts/copy-types.js",
+        "prepare": "npm run build",
+        "typecheck": "tsc -p tsconfig.json",
         "lint": "eslint",
         "lint:fix": "eslint --fix",
         "generate": "npm run generate --workspaces --if-present",
@@ -42,16 +43,14 @@
         "test:cov": "vitest run --coverage",
         "test:performance": "vitest bench --run --config vitest.bench.config.js",
         "test:performance:check": "vitest run --config vitest.bench.config.js",
-        "test:typescript": "tsc && tsc -p test/types/tsconfig.web.json && tsc -p test/types/tsconfig.web.json --module NodeNext --moduleResolution NodeNext --customConditions browser && attw --pack --profile esm-only",
         "test:browser": "vitest run --config vitest.browser.config.js",
         "test:wpt": "node test/wpt/run.js",
         "typegen": "node generation/gen-typings.js"
     },
     "browser": {
-        "./lib/index-node.js": "./lib/index-web.js"
+        "./dist/lib/index-node.js": "./dist/lib/index-web.js"
     },
     "devDependencies": {
-        "@arethetypeswrong/cli": "^0.18.2",
         "@exodus/bytes": "1.16.0",
         "@stylistic/eslint-plugin": "^5.1.0",
         "@stylistic/eslint-plugin-js": "^4.1.0",
@@ -59,7 +58,6 @@
         "@vitest/browser-playwright": "^5.1.0",
         "@vitest/coverage-v8": "^5.1.0",
         "eslint": "^9.0.0",
-        "expect-type": "^1.3.0",
         "iconv": "^3.0.1",
         "iconv-nano": "0.0.22",
         "neostandard": "^0.12.0",
@@ -78,22 +76,22 @@
     "exports": {
         ".": {
             "browser": {
-                "types": "./lib/index-web.d.ts",
-                "default": "./lib/index-web.js"
+                "types": "./dist/lib/index-web.d.ts",
+                "default": "./dist/lib/index-web.js"
             },
             "node": {
-                "types": "./lib/index.d.ts",
-                "default": "./lib/index-node.js"
+                "types": "./dist/lib/index.d.ts",
+                "default": "./dist/lib/index-node.js"
             },
             "default": {
-                "types": "./lib/index-web.d.ts",
-                "default": "./lib/index-web.js"
+                "types": "./dist/lib/index-web.d.ts",
+                "default": "./dist/lib/index-web.js"
             }
         },
         "./web": {
-            "types": "./lib/index-web.d.ts",
-            "default": "./lib/index-web.js"
+            "types": "./dist/lib/index-web.d.ts",
+            "default": "./dist/lib/index-web.js"
         },
-        "./encodings/*.js": "./encodings/*.js"
+        "./encodings/*.js": "./dist/encodings/*.js"
     }
 }

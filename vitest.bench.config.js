@@ -10,7 +10,7 @@ export default defineConfig({
     environment: "node",
     // Measure native ESM, without Vite's export getters in the codecs.
     experimental: { viteModuleRunner: false },
-    include: ["performance/*.test.js"],
-    benchmark: { include: ["performance/*.bench.js"] }
+    include: ["performance/*.test.{js,ts}"],
+    benchmark: { include: ["performance/*.bench.{js,ts}"] }
   }
 })

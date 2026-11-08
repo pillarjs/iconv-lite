@@ -41,6 +41,9 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts --include=dev
 
+      - name: Build package
+        run: npm run build
+
       - name: Run lint
         run: npm run lint
 
@@ -138,8 +141,8 @@ jobs:
         shell: bash
         run: npm run test:ci
 
-      - name: Run typescript tests
-        run: npm run test:typescript
+      - name: Check types
+        run: npm run typecheck
 
       - name: WPT encoding conformance report
         shell: bash

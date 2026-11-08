@@ -15,7 +15,8 @@ function load (url) {
   return modules.get(url.href)
 }
 
-const entry = load(new URL("../../lib/index-web.js", import.meta.url))
+const entryURL = new URL(import.meta.resolve("iconv-lite/web"))
+const entry = load(entryURL)
 await entry.link((specifier, parent) => {
   assert(specifier.startsWith("."), `Unexpected platform dependency: ${specifier}`)
   return load(new URL(specifier, parent.identifier))
@@ -28,8 +29,8 @@ for (const name of ["encodeStream", "decodeStream", "enableStreamingAPI", "suppo
   assert.equal(name in iconv, false)
   assert.equal(name in entry.namespace, false)
 }
-assert(!modules.has(new URL("../../lib/streams.js", import.meta.url).href))
-assert(!modules.has(new URL("../../lib/iconv-node.js", import.meta.url).href))
+assert(!modules.has(new URL("./streams.js", entryURL).href))
+assert(!modules.has(new URL("./iconv-node.js", entryURL).href))
 // Importing the package and using synchronous codecs also works without Web Streams.
 assert.equal(iconv.supportsWebStreams, false)
 assert.throws(() => iconv.encodeWebStream("utf8"), /require a global TransformStream/)
@@ -37,7 +38,7 @@ assert.throws(() => iconv.decodeWebStream("utf8"), /require a global TransformSt
 assert.equal(encode, iconv.encode)
 
 // A UTF-8 operation must not initialize a DBCS codec or request any DBCS table.
-const dbcs = modules.get(new URL("../../encodings/dbcs-data.js", import.meta.url).href).namespace.default
+const dbcs = modules.get(new URL("../encodings/dbcs-data.js", entryURL).href).namespace.default
 const calls = []
 for (const [encoding, definition] of Object.entries(dbcs)) {
   if (typeof definition === "object" && definition.table) {
@@ -58,7 +59,7 @@ for (const [encoding, input, expected] of [
   assert.equal(calls.filter(name => name === encoding).length, 1)
 }
 
-const table = modules.get(new URL("../../encodings/tables/cp936.js", import.meta.url).href).namespace.default
+const table = modules.get(new URL("../encodings/tables/cp936.js", entryURL).href).namespace.default
 assert.equal(table(), table(), "table data is cached across codec instances")
 iconv.defaultCharSingleByte = "!"
 assert.deepEqual(Array.from(encode("😱", "ascii")), [0x21, 0x21])

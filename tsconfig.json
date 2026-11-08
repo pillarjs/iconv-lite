@@ -1,15 +1,23 @@
 {
   "compilerOptions": {
-    "target": "es2022",
-    "lib": [
-      "es2015"
-    ],
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
     "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node", "vitest/globals"],
+    "allowJs": true,
+    "checkJs": false,
     "noEmit": true,
     "strict": true
   },
   "include": [
-    "./test/types/**/*.ts",
-    "./**/*.d.ts"
-  ]
+    "lib/**/*",
+    "backends/**/*",
+    "encodings/**/*",
+    "types/**/*",
+    "test/**/*",
+    "performance/**/*",
+    "vitest*.config.*"
+  ],
+  "exclude": ["node_modules", "dist", "test/wpt/upstream"]
 }

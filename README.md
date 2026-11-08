@@ -154,7 +154,7 @@ import iconv from 'iconv-lite/web';
 const bytes = iconv.encode('Hello', 'utf8'); // Uint8Array, without a Buffer polyfill.
 ```
 
-For native browser modules, import `lib/index-web.js` from a served copy of the
+For native browser modules, import `dist/lib/index-web.js` from a served copy of the
 package. `encodeWebStream()` and `decodeWebStream()` use the native
 `TransformStream` automatically. `iconv.supportsWebStreams` reports whether it is
 available; older environments can supply a global `TransformStream` polyfill.

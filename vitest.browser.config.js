@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config"
 import { createRequire } from "node:module"
+import { fileURLToPath } from "node:url"
 
 const require = createRequire(import.meta.url)
 const { version } = require("vitest/package.json")
@@ -11,11 +12,18 @@ const providerPackage = "@vitest/browser-playwright"
 const provider = legacyProvider ? "playwright" : (await import(providerPackage)).playwright({ launchOptions: launch })
 
 export default defineConfig({
+  resolve: {
+    alias: [
+      { find: /^iconv-lite$/, replacement: fileURLToPath(new URL("./lib/index-web.js", import.meta.url)) },
+      { find: /^iconv-lite\/web$/, replacement: fileURLToPath(new URL("./lib/index-web.js", import.meta.url)) },
+      { find: /^iconv-lite\/encodings\//, replacement: fileURLToPath(new URL("./encodings/", import.meta.url)) }
+    ]
+  },
   test: {
     maxWorkers: 2,
     globals: true,
-    include: ["test/*.test.js", "test/browser/*.test.js"],
-    exclude: ["**/*.node.test.js"],
+    include: ["test/*.test.{js,ts}", "test/browser/*.test.{js,ts}"],
+    exclude: ["**/*.node.test.{js,ts}"],
     allowOnly: false,
     browser: {
       enabled: true,

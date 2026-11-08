@@ -41,10 +41,11 @@ const sizes = { small: 1, large: 100 }
 export async function createCases () {
   const iconvPath = path.resolve(process.env.ICONV_LITE_BENCH_ROOT || path.join(import.meta.dirname, ".."))
   const pkg = JSON.parse(readFileSync(path.join(iconvPath, "package.json"), "utf8"))
-  const { default: iconvLite } = await import(pathToFileURL(path.resolve(iconvPath, pkg.main || "index.js")))
+  const entry = path.resolve(iconvPath, pkg.main || "index.js")
+  const { default: iconvLite } = await import(pathToFileURL(entry))
   const implementations = []
   for (const backend of ["node", "web"]) {
-    const { default: implementation } = await import(pathToFileURL(path.join(iconvPath, "backends", backend + ".js")))
+    const { default: implementation } = await import(pathToFileURL(path.resolve(path.dirname(entry), "../backends", backend + ".js")))
     // Separate instances keep both backends and codec caches alive in the same comparison.
     implementations.push({
       name: `iconv-lite (${backend})`,
