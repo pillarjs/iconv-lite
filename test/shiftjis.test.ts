@@ -70,4 +70,16 @@ describe("ShiftJIS tests", function () {
     expect(iconv.decode(utils.bytes("8740"), "shiftjis")).toBe("①")
     expect(utils.hex(iconv.encode("①", "shiftjis"))).toBe("87 40")
   })
+
+  it("ShiftJIS encodes U+2212 MINUS SIGN as U+FF0D", function () {
+    // https://encoding.spec.whatwg.org/#shift_jis-encoder
+    for (const encoding of ["shiftjis", "windows-31j", "cp932"]) {
+      expect(utils.hex(iconv.encode("1\u22122", encoding)), encoding).toBe("31 81 7c 32")
+      expect(utils.hex(iconv.encode("1\u22122", encoding, {
+        invalidCharHandler () { throw new Error("representable character") }
+      })), encoding).toBe("31 81 7c 32")
+    }
+    expect(utils.hex(iconv.encode("\uFF0D", "shiftjis"))).toBe("81 7c")
+    expect(iconv.decode(utils.bytes("81 7c"), "shiftjis")).toBe("\uFF0D")
+  })
 })

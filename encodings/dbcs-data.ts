@@ -75,7 +75,8 @@ export default {
     type: "_dbcs",
     table: shiftjis,
     leadBytes: [[0x81, 0x9F], [0xE0, 0xFC]],
-    encodeAdd: { "\u00a5": 0x5C, "\u203E": 0x7E },
+    // The WHATWG encoder maps U+2212 to U+FF0D (https://encoding.spec.whatwg.org/#shift_jis-encoder).
+    encodeAdd: { "\u00a5": 0x5C, "\u203E": 0x7E, "\u2212": 0x817C },
     encodeSkipVals: [{ from: 0xED40, to: 0xF9FC }]
   },
   csshiftjis: "shiftjis",

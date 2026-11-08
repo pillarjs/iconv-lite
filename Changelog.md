@@ -4,6 +4,10 @@
 
 - Speed up short decoded output in Node.js by allocating character arrays directly and converting buffers of up to 32 UTF-16 code units with `String.fromCharCode`. Larger buffers retain native UCS-2 conversion.
 
+### 🐞 Bug fixes
+
+- Encode U+2212 MINUS SIGN in Shift_JIS as U+FF0D FULLWIDTH HYPHEN-MINUS (`81 7C`) instead of `?`, as the WHATWG Shift_JIS encoder and the ISO-2022-JP encoder here already do.
+
 ## 1.0.0-beta.1
 
 ### ⚠️ Breaking changes
