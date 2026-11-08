@@ -424,8 +424,10 @@ class DBCSEncoder<Bytes extends Uint8Array> {
 
       // 2. Convert uCode character.
       let dbcsCode = UNASSIGNED
-      if (seqObj !== undefined && uCode !== UNASSIGNED) { // We are in the middle of the sequence
-        let resCode = seqObj[uCode]
+      let writeReplacement = false
+      if (seqObj !== undefined) { // We are in the middle of the sequence
+        // UNASSIGNED shares the DEF_CHAR key; it must not complete the sequence.
+        let resCode = uCode === UNASSIGNED ? undefined : seqObj[uCode]
         if (typeof resCode === "object") { // Sequence continues.
           seqObj = resCode
           continue
@@ -436,7 +438,12 @@ class DBCSEncoder<Bytes extends Uint8Array> {
           resCode = seqObj[DEF_CHAR]
           if (resCode !== undefined) {
             dbcsCode = resCode // Found. Write it.
-            nextChar = uCode // Current character will be written too in the next iteration.
+            if (uCode === UNASSIGNED) {
+              // Emit the prefix before the replacement, retaining any queued character.
+              writeReplacement = true
+            } else {
+              nextChar = uCode // Current character will be written too in the next iteration.
+            }
           } else {
             // TODO: What if we have no default? (resCode == null)
             // Then, we should write first char of the sequence as-is and try the rest recursively.
@@ -493,6 +500,7 @@ class DBCSEncoder<Bytes extends Uint8Array> {
         newBuf[j++] = (dbcsCode >>> 8) & 0xFF
         newBuf[j++] = dbcsCode & 0xFF
       }
+      if (writeReplacement) newBuf[j++] = this.#defaultCharByte
     }
 
     this.seqObj = seqObj

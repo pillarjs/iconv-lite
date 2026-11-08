@@ -26,6 +26,45 @@ describe("DBCS streaming", function () {
     })
   }
 
+  const invalidSequenceSuffixes: [string, (number | null)[]][] = [
+    ["\uDC00", [null]],
+    ["\uD800", [null]],
+    ["\uD800A", [null, 0x41]],
+    ["\uD800\u0304", [null, null]],
+    ["\uDC00\u030C", [null, null]],
+    ["\uD800\uD800", [null, null]],
+    ["\uDC00\uD800A", [null, null, 0x41]],
+    ["\uD800\uD841\uDD47", [null, 0xFA, 0x40]],
+    ["\uD800Ê\u0304", [null, 0x88, 0x62]]
+  ]
+  for (const [prefix, prefixBytes] of [["Ê", [0x88, 0x66]], ["ê", [0x88, 0xA7]]] as const) {
+    for (const [suffix, suffixBytes] of invalidSequenceSuffixes) {
+      it(`keeps Big5 sequence order before ${JSON.stringify(prefix + suffix)} at every chunk boundary`, function () {
+        const input = prefix + suffix
+        for (const defaultCharByte of [undefined, 0, 0x21, 0xFF]) {
+          const expected = utils.bytes([...prefixBytes, ...suffixBytes.map(byte => byte ?? defaultCharByte ?? 0x3F)])
+          for (const handler of [undefined, { invalidCharHandler () {} }]) {
+            const options = { ...handler, defaultCharByte }
+            expect(iconv.encode(input, "big5", options)).toStrictEqual(expected)
+            for (let first = 0; first <= input.length; first++) {
+              for (let second = first; second <= input.length; second++) {
+                const encoder = iconv.getEncoder("big5", options)
+                const chunks = [
+                  encoder.write(input.slice(0, first)), encoder.write(""),
+                  encoder.write(input.slice(first, second)), encoder.write(input.slice(second))
+                ]
+                const tail = encoder.end()
+                if (tail) chunks.push(tail)
+                expect(utils.concatBufs(chunks), `splits at ${first}, ${second}`).toStrictEqual(expected)
+                expect(encoder.end()).toBeUndefined()
+              }
+            }
+          }
+        }
+      })
+    }
+  }
+
   it("handles GBK U+E7C7 errors and positions at every chunk boundary", function () {
     const text = "a\uE7C7\uE7C7中b"
     for (let split = 0; split <= text.length; split++) {

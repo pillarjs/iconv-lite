@@ -28,6 +28,8 @@
 
 ### 🐞 Bug fixes
 
+- Preserve Big5 encoding order when an isolated UTF-16 surrogate follows a pending character sequence. Emit the pending character before its replacement and prevent combining marks from joining across the invalid input.
+
 - Stop treating `U+FEFF` replacement text as an input BOM when decoding CESU-8 and UTF-32.
 
 - Keep caller options unchanged in Node encoding and decoding streams, including frozen option objects.
