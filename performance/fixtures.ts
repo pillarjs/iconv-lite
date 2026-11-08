@@ -1,5 +1,6 @@
 import type { Backend, Iconv } from "iconv-lite"
 import iconv from "iconv"
+import npmIconv from "iconv-lite-npm"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { readFileSync } from "node:fs"
@@ -68,6 +69,7 @@ export async function createCases () {
   }
   console.log(`iconv-lite: ${pkg.version} (${iconvPath})`)
   for (const [name, packageURL] of [
+    ["iconv-lite (npm)", new URL(import.meta.resolve("iconv-lite-npm/package.json"))],
     ["@exodus/bytes", new URL("./package.json", import.meta.resolve("@exodus/bytes/encoding.js"))],
     ["iconv-nano", new URL(import.meta.resolve("iconv-nano/package.json"))]
   ]) {
@@ -96,6 +98,8 @@ export async function createCases () {
         add(`${label}/${size}/encode/${name}`, () => codec.encode(string, encoding), buffer, bytes)
         add(`${label}/${size}/decode/${name}`, () => codec.decode(input, encoding), string)
       }
+      add(`${label}/${size}/encode/iconv-lite (npm)`, () => npmIconv.encode(string, encoding), buffer, Buffer)
+      add(`${label}/${size}/decode/iconv-lite (npm)`, () => npmIconv.decode(nativeBuffer, encoding), string)
       add(`${label}/${size}/encode/iconv`, function () {
         const converter = new iconv.Iconv("utf8", encoding)
         return converter.convert(string)
@@ -131,6 +135,8 @@ export async function createCases () {
         const input = bytes.from(buffer)
         add(`${label}/${size}/decode/${name}`, () => codec.decode(input, "gb18030"), expected)
       }
+      const nativeBuffer = Buffer.from(buffer)
+      add(`${label}/${size}/decode/iconv-lite (npm)`, () => npmIconv.decode(nativeBuffer, "gb18030"), expected)
       for (const codec of competitors("gb18030")) {
         add(`${label}/${size}/decode/${codec.name}`,
           () => codec.decode!(buffer), expected)
@@ -151,6 +157,13 @@ export async function createCases () {
       }
       add(`${encoding}/byte-chunks/decode/${name}`, decodeChunks, string)
     }
+    const nativeBuffer = Buffer.from(buffer)
+    add(`${encoding}/byte-chunks/decode/iconv-lite (npm)`, () => {
+      const decoder = npmIconv.getDecoder(encoding)
+      let result = ""
+      for (let i = 0; i < nativeBuffer.length; i++) result += decoder.write(nativeBuffer.subarray(i, i + 1))
+      return result + (decoder.end() || "")
+    }, string)
     for (const codec of competitors(encoding)) {
       add(`${encoding}/byte-chunks/decode/${codec.name}`,
         codec.decodeChunks && (() => codec.decodeChunks!(buffer)), string)
