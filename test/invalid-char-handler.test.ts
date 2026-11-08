@@ -37,9 +37,9 @@ describe("invalidCharHandler (SBCS)", function () {
   })
 
   it("reports U+FFFD when the replacement byte is unassigned", function () {
-    iconv.defaultCharSingleByte = "\xAA"
     const calls: { char: string, index: number }[] = []
     const result = iconv.encode("�A?", "windows1253", {
+      defaultCharByte: 0xAA,
       invalidCharHandler (char: string, index: number) {
         calls.push({ char, index })
       }
@@ -48,14 +48,15 @@ describe("invalidCharHandler (SBCS)", function () {
     expect(Array.from(result!)).toStrictEqual([0xAA, 0x41, 0x3F])
     expect(calls).toStrictEqual([{ char: "�", index: 0 }])
     expect(iconv.encode("�", "windows1253", {
+      defaultCharByte: 0xAA,
       invalidCharHandler () { return true }
     })).toBe(null)
   })
 
   it("allows a C1 control at the configured replacement byte", function () {
-    iconv.defaultCharSingleByte = "\x81"
     const calls: { char: string, index: number }[] = []
     const result = iconv.encode("\u0081�", "windows1252", {
+      defaultCharByte: 0x81,
       invalidCharHandler (char: string, index: number) {
         calls.push({ char, index })
       }
@@ -66,9 +67,9 @@ describe("invalidCharHandler (SBCS)", function () {
   })
 
   it("allows the valid character at the configured replacement byte", function () {
-    iconv.defaultCharSingleByte = "\x80"
     const calls: { char: string, index: number }[] = []
     const result = iconv.encode("€世", "windows1252", {
+      defaultCharByte: 0x80,
       invalidCharHandler (char: string, index: number) {
         calls.push({ char, index })
       }
@@ -78,11 +79,10 @@ describe("invalidCharHandler (SBCS)", function () {
     expect(calls).toStrictEqual([{ char: "世", index: 1 }])
   })
 
-  it("rejects a non-single-byte defaultCharSingleByte for SBCS", function () {
-    iconv.defaultCharSingleByte = "�"
+  it("rejects a replacement outside the byte range for SBCS", function () {
     expect(function () {
-      iconv.getCodec("iso88591")
-    }).toThrowError(expect.objectContaining({ name: "TypeError", message: "defaultCharSingleByte must be a single-byte character" }))
+      iconv.getEncoder("iso88591", { defaultCharByte: 0xFFFD })
+    }).toThrowError(expect.objectContaining({ name: "TypeError", message: "defaultCharByte must be an integer between 0 and 255" }))
   })
 
   it("propagates thrown errors", function () {

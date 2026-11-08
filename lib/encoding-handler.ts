@@ -2,6 +2,18 @@ import type { Backend, EncodeOptions, EncoderStream } from "./iconv.js"
 
 type InvalidCharHandler = NonNullable<EncodeOptions["invalidCharHandler"]>
 
+export const DEFAULT_CHAR_BYTE = 0x3F
+
+// The fallback is internal; callers configure each encoder through options.
+export function getDefaultCharByte (options: EncodeOptions | undefined) {
+  const byte = options?.defaultCharByte
+  if (byte === undefined) return DEFAULT_CHAR_BYTE
+  if (!Number.isInteger(byte) || byte < 0 || byte > 0xFF) {
+    throw new TypeError("defaultCharByte must be an integer between 0 and 255")
+  }
+  return byte
+}
+
 // State belongs to an encoder, never to a cached codec or its mapping tables.
 export class EncodingHandler {
   #callback: InvalidCharHandler

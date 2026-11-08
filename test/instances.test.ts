@@ -24,19 +24,37 @@ describe("Iconv instances", function () {
     expect(webDecode(webEncode("hello", "utf8"), "utf8")).toBe("hello")
   })
 
-  it("keeps encoder replacement characters separate", function () {
-    webInstance.defaultCharSingleByte = "!"
-
-    expect(webInstance.encode("\ufffd", "ascii")).toStrictEqual(Uint8Array.of(0x21))
+  it("keeps encoder replacement options separate", function () {
+    expect(webInstance.encode("\ufffd", "ascii", { defaultCharByte: 0x21 })).toStrictEqual(Uint8Array.of(0x21))
     expect(defaultInstance.encode("\ufffd", "ascii")).toStrictEqual(utils.bytes([0x3f]))
   })
 
-  it("keeps decoder replacement characters separate", function () {
-    webInstance.defaultCharUnicode = "!"
+  it("does not expose or read a public defaultCharSingleByte property", function () {
+    for (const instance of [defaultInstance, webInstance]) {
+      expect("defaultCharSingleByte" in instance).toBe(false)
+      Reflect.set(instance, "defaultCharSingleByte", "!")
+      for (const encoding of ["windows1252", "shiftjis", "gbk", "gb18030"]) {
+        expect(Array.from(instance.encode("\uD800", encoding))).toStrictEqual([0x3F])
+        expect(Array.from(instance.encode("\uD800", encoding, { defaultCharByte: 0x21 }))).toStrictEqual([0x21])
+      }
+    }
+  })
 
+  it("keeps decoder replacement options separate", function () {
     for (const [encoding, byte] of [["cesu8", 0xFF], ["iso88593", 0xA5], ["windows1253", 0xAA]] as const) {
-      expect(webInstance.decode(Uint8Array.of(byte), encoding)).toBe("!")
+      expect(webInstance.decode(Uint8Array.of(byte), encoding, { defaultCharUnicode: "!" })).toBe("!")
       expect(defaultInstance.decode(Uint8Array.of(byte), encoding)).toBe("�")
+    }
+  })
+
+  it("does not expose or read a public defaultCharUnicode property", function () {
+    for (const instance of [defaultInstance, webInstance]) {
+      expect("defaultCharUnicode" in instance).toBe(false)
+      Reflect.set(instance, "defaultCharUnicode", "!")
+      for (const [encoding, input] of [["windows1253", "aa"], ["gb18030", "84 31 a5 30"], ["cesu8", "ff"], ["utf32le", "00 d8 00 00"]]) {
+        expect(instance.decode(utils.bytes(input), encoding)).toBe("\uFFFD")
+        expect(instance.decode(utils.bytes(input), encoding, { defaultCharUnicode: "!" })).toBe("!")
+      }
     }
   })
 

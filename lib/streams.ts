@@ -21,9 +21,8 @@ export default function (streamModule: Pick<typeof import("node:stream"), "Trans
     declare conv: EncoderStream<Bytes>
     declare iconv: WebIconv<Bytes>
     constructor (conv: EncoderStream<Bytes>, options: (EncodeOptions & Omit<TransformOptions, "defaultEncoding">) | undefined, iconv: WebIconv<Bytes>) {
-      options = options || {}
-      options.decodeStrings = false // We accept only strings, so we don't need to decode them.
-      super(options as TransformOptions)
+      // We accept only strings, so we don't need to decode them.
+      super({ ...options, decodeStrings: false } as TransformOptions)
       this.conv = conv
       this.iconv = iconv
     }
@@ -62,11 +61,9 @@ export default function (streamModule: Pick<typeof import("node:stream"), "Trans
     declare conv: DecoderStream
     declare encoding: BufferEncoding
     constructor (conv: DecoderStream, options?: DecodeOptions & Omit<TransformOptions, "defaultEncoding">) {
-      options = options || {}
-      options.encoding = "utf8" // We output strings.
-      super(options as TransformOptions)
+      super({ ...options, encoding: "utf8" } as TransformOptions) // We output strings.
       this.conv = conv
-      this.encoding = options.encoding
+      this.encoding = "utf8"
     }
 
     _transform (chunk: unknown, encoding: BufferEncoding, done: TransformCallback) {

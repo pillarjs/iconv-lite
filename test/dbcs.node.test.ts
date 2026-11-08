@@ -44,7 +44,7 @@ function convertWithDefault (converter: NativeIconv, buf: string | Buffer) {
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code !== "EILSEQ") throw e
   }
-  return Buffer.from(iconv.defaultCharSingleByte)
+  return Buffer.from([0x3F])
 }
 
 const aliases: Record<string, string> = {

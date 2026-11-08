@@ -1,5 +1,6 @@
 import type { Backend, WebIconv, EncodeOptions, DecodeOptions } from "../lib/iconv.js"
-import { EncodingHandler, EncodingBuffer } from "../lib/encoding-handler.js"
+import { EncodingHandler, EncodingBuffer, getDefaultCharByte, DEFAULT_CHAR_BYTE } from "../lib/encoding-handler.js"
+import { getDefaultCharUnicode } from "../lib/decoding.js"
 
 // Single-byte codec. Needs a 'chars' string parameter that contains 256 or 128 chars that
 // correspond to encoded bytes (if 128 - then lower half is ASCII).
@@ -10,8 +11,6 @@ class SBCSCodec {
   declare decodeBuf: Uint16Array
   declare encodingName: string
   declare encodeBuf: Uint8Array
-  declare defaultCharByte: number
-  declare defaultCharCode: number
 
   constructor (codecOptions: SBCSOptions, iconv: WebIconv) {
     if (!codecOptions) {
@@ -39,72 +38,63 @@ class SBCSCodec {
 
     this.decodeBuf = decodeBuf
     this.encodingName = codecOptions.encodingName
-    this.#setDefaultChar(iconv.defaultCharSingleByte, iconv.backend)
+
+    // Build one shared table. Per-encoder replacements never modify its entries.
+    const encodeBuf = iconv.backend.allocBytes(65536, DEFAULT_CHAR_BYTE)
+    for (let i = 0; i < decodeBuf.length; i++) {
+      const code = decodeBuf[i]
+      // U+FFFD marks unassigned bytes, not an encodable character.
+      if (code !== 0xFFFD) encodeBuf[code] = i
+    }
+    this.encodeBuf = encodeBuf
   }
 
   get encoder () { return SBCSEncoder }
   get decoder () { return SBCSDecoder }
 
   createEncoder<Bytes extends Uint8Array> (options: EncodeOptions | undefined, iconv: WebIconv<Bytes>) {
-    this.#setDefaultChar(iconv.defaultCharSingleByte, iconv.backend)
     return new SBCSEncoder(options, this, iconv.backend)
   }
 
   createDecoder (options: DecodeOptions | undefined, iconv: WebIconv) {
-    return new SBCSDecoder(options, this, iconv.backend, iconv.defaultCharUnicode)
-  }
-
-  #setDefaultChar (defaultCharSingleByte: string, backend: Backend) {
-    const defaultCharByte = typeof defaultCharSingleByte === "string" &&
-      defaultCharSingleByte.length === 1
-      ? defaultCharSingleByte.charCodeAt(0)
-      : NaN
-    if (defaultCharByte > 0xFF || Number.isNaN(defaultCharByte)) {
-      throw new TypeError("defaultCharSingleByte must be a single-byte character")
-    }
-    if (defaultCharByte === this.defaultCharByte) return
-
-    // Cache the latest replacement table. Existing encoders retain their table;
-    // never change it in place or retain a table for every possible replacement.
-    const encodeBuf = backend.allocBytes(65536, defaultCharByte)
-    for (let i = 0; i < this.decodeBuf.length; i++) {
-      const code = this.decodeBuf[i]
-      // U+FFFD marks unassigned bytes in decode tables, not an encodable character.
-      // Keep defaultCharSingleByte for it instead of mapping it to an unassigned byte.
-      if (code === 0xFFFD) continue
-      encodeBuf[code] = i
-    }
-
-    this.encodeBuf = encodeBuf
-    this.defaultCharByte = defaultCharByte
-    this.defaultCharCode = this.decodeBuf[defaultCharByte]
+    return new SBCSDecoder(options, this, iconv.backend)
   }
 }
 
 class SBCSEncoder<Bytes extends Uint8Array> {
   declare backend: Backend<Bytes>
   declare encodeBuf: Uint8Array
-  declare defaultCharByte: number
-  declare defaultCharCode: number
+  declare decodeBuf: Uint16Array
 
+  #defaultCharByte: number
   #handler: EncodingHandler | undefined
 
   constructor (opts: EncodeOptions | undefined, codec: SBCSCodec, backend: Backend<Bytes>) {
     this.backend = backend
     this.encodeBuf = codec.encodeBuf
+    this.decodeBuf = codec.decodeBuf
+    this.#defaultCharByte = getDefaultCharByte(opts)
     if (typeof opts?.invalidCharHandler === "function") {
       this.#handler = new EncodingHandler(opts.invalidCharHandler, codec.encodingName)
     }
-    this.defaultCharByte = codec.defaultCharByte
-    this.defaultCharCode = codec.defaultCharCode
   }
 
   write (str: string) {
     if (!this.#handler) {
       const bytes = this.backend.allocBytes(str.length)
       const encodeBuf = this.encodeBuf
-      for (let i = 0; i < str.length; i++) {
-        bytes[i] = encodeBuf[str.charCodeAt(i)]
+      if (this.#defaultCharByte === DEFAULT_CHAR_BYTE) {
+        for (let i = 0; i < str.length; i++) {
+          bytes[i] = encodeBuf[str.charCodeAt(i)]
+        }
+      } else {
+        for (let i = 0; i < str.length; i++) {
+          const code = str.charCodeAt(i)
+          const byte = encodeBuf[code]
+          bytes[i] = byte !== DEFAULT_CHAR_BYTE || (code !== 0xFFFD && code === this.decodeBuf[DEFAULT_CHAR_BYTE])
+            ? byte
+            : this.#defaultCharByte
+        }
       }
       return this.backend.bytesToResult(bytes, bytes.length)
     }
@@ -115,7 +105,7 @@ class SBCSEncoder<Bytes extends Uint8Array> {
   #isRepresentable (char: string) {
     const code = char.charCodeAt(0)
     return char.length === 1 && code !== 0xFFFD &&
-      (this.encodeBuf[code] !== this.defaultCharByte || code === this.defaultCharCode)
+      (this.encodeBuf[code] !== DEFAULT_CHAR_BYTE || code === this.decodeBuf[DEFAULT_CHAR_BYTE])
   }
 
   #writeWithHandler (str: string, final: boolean) {
@@ -133,7 +123,7 @@ class SBCSEncoder<Bytes extends Uint8Array> {
         }
         if (replacement === undefined) {
           // Preserve the existing fallback: one byte per UTF-16 code unit.
-          for (let i = 0; i < char.length; i++) output.writeByte(this.defaultCharByte)
+          for (let i = 0; i < char.length; i++) output.writeByte(this.#defaultCharByte)
         } else {
           for (const replacementChar of replacement) {
             if (!this.#isRepresentable(replacementChar)) throw this.#handler!.replacementError(replacementChar, index)
@@ -158,14 +148,14 @@ class SBCSDecoder {
   declare backend: Backend
   declare fatal: boolean
   declare encodingName: string
-  declare defaultCharUnicode: string
+  #defaultCharUnicode: string
 
-  constructor (opts: DecodeOptions | undefined, codec: SBCSCodec, backend: Backend, defaultCharUnicode = "\uFFFD") {
+  constructor (opts: DecodeOptions | undefined, codec: SBCSCodec, backend: Backend) {
     this.decodeBuf = codec.decodeBuf
     this.backend = backend
     this.fatal = !!opts?.fatal
     this.encodingName = codec.encodingName
-    this.defaultCharUnicode = defaultCharUnicode
+    this.#defaultCharUnicode = getDefaultCharUnicode(opts)
   }
 
   write (buf: Uint8Array) {
@@ -187,9 +177,9 @@ class SBCSDecoder {
     const result = this.backend.rawCharsToResult(chars, chars.length)
     // Keep unassigned markers in the shared table for fatal decoding and encoding.
     // A callback inserts replacement text literally, including '$' patterns.
-    return this.fatal || this.defaultCharUnicode === "\uFFFD"
+    return this.fatal || this.#defaultCharUnicode === "\uFFFD"
       ? result
-      : result.replace(/\uFFFD/g, () => this.defaultCharUnicode)
+      : result.replace(/\uFFFD/g, () => this.#defaultCharUnicode)
   }
 
   end (): undefined {}

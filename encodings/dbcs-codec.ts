@@ -1,5 +1,6 @@
 import type { Backend, WebIconv, EncodeOptions, DecodeOptions } from "../lib/iconv.js"
-import { EncodingHandler, EncodingBuffer } from "../lib/encoding-handler.js"
+import { EncodingHandler, EncodingBuffer, getDefaultCharByte } from "../lib/encoding-handler.js"
+import { getDefaultCharUnicode, replaceDecodeErrors } from "../lib/decoding.js"
 import { forEachVlqRun } from "./vlq-runs.js"
 
 // Multibyte codec. In this scheme, a character is represented by 1 or more bytes.
@@ -49,10 +50,8 @@ class DBCSCodec {
   declare gb18030: GB18030Ranges | undefined
   declare gb18030EncoderTable: Record<number, number | null> | undefined
   declare gb18030Decode: GB18030Ranges | undefined
-  declare defaultCharUnicode: string
   declare encodeTable: number[][]
   declare encodeTableSeq: EncodeSequence[]
-  declare defCharSB: number
   declare _vlqRunNode: number[] | undefined
   declare _vlqRunBlockAddr: number | undefined
 
@@ -143,8 +142,6 @@ class DBCSCodec {
       }
     }
 
-    this.defaultCharUnicode = iconv.defaultCharUnicode
-
     // Encode tables: Unicode -> DBCS.
 
     // `encodeTable` is array mapping from unicode char to encoded char. All its values are integers for performance.
@@ -180,19 +177,16 @@ class DBCSCodec {
         if (Object.prototype.hasOwnProperty.call(codecOptions.encodeAdd, uChar)) { this._setEncodeChar(uChar.charCodeAt(0), codecOptions.encodeAdd[uChar]) }
       }
     }
-
-    this.defCharSB = this.encodeTable[0][iconv.defaultCharSingleByte.charCodeAt(0)]
-    if (this.defCharSB === UNASSIGNED) this.defCharSB = Reflect.get(this.encodeTable[0], "?") as number
-    if (this.defCharSB === UNASSIGNED) this.defCharSB = "?".charCodeAt(0)
   }
 
   createEncoder<Bytes extends Uint8Array> (options: EncodeOptions | undefined, iconv: WebIconv<Bytes>) {
+    const defaultCharByte = getDefaultCharByte(options)
     return typeof options?.invalidCharHandler === "function"
-      ? new DBCSHandlerEncoder(this, iconv.backend, options.invalidCharHandler)
-      : new DBCSEncoder(this, iconv.backend)
+      ? new DBCSHandlerEncoder(this, iconv.backend, options.invalidCharHandler, defaultCharByte)
+      : new DBCSEncoder(this, iconv.backend, defaultCharByte)
   }
 
-  createDecoder (options: DecodeOptions | undefined, iconv: WebIconv) { return new DBCSDecoder(this, iconv.backend) }
+  createDecoder (options: DecodeOptions | undefined, iconv: WebIconv) { return new DBCSDecoder(this, iconv.backend, getDefaultCharUnicode(options)) }
 
   // Decoder helpers
   _getDecodeTrieNode (addr: number) {
@@ -363,11 +357,12 @@ class DBCSEncoder<Bytes extends Uint8Array> {
   declare seqObj: EncodeSequence | undefined
   declare encodeTable: number[][]
   declare encodeTableSeq: EncodeSequence[]
-  declare defaultCharSingleByte: number
   declare gb18030: GB18030Ranges | undefined
   declare gb18030EncoderTable: Record<number, number | null> | undefined
 
-  constructor (codec: DBCSCodec, backend: Backend<Bytes>) {
+  #defaultCharByte: number
+
+  constructor (codec: DBCSCodec, backend: Backend<Bytes>, defaultCharByte: number) {
     this.backend = backend
     // Encoder state
     this.leadSurrogate = -1
@@ -376,7 +371,7 @@ class DBCSEncoder<Bytes extends Uint8Array> {
     // Static data
     this.encodeTable = codec.encodeTable
     this.encodeTableSeq = codec.encodeTableSeq
-    this.defaultCharSingleByte = codec.defCharSB
+    this.#defaultCharByte = defaultCharByte
     this.gb18030 = codec.gb18030
     this.gb18030EncoderTable = codec.gb18030EncoderTable
   }
@@ -481,7 +476,7 @@ class DBCSEncoder<Bytes extends Uint8Array> {
       }
 
       // 3. Write dbcsCode character.
-      if (dbcsCode === UNASSIGNED) { dbcsCode = this.defaultCharSingleByte }
+      if (dbcsCode === UNASSIGNED) { dbcsCode = this.#defaultCharByte }
 
       if (dbcsCode < 0x100) {
         newBuf[j++] = dbcsCode
@@ -527,7 +522,7 @@ class DBCSEncoder<Bytes extends Uint8Array> {
 
     if (this.leadSurrogate !== -1) {
       // Incomplete surrogate pair - only lead surrogate found.
-      newBuf[j++] = this.defaultCharSingleByte
+      newBuf[j++] = this.#defaultCharByte
       this.leadSurrogate = -1
     }
 
@@ -544,13 +539,15 @@ class DBCSHandlerEncoder<Bytes extends Uint8Array> {
   #codec: DBCSCodec
   #backend: Backend<Bytes>
   #handler: EncodingHandler
+  #defaultCharByte: number
   #sequence: EncodingToken[] = []
   #node: EncodeSequence | null = null
 
-  constructor (codec: DBCSCodec, backend: Backend<Bytes>, callback: NonNullable<EncodeOptions["invalidCharHandler"]>) {
+  constructor (codec: DBCSCodec, backend: Backend<Bytes>, callback: NonNullable<EncodeOptions["invalidCharHandler"]>, defaultCharByte: number) {
     this.#codec = codec
     this.#backend = backend
     this.#handler = new EncodingHandler(callback, codec.encodingName)
+    this.#defaultCharByte = defaultCharByte
   }
 
   #mapping (char: string) {
@@ -575,7 +572,7 @@ class DBCSHandlerEncoder<Bytes extends Uint8Array> {
     if (replacement === null) return false
     if (replacement === undefined) {
       if (!this.#flushSequence(output)) return false
-      output.writeCode(this.#codec.defCharSB)
+      output.writeByte(this.#defaultCharByte)
     } else {
       for (const char of replacement) {
         if (!this.#emit({ char, index: token.index, replacement: true }, output)) return false
@@ -678,11 +675,12 @@ class DBCSDecoder {
   declare prevBytes: number[]
   declare decodeTables: number[][]
   declare decodeTableSeq: number[][]
-  declare defaultCharUnicode: string
   declare gb18030: GB18030Ranges | undefined
   declare eucjp: boolean
 
-  constructor (codec: DBCSCodec, backend: Backend) {
+  #defaultCharUnicode: string
+
+  constructor (codec: DBCSCodec, backend: Backend, defaultCharUnicode: string) {
     this.backend = backend
     // Decoder state
     this.nodeIdx = 0
@@ -691,7 +689,7 @@ class DBCSDecoder {
     // Static data
     this.decodeTables = codec.decodeTables
     this.decodeTableSeq = codec.decodeTableSeq
-    this.defaultCharUnicode = codec.defaultCharUnicode
+    this.#defaultCharUnicode = defaultCharUnicode
     this.gb18030 = codec.gb18030Decode
     this.eucjp = codec.eucjp
   }
@@ -700,6 +698,7 @@ class DBCSDecoder {
     if (buf.length === 0) return ""
     // Buffered bytes can complete a surrogate pair/sequence or need reprocessing.
     const newBuf = this.backend.allocRawChars(buf.length + this.prevBytes.length)
+    const errors: number[] | undefined = this.#defaultCharUnicode === "\uFFFD" ? undefined : []
     let nodeIdx = this.nodeIdx
     const prevBytes = this.prevBytes; const prevOffset = this.prevBytes.length
     let seqStart = -this.prevBytes.length // idx of the start of current parsed sequence.
@@ -715,7 +714,8 @@ class DBCSDecoder {
         // Normal character, just use it.
       } else if (uCode === UNASSIGNED) { // Unknown char.
         // TODO: Callback with seq.
-        uCode = this.defaultCharUnicode.charCodeAt(0)
+        uCode = 0xFFFD
+        errors?.push(j)
         // EUC-JP consumes a JIS X 0212 prefix together with an invalid third
         // byte, restoring only an ASCII byte to the input queue.
         if (this.eucjp && i - seqStart === 2) {
@@ -744,7 +744,8 @@ class DBCSDecoder {
           // The supplementary range maps linearly to U+10000..U+10FFFF.
           uCode = 0x10000 + ptr - GB18030_SUPPLEMENTARY_START
         } else {
-          uCode = this.defaultCharUnicode.charCodeAt(0)
+          uCode = 0xFFFD
+          errors?.push(j)
         }
       } else if (uCode <= NODE_START) { // Go to next trie node.
         nodeIdx = NODE_START - uCode
@@ -784,7 +785,7 @@ class DBCSDecoder {
       prevBytes.length = retained
     }
 
-    return this.backend.rawCharsToResult(newBuf, j)
+    return replaceDecodeErrors(this.backend.rawCharsToResult(newBuf, j), errors, this.#defaultCharUnicode)
   }
 
   end () {
@@ -793,14 +794,14 @@ class DBCSDecoder {
       // End-of-input consumes the entire incomplete sequence as one error.
       this.prevBytes.length = 0
       this.nodeIdx = 0
-      return this.defaultCharUnicode
+      return this.#defaultCharUnicode
     }
     let ret = ""
 
     // Try to parse all remaining chars.
     while (this.prevBytes.length > 0) {
       // Skip 1 character in the buffer.
-      ret += this.defaultCharUnicode
+      ret += this.#defaultCharUnicode
       const bytesArr = this.prevBytes.slice(1)
 
       // Parse remaining as usual.

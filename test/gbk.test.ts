@@ -134,9 +134,8 @@ describe("GBK tests", function () {
 
   it("GBK uses the configured replacement byte for U+E7C7 in both encoder paths", function () {
     const custom = new Iconv(iconv.backend)
-    custom.defaultCharSingleByte = "!"
     for (const options of [undefined, { invalidCharHandler () {} }]) {
-      expect(utils.hex(custom.encode("a\uE7C7b", "GBK", options))).toBe("61 21 62")
+      expect(utils.hex(custom.encode("a\uE7C7b", "GBK", { ...options, defaultCharByte: 0x21 }))).toBe("61 21 62")
     }
   })
 

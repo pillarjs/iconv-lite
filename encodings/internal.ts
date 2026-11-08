@@ -3,6 +3,8 @@ import type { Backend, WebIconv, EncodeOptions, DecodeOptions } from "../lib/ico
 // backend: native Buffer operations in Node, Web APIs and typed arrays in browsers.
 
 import { TextEncoderWithHandler, isUnicodeScalar, isBinaryCharacter } from "../lib/encoding-handler.js"
+import { getDefaultCharUnicode } from "../lib/decoding.js"
+import { BOM_BYTES } from "../lib/bom-handling.js"
 
 // ------------------------------------------------------------------------------
 
@@ -42,7 +44,7 @@ class InternalCodec {
     if (this.enc === "utf8") {
       return new InternalDecoder(options)
     } else if (this.enc === "cesu8") {
-      return new InternalDecoderCesu8(iconv.defaultCharUnicode)
+      return new InternalDecoderCesu8(getDefaultCharUnicode(options))
     } else if (this.enc === "base64") {
       return new InternalDecoderBase64(iconv.backend)
     }
@@ -210,17 +212,21 @@ class InternalEncoderCesu8<Bytes extends Uint8Array> {
 // CESU-8 preserves UTF-16 code units, including lone surrogates. TextDecoder's
 // UTF-8 decoder rejects these, so decode CESU-8 directly from bytes.
 
+const CESU8_BOM = [0xEF, 0xBB, 0xBF] as const
+
 class InternalDecoderCesu8 {
   declare acc: number
   declare contBytes: number
   declare accBytes: number
-  declare defaultCharUnicode: string
+  #defaultCharUnicode: string
+
+  get [BOM_BYTES] () { return CESU8_BOM }
 
   constructor (defaultCharUnicode: string) {
     this.acc = 0
     this.contBytes = 0
     this.accBytes = 0
-    this.defaultCharUnicode = defaultCharUnicode
+    this.#defaultCharUnicode = defaultCharUnicode
   }
 
   write (buf: Uint8Array) {
@@ -230,7 +236,7 @@ class InternalDecoderCesu8 {
       const curByte = buf[i]
       if ((curByte & 0xC0) !== 0x80) { // Leading byte
         if (contBytes > 0) { // Previous code is invalid
-          res += this.defaultCharUnicode
+          res += this.#defaultCharUnicode
           contBytes = 0
         }
 
@@ -243,7 +249,7 @@ class InternalDecoderCesu8 {
           acc = curByte & 0x0F
           contBytes = 2; accBytes = 1
         } else { // Four or more are not supported for CESU-8.
-          res += this.defaultCharUnicode
+          res += this.#defaultCharUnicode
         }
       } else { // Continuation byte
         if (contBytes > 0) { // We're waiting for it.
@@ -252,16 +258,16 @@ class InternalDecoderCesu8 {
           if (contBytes === 0) {
             // Check for overlong encoding, but support Modified UTF-8 (encoding NULL as C0 80)
             if (accBytes === 2 && acc < 0x80 && acc > 0) {
-              res += this.defaultCharUnicode
+              res += this.#defaultCharUnicode
             } else if (accBytes === 3 && acc < 0x800) {
-              res += this.defaultCharUnicode
+              res += this.#defaultCharUnicode
             } else {
               // Actually add character.
               res += String.fromCharCode(acc)
             }
           }
         } else { // Unexpected continuation byte
-          res += this.defaultCharUnicode
+          res += this.#defaultCharUnicode
         }
       }
     }
@@ -272,7 +278,7 @@ class InternalDecoderCesu8 {
   end () {
     if (this.contBytes > 0) {
       this.contBytes = 0
-      return this.defaultCharUnicode
+      return this.#defaultCharUnicode
     }
   }
 }

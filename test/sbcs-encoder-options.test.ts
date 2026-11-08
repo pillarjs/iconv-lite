@@ -13,15 +13,16 @@ describe("SBCS encoder replacement settings", function () {
   ]
 
   for (const [encoding, alias] of encodings) {
-    it(encoding + " uses the current replacement after the codec is cached", function () {
+    it(encoding + " applies replacement options after caching without changing the default", function () {
       for (const prime of ["encodingExists", "decode", "getEncoder"] as const) {
         const instance = new Iconv(iconv.backend)
         if (prime === "decode") instance.decode(utils.bytes([0x41]), encoding)
         else instance[prime](encoding)
-        instance.defaultCharSingleByte = "!"
 
         for (const options of [undefined, { invalidCharHandler () {} }]) {
-          expect(instance.encode("?A!\0\uFFFD🙂\uD800", alias, options), prime).toStrictEqual(utils.bytes([0x3F, 0x41, 0x21, 0, 0x21, 0x21, 0x21, 0x21]))
+          expect(instance.encode("?A!\0\uFFFD🙂\uD800", alias, { ...options, defaultCharByte: 0 }), prime)
+            .toStrictEqual(utils.bytes([0x3F, 0x41, 0x21, 0, 0, 0, 0, 0]))
+          expect(instance.encode("?A!\0\uFFFD🙂\uD800", alias, options), prime).toStrictEqual(utils.bytes([0x3F, 0x41, 0x21, 0, 0x3F, 0x3F, 0x3F, 0x3F]))
         }
       }
     })
@@ -36,12 +37,12 @@ describe("SBCS encoder replacement settings", function () {
       instance.encodingExists(encoding)
 
       for (const replacement of [0, 0x3F, 0x80, 0x81, 0xAA, 0xFF]) {
-        instance.defaultCharSingleByte = String.fromCharCode(replacement)
         for (const options of [undefined, { invalidCharHandler () {} }]) {
-          expect(instance.encode(text + "\uFFFD", encoding, options)).toStrictEqual(utils.bytes([...bytes, replacement]))
+          expect(instance.encode(text + "\uFFFD", encoding, { ...options, defaultCharByte: replacement })).toStrictEqual(utils.bytes([...bytes, replacement]))
         }
         const calls: unknown[] = []
         expect(instance.encode(text + "\uFFFD", encoding, {
+          defaultCharByte: replacement,
           invalidCharHandler (char, position) {
             calls.push([char, position])
             return text
@@ -49,70 +50,87 @@ describe("SBCS encoder replacement settings", function () {
         })).toStrictEqual(utils.bytes([...bytes, ...bytes]))
         expect(calls).toStrictEqual([["\uFFFD", text.length]])
         expect(() => instance.encode("\uFFFD", encoding, {
+          defaultCharByte: replacement,
           invalidCharHandler () { return "\uFFFD" }
         })).toThrowError(TypeError)
       }
     })
   }
 
-  it("keeps existing encoders and other instances unchanged across replacement changes", function () {
+  it("shares one table across encoders with independent replacement options", function () {
     const instance = new Iconv(iconv.backend)
-    const other = new Iconv(iconv.backend)
     const codec = instance.getCodec("windows1252") as InstanceType<typeof SBCSCodec>
+    const table = codec.encodeBuf
     const original = instance.getEncoder("windows1252")
-    instance.defaultCharSingleByte = "\0"
-    const nul = instance.getEncoder("cp1252")
-    instance.defaultCharSingleByte = "\xFF"
-    const last = instance.getEncoder("windows1252")
-    instance.defaultCharSingleByte = "?"
+    const options = { defaultCharByte: 0 }
+    const nul = instance.getEncoder("cp1252", options)
+    options.defaultCharByte = 0xFF
+    const last = instance.getEncoder("windows1252", options)
 
-    expect(instance.encode("\0\uFFFD", "windows1252")).toStrictEqual(utils.bytes([0, 0x3F]))
     expect(original.write("\0\uFFFD")).toStrictEqual(utils.bytes([0, 0x3F]))
     expect(nul.write("\0\uFFFD")).toStrictEqual(utils.bytes([0, 0]))
     expect(last.write("\0\uFFFD")).toStrictEqual(utils.bytes([0, 0xFF]))
-    expect(other.encode("\0\uFFFD", "windows1252")).toStrictEqual(utils.bytes([0, 0x3F]))
+    expect(instance.encode("\0\uFFFD", "cp1252", Object.freeze({ defaultCharByte: 0x21 }))).toStrictEqual(utils.bytes([0, 0x21]))
+    expect(instance.encode("\0\uFFFD", "windows1252")).toStrictEqual(utils.bytes([0, 0x3F]))
+    expect(new Iconv(iconv.backend).encode("\0\uFFFD", "windows1252")).toStrictEqual(utils.bytes([0, 0x3F]))
+    expect(codec.encodeBuf).toBe(table)
     expect(instance.getCodec("cp1252")).toBe(codec)
   })
 
-  it("rejects invalid replacements with fresh and cached codecs, then recovers", function () {
+  it("rejects invalid replacement byte options with fresh and cached codecs", function () {
     for (const cached of [false, true]) {
-      for (const replacement of ["", "??", "€", "🙂", null, undefined, 0, {}]) {
+      for (const replacement of [-1, 256, 1.5, NaN, Infinity, -Infinity, null, "!", true, {}]) {
         const instance = new Iconv(iconv.backend)
-        const original = cached ? instance.getEncoder("windows1252") : null
-        instance.defaultCharSingleByte = replacement as string
-        expect(() => instance.getEncoder("cp1252")).toThrowError(expect.objectContaining({
-          name: "TypeError", message: "defaultCharSingleByte must be a single-byte character"
-        }))
-        expect(() => instance.encode("A", "windows1252", { invalidCharHandler () {} })).toThrowError(TypeError)
-        instance.defaultCharSingleByte = "!"
-        expect(instance.encode("\uFFFD", "windows1252")).toStrictEqual(utils.bytes([0x21]))
-        if (original) expect(original.write("\uFFFD")).toStrictEqual(utils.bytes([0x3F]))
+        if (cached) instance.getCodec("windows1252")
+        for (const options of [undefined, { invalidCharHandler () {} }]) {
+          expect(() => instance.encode("A", "cp1252", { ...options, defaultCharByte: replacement as number }))
+            .toThrowError(expect.objectContaining({ name: "TypeError", message: "defaultCharByte must be an integer between 0 and 255" }))
+        }
+        expect(instance.encode("\uFFFD", "windows1252", { defaultCharByte: undefined })).toStrictEqual(utils.bytes([0x3F]))
       }
     }
   })
 
-  it("keeps a handler's replacement through writes and finalization when the instance changes", function () {
+  it("rejects unassigned characters when byte 0x3F is unassigned in a custom table", function () {
     const instance = new Iconv(iconv.backend)
-    instance.encodingExists("windows1252")
-    instance.defaultCharSingleByte = "!"
-    const encoder = instance.getEncoder("windows1252", {
-      invalidCharHandler () {
-        instance.defaultCharSingleByte = "#"
-        expect(instance.encode("\uFFFD", "cp1252")).toStrictEqual(utils.bytes([0x23]))
+    instance.addEncoding({
+      customsbcs: {
+        type: "_sbcs",
+        chars: String.fromCharCode(...Array.from({ length: 256 }, (_, byte) => byte === 0x3F ? 0xFFFD : byte))
       }
     })
+    for (const options of [undefined, { invalidCharHandler () {} }]) {
+      expect(instance.encode("\0?\uFFFD", "customsbcs", { ...options, defaultCharByte: 0x21 })).toStrictEqual(utils.bytes([0, 0x21, 0x21]))
+    }
+    expect(() => instance.encode("?", "customsbcs", {
+      defaultCharByte: 0x21,
+      invalidCharHandler () { return "\uFFFD" }
+    })).toThrowError(TypeError)
+  })
+
+  it("captures replacement options through handler callbacks and finalization", function () {
+    const instance = new Iconv(iconv.backend)
+    const options = {
+      defaultCharByte: 0x21,
+      invalidCharHandler () {
+        options.defaultCharByte = 0x23
+        expect(instance.encode("\uFFFD", "cp1252", { defaultCharByte: 0x23 })).toStrictEqual(utils.bytes([0x23]))
+      }
+    }
+    const encoder = instance.getEncoder("windows1252", options)
     expect(encoder.write("\uFFFD\uFFFD\uD800")).toStrictEqual(utils.bytes([0x21, 0x21]))
     expect(encoder.end()).toStrictEqual(utils.bytes([0x21]))
   })
 
-  it("retains direct encoder construction with the codec's captured replacement", function () {
+  it("supports default and configured replacements through the encoder constructor", function () {
     const instance = new Iconv(iconv.backend)
-    instance.defaultCharSingleByte = "!"
     const codec = instance.getCodec("windows1252") as InstanceType<typeof SBCSCodec>
     const Encoder = codec.encoder
-    const encoder = new Encoder({}, codec, instance.backend)
-    instance.defaultCharSingleByte = "#"
-    expect(instance.encode("\uFFFD", "windows1252")).toStrictEqual(utils.bytes([0x23]))
+    const encoder = new Encoder({ defaultCharByte: 0x21 }, codec, instance.backend)
+    expect(instance.encode("\uFFFD", "windows1252")).toStrictEqual(utils.bytes([0x3F]))
     expect(encoder.write("\uFFFD")).toStrictEqual(utils.bytes([0x21]))
+    expect(new Encoder({}, codec, instance.backend).write("\uFFFD")).toStrictEqual(utils.bytes([0x3F]))
+    expect(new Encoder({ defaultCharByte: 0 }, codec, instance.backend).write("\uFFFD")).toStrictEqual(utils.bytes([0]))
+    expect(() => new Encoder({ defaultCharByte: -1 }, codec, instance.backend)).toThrowError(TypeError)
   })
 })
