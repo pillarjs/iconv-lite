@@ -82,8 +82,8 @@ describe("UTF-32LE codec", function () {
   })
 
   it("throws on ill-formed input in fatal mode", function () {
-    expect(function () { iconv.decode(utils.bytes("00 d8 00 00"), "utf-32le", { fatal: true }) }).toThrowError()
-    expect(function () { iconv.decode(utils.bytes("61 00 00"), "utf-32le", { fatal: true }) }).toThrowError() // truncated
+    expect(function () { iconv.decode(utils.bytes("00 d8 00 00"), "utf-32le", { fatal: true }) }).toThrowError(TypeError)
+    expect(function () { iconv.decode(utils.bytes("61 00 00"), "utf-32le", { fatal: true }) }).toThrowError(TypeError) // truncated
   })
 
   it("decodes a code point split across chunk boundaries", utils.checkDecoderChunks("utf-32le", [
@@ -268,6 +268,50 @@ describe("UTF-32 general codec", function () {
       }
     }
   })
+})
+
+describe("UTF-32 fatal error types", function () {
+  for (const [encoding, byteOrder] of [
+    ["utf32le", "utf32le"], ["utf32be", "utf32be"],
+    ["utf32", "utf32le"], ["utf32", "utf32be"]
+  ]) {
+    for (const prefix of ["", "A".repeat(8)]) {
+      it(`${encoding} (${byteOrder}) throws TypeError for invalid scalars after ${prefix.length} characters`, function () {
+        for (const invalid of ["00 d8 00 00", "ff df 00 00", "00 00 11 00", "00 00 00 80", "ff ff ff ff"]) {
+          const bytes = utils.bytes(invalid)
+          if (byteOrder === "utf32be") bytes.reverse()
+          const input = utils.concatBufs([iconv.encode(prefix, byteOrder, { addBOM: true }), bytes])
+          const options = { fatal: true, defaultCharUnicode: "" }
+          expect(() => iconv.decode(input, encoding, options)).toThrowError(TypeError)
+          for (let split = 0; split <= input.length; split++) {
+            const decoder = iconv.getDecoder(encoding, options)
+            expect(() => {
+              decoder.write(input.subarray(0, split))
+              decoder.write(input.subarray(split))
+              decoder.end()
+            }, "split " + split).toThrowError(TypeError)
+          }
+        }
+      })
+
+      it(`${encoding} (${byteOrder}) throws TypeError at end for truncated input after ${prefix.length} characters`, function () {
+        for (const trailingLength of [1, 2, 3]) {
+          const input = utils.concatBufs([
+            iconv.encode(prefix, byteOrder, { addBOM: true }),
+            iconv.encode("B", byteOrder).subarray(0, trailingLength)
+          ])
+          const options = { fatal: true, defaultCharUnicode: "<invalid>" }
+          expect(() => iconv.decode(input, encoding, options)).toThrowError(TypeError)
+          for (let split = 0; split <= input.length; split++) {
+            const decoder = iconv.getDecoder(encoding, options)
+            decoder.write(input.subarray(0, split))
+            decoder.write(input.subarray(split))
+            expect(() => decoder.end(), "split " + split).toThrowError(TypeError)
+          }
+        }
+      })
+    }
+  }
 })
 
 // Renders a string as \uXXXX escapes so surrogate mismatches are readable in assertion output.

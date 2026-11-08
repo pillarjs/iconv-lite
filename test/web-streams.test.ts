@@ -184,6 +184,17 @@ describe("Web Streams", function () {
     })
   }
 
+  for (const encoding of ["utf32le", "utf32be", "utf32"]) {
+    for (const truncated of [false, true]) {
+      it(`${encoding} propagates fatal TypeError during ${truncated ? "flush" : "write"}`, async function () {
+        const invalid = truncated ? "00" : encoding === "utf32be" ? "00 00 d8 00" : "00 d8 00 00"
+        const output = source([iconv.encode("A".repeat(8), encoding), utils.bytes(invalid)])
+          .pipeThrough(iconv.decodeWebStream(encoding, { fatal: true, defaultCharUnicode: "" }))
+        await expect(collect(output)).rejects.toBeInstanceOf(TypeError)
+      })
+    }
+  }
+
   it("preserves Windows C1 controls in fatal mode", async function () {
     const output = source([Uint8Array.of(0x81), Uint8Array.of(0x80, 0x41)])
       .pipeThrough(iconv.decodeWebStream("windows-1252", { fatal: true }))

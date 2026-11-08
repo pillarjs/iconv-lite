@@ -263,6 +263,18 @@ describe("Streaming mode", function () {
     checkError: error => assert(error instanceof TypeError)
   }))
 
+  for (const encoding of ["utf32le", "utf32be", "utf32"]) {
+    for (const truncated of [false, true]) {
+      const invalid = truncated ? "00" : encoding === "utf32be" ? "00 00 d8 00" : "00 d8 00 00"
+      it(`${encoding} propagates fatal TypeError during ${truncated ? "flush" : "write"}`, checkDecodeStream({
+        encoding,
+        encodingOptions: { fatal: true, defaultCharUnicode: "" },
+        input: [iconv.encode("A".repeat(8), encoding), utils.bytes(invalid)],
+        checkError: error => assert(error instanceof TypeError)
+      }))
+    }
+  }
+
   it("preserves Windows C1 controls in fatal mode", checkDecodeStream({
     encoding: "windows-1252",
     encodingOptions: { fatal: true },

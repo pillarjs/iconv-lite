@@ -228,7 +228,7 @@ class Utf32Decoder {
   end () {
     if (this.overflow.length === 0) { return }
     this.overflow.length = 0
-    if (this.fatal) { throw new Error("Truncated UTF-32 code unit at end of input") }
+    if (this.fatal) { throw new TypeError("Truncated UTF-32 code unit at end of input") }
     return this.#defaultCharUnicode
   }
 }
@@ -286,7 +286,7 @@ function pushCodepoint (units: Uint16Array, pos: number, codepoint: number, fata
   // Step 2: reject non-scalar values. Past the check above, codepoint >= 0xD800, so codepoint <= 0xDFFF
   // means a surrogate code point; codepoint > 0x10FFFF is out of range.
   if (codepoint > 0x10FFFF || codepoint <= 0xDFFF) {
-    if (fatal) { throw new Error("Invalid UTF-32 code unit: 0x" + codepoint.toString(16)) }
+    if (fatal) { throw new TypeError("Invalid UTF-32 code unit: 0x" + codepoint.toString(16)) }
     errors?.push(pos)
     units[pos++] = REPLACEMENT
     return pos
