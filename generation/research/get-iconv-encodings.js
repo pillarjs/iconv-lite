@@ -6,15 +6,15 @@ import iconv from "iconv"
 import crypto from "crypto"
 import { Buffer } from "buffer"
 
-var skipEncodings = {}
+const skipEncodings = {}
 
-var input = ""
+let input = ""
 process.stdin.setEncoding("utf8")
 process.stdin.on("data", function (data) { input += data })
 
 process.stdin.on("end", function () {
   input = input.replace(/\s|\n/g, " ")
-  var encodings = input.split(" ").map(function (s) { return s.trim() }).filter(Boolean)
+  let encodings = input.split(" ").map(function (s) { return s.trim() }).filter(Boolean)
   encodings = encodings.filter(function (enc) {
     try {
       new iconv.Iconv("utf-8", enc).convert(Buffer.from("hello!"))
@@ -29,14 +29,14 @@ process.stdin.on("end", function () {
     return true
   })
 
-  var hashes = {}
+  let hashes = {}
 
   encodings.forEach(function (enc) {
     process.stderr.write("Checking " + enc + ": ")
-    var hash = crypto.createHash("sha1")
+    const hash = crypto.createHash("sha1")
 
-    var converter = new iconv.Iconv(enc, "utf-8"); var buf = Buffer.alloc(10)
-    var res = {
+    const converter = new iconv.Iconv(enc, "utf-8"); const buf = Buffer.alloc(10)
+    const res = {
       enc: [enc],
       isDBCS: true,
       isSBCS: true,
@@ -49,9 +49,9 @@ process.stdin.on("end", function () {
 
     try {
       forAllChars(converter, function (valid, inp, outp) {
-        res.isASCII = res.isASCII && (inp[0] >= 0x80 || (valid && (inp[0] == outp[0])))
-        res.isSBCS = res.isSBCS && (inp.length == 1)
-        res.isDBCS = res.isDBCS && (((inp.length == 1) && (inp[0] < 0x80 || !valid)) || ((inp.length == 2) && inp[0] >= 0x80))
+        res.isASCII = res.isASCII && (inp[0] >= 0x80 || (valid && (inp[0] === outp[0])))
+        res.isSBCS = res.isSBCS && (inp.length === 1)
+        res.isDBCS = res.isDBCS && (((inp.length === 1) && (inp[0] < 0x80 || !valid)) || ((inp.length === 2) && inp[0] >= 0x80))
         res.maxChars = Math.max(res.maxChars, inp.length)
         hash.update(inp)
         if (valid) {
@@ -84,17 +84,17 @@ process.stdin.resume()
 // Make all valid input combinations for a given encoding and call fn with it.
 // fn(valid, input, output)
 function forAllChars (converter, fn, origbuf, len) {
-  var buf = origbuf.slice(0, len)
-  for (var i = 0; i < 0x100; i++) {
+  const buf = origbuf.slice(0, len)
+  for (let i = 0; i < 0x100; i++) {
     buf[len - 1] = i
     let res
     try {
       res = converter.convert(buf)
     } catch (e) {
-      if (e.code == "EILSEQ") { // Invalid character sequence.
+      if (e.code === "EILSEQ") { // Invalid character sequence.
         // Notify that this sequence is invalid.
         // fn(false, buf);
-      } else if (e.code == "EINVAL") { // Partial character sequence.
+      } else if (e.code === "EINVAL") { // Partial character sequence.
         // Recurse deeper.
         forAllChars(converter, fn, origbuf, len + 1)
       } else { throw e }

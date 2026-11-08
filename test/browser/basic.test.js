@@ -34,27 +34,27 @@ describe("iconv-lite", function () {
   })
 
   it("can encode/decode sbcs encodings", function () {
-    var buf = iconv.encode("abc", "win1251")
-    var str = iconv.decode(buf, "win1251")
+    const buf = iconv.encode("abc", "win1251")
+    const str = iconv.decode(buf, "win1251")
     expect(str).toBe("abc")
   })
 
   it("can encode/decode dbcs encodings", function () {
-    var buf = iconv.encode("abc", "shiftjis")
-    var str = iconv.decode(buf, "shiftjis")
+    const buf = iconv.encode("abc", "shiftjis")
+    const str = iconv.decode(buf, "shiftjis")
     expect(str).toBe("abc")
   })
 
   it("can encode/decode internal encodings", function () {
-    var buf = iconv.encode("💩", "utf8")
-    var str = iconv.decode(buf, "utf8")
+    const buf = iconv.encode("💩", "utf8")
+    const str = iconv.decode(buf, "utf8")
     expect(str).toBe("💩")
   })
 
   it("supports passing Uint8Array to decode for all encodings", function () {
     iconv.encode("", "utf8") // Load all encodings.
 
-    var encodings = Object.keys(iconv.encodings)
+    const encodings = Object.keys(iconv.encodings)
     encodings
       .filter(encoding =>
         !encoding.startsWith("_") &&
@@ -62,12 +62,12 @@ describe("iconv-lite", function () {
                     encoding !== "base64" && encoding !== "hex"
       )
       .forEach(function (encoding) {
-        var expected = "Lorem ipsum"
+        const expected = "Lorem ipsum"
 
-        var encoded = iconv.encode(expected, encoding)
+        const encoded = iconv.encode(expected, encoding)
         expect(encoded.constructor, encoding).toBe(Uint8Array)
-        var uint8Array = Uint8Array.from(encoded)
-        var actual = iconv.decode(uint8Array, encoding)
+        const uint8Array = Uint8Array.from(encoded)
+        const actual = iconv.decode(uint8Array, encoding)
         expect(actual, encoding).toBe(expected)
       })
   })

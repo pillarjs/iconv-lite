@@ -145,7 +145,7 @@ class InternalEncoderBase64 {
 
   write (str) {
     str = this.prevStr + str
-    var completeQuads = str.length - (str.length % 4)
+    const completeQuads = str.length - (str.length % 4)
     this.prevStr = str.slice(completeQuads)
     str = str.slice(0, completeQuads)
 
@@ -166,9 +166,9 @@ class InternalEncoderCesu8 {
   }
 
   write (str) {
-    var buf = new Uint8Array(str.length * 3); var bufIdx = 0
-    for (var i = 0; i < str.length; i++) {
-      var charCode = str.charCodeAt(i)
+    const buf = new Uint8Array(str.length * 3); let bufIdx = 0
+    for (let i = 0; i < str.length; i++) {
+      const charCode = str.charCodeAt(i)
       // Naive implementation, but it works because CESU-8 is especially easy
       // to convert from UTF-16 (which all JS strings are encoded in).
       if (charCode < 0x80) { buf[bufIdx++] = charCode } else if (charCode < 0x800) {
@@ -199,10 +199,10 @@ class InternalDecoderCesu8 {
   }
 
   write (buf) {
-    var acc = this.acc; var contBytes = this.contBytes; var accBytes = this.accBytes
-    var res = ""
-    for (var i = 0; i < buf.length; i++) {
-      var curByte = buf[i]
+    let acc = this.acc; let contBytes = this.contBytes; let accBytes = this.accBytes
+    let res = ""
+    for (let i = 0; i < buf.length; i++) {
+      const curByte = buf[i]
       if ((curByte & 0xC0) !== 0x80) { // Leading byte
         if (contBytes > 0) { // Previous code is invalid
           res += this.defaultCharUnicode
@@ -268,7 +268,7 @@ class InternalEncoderUtf8 {
     }
 
     if (str.length > 0) {
-      var charCode = str.charCodeAt(str.length - 1)
+      const charCode = str.charCodeAt(str.length - 1)
       if (charCode >= 0xd800 && charCode < 0xdc00) {
         this.highSurrogate = str[str.length - 1]
         str = str.slice(0, str.length - 1)
@@ -280,7 +280,7 @@ class InternalEncoderUtf8 {
 
   end () {
     if (this.highSurrogate) {
-      var str = this.highSurrogate
+      const str = this.highSurrogate
       this.highSurrogate = ""
       return this.backend.encodeString(str, "utf8")
     }

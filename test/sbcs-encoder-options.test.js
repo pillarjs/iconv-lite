@@ -108,7 +108,8 @@ describe("SBCS encoder replacement settings", function () {
     const instance = new Iconv(iconv.backend)
     instance.defaultCharSingleByte = "!"
     const codec = instance.getCodec("windows1252")
-    const encoder = new codec.encoder({}, codec, instance.backend)
+    const Encoder = codec.encoder
+    const encoder = new Encoder({}, codec, instance.backend)
     instance.defaultCharSingleByte = "#"
     expect(instance.encode("\uFFFD", "windows1252")).toStrictEqual(utils.bytes([0x23]))
     expect(encoder.write("\uFFFD")).toStrictEqual(utils.bytes([0x21]))

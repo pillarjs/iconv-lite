@@ -38,10 +38,10 @@ export function parseText (text, splitChar) {
 // sequences (arrays) - we emit them prepended with U+0FFF-(length-2).
 // U+0FFF was chosen because it's small and unassigned, as well as 32 chars before it
 function arrToStr (arr) {
-  var s = ""
-  for (var i = 0; i < arr.length; i++) {
+  let s = ""
+  for (let i = 0; i < arr.length; i++) {
     if (Array.isArray(arr[i])) {
-      if (arr[i].length == 1) { s += arrToStr(arr[i]) } else if (arr[i].length > 1) {
+      if (arr[i].length === 1) { s += arrToStr(arr[i]) } else if (arr[i].length > 1) {
         s += String.fromCharCode(0xFFF - (arr[i].length - 2)) +
                     arrToStr(arr[i])
       }
@@ -64,10 +64,10 @@ function arrToStr (arr) {
 // <str> - characters of the chunk.
 // <num> - increasing sequence of the length num, starting with prev character.
 export function generateTable (dbcs, maxBytes) {
-  var minSeqLen = 4
-  var table = []; var range; var block; var seqLen
-  var max = 1 << ((maxBytes || 2) * 8)
-  for (var i = 0x0000; i < max; i++) {
+  const minSeqLen = 4
+  const table = []; let range; let block; let seqLen
+  const max = 1 << ((maxBytes || 2) * 8)
+  for (let i = 0x0000; i < max; i++) {
     if (dbcs[i] !== undefined) {
       if (dbcs[i - 1] === undefined) { // Range started.
         range = [i.toString(16)] // Range[0] is starting address.

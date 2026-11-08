@@ -21,7 +21,7 @@ describe("Test utils RLE Encoding", function () {
 
   it("should encode incremental strings very efficiently", function () {
     const arr = []
-    for (var i = 0; i < 256; i++) arr.push(String.fromCharCode(i))
+    for (let i = 0; i < 256; i++) arr.push(String.fromCharCode(i))
 
     const str = utils.rleEncode(arr)
     expect(str).toBe("$Ģ\u0000")
@@ -29,7 +29,7 @@ describe("Test utils RLE Encoding", function () {
 
   it("should encode lots of empty strings very efficiently", function () {
     const arr = []
-    for (var i = 0; i < 25600; i++) arr.push("")
+    for (let i = 0; i < 25600; i++) arr.push("")
 
     const str = utils.rleEncode(arr)
     expect(str).toBe("#搢")

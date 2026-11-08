@@ -32,8 +32,7 @@ const combClass = { "\u0327": 202, "\u0323": 220, "\u031B": 216 } // Combining c
 for (let i = 0x300; i < 0x315; i++) combClass[String.fromCharCode(i)] = 230
 
 const iconvEquivChars = {
-  // eslint-disable-next-line
-  cp1163: { '\u00D0': '\u0110', '\u203E': '\u00AF' }
+  cp1163: { Ð: "\u0110", "\u203E": "\u00AF" }
 }
 
 // Generate tests for all SBCS encodings.
@@ -60,12 +59,13 @@ describe("Full SBCS encoding tests", { timeout: 10000 }, function () {
 
             const buf = utils.bytes([i])
             const strActual = iconv.decode(buf, enc)
-            if (strActual !== strExpected)
-            { errors.push({
-              inputHex: utils.hex(buf),
-              strExpected: strExpected,
-              strActual: strActual
-            }) }
+            if (strActual !== strExpected) {
+              errors.push({
+                inputHex: utils.hex(buf),
+                strExpected,
+                strActual
+              })
+            }
           })
           if (errors.length > 0) {
             const errs = errors
@@ -112,8 +112,7 @@ describe("Full SBCS encoding tests", { timeout: 10000 }, function () {
             // (when single unicode char results in >1 encoded chars because of diacritics)
             if (normalizedEncodings[enc] && strActual === errorCharHex) {
               const strDenormStrict = unorm.nfd(str) // Strict decomposition
-              if (strExpected === utils.hex(iconv.encode(strDenormStrict, enc)))
-              { return }
+              if (strExpected === utils.hex(iconv.encode(strDenormStrict, enc))) { return }
 
               const strDenorm = unorm.nfkd(str) // Check also compat decomposition.
               if (strExpected === utils.hex(iconv.encode(strDenorm, enc))) return
@@ -128,8 +127,7 @@ describe("Full SBCS encoding tests", { timeout: 10000 }, function () {
                 // Semicompose without swapping.
                 const strDenorm2 =
                                     unorm.nfc(strDenorm[0] + strDenorm[1]) + strDenorm[2]
-                if (strExpected === utils.hex(iconv.encode(strDenorm2, enc)))
-                { return }
+                if (strExpected === utils.hex(iconv.encode(strDenorm2, enc))) { return }
 
                 // Swap combining characters if they have different combining classes, making swap unicode-equivalent.
                 const strDenorm3 =
@@ -148,14 +146,13 @@ describe("Full SBCS encoding tests", { timeout: 10000 }, function () {
               iconvEquivChars[enc] &&
                             iconvEquivChars[enc][str] &&
                             strExpected === utils.hex(iconv.encode(iconvEquivChars[enc][str], enc))
-            )
-            { return }
+            ) { return }
 
             errors.push({
               input: utils.strToHex(str),
               inputChar: str,
-              strExpected: strExpected,
-              strActual: strActual
+              strExpected,
+              strActual
             })
           })
 
@@ -185,7 +182,9 @@ describe("Full SBCS encoding tests", { timeout: 10000 }, function () {
             assert.strictEqual(JSON.stringify(iconv.decode(buf2, enc)), JSON.stringify(str = conv.convert(buf2).toString()));
             assert.strictEqual(iconv.encode(str, enc).toString('hex'), convBack.convert(Buffer.from(str)).toString('hex'));
             */
-      })(enc) } }
+      })(enc)
+    }
+  }
 })
 
 describe("SBCS encode maps U+FFFD to defaultCharSingleByte", function () {
@@ -213,8 +212,9 @@ describe("SBCS fatal decoding outside the Windows family", function () {
 describe("SBCS decoder constructor compatibility", function () {
   it("retains the default replacement and fatal mode when constructed directly", function () {
     const codec = iconv.getCodec("windows1253")
-    const loose = new codec.decoder({}, codec, iconv.backend)
-    const fatal = new codec.decoder({ fatal: true }, codec, iconv.backend)
+    const Decoder = codec.decoder
+    const loose = new Decoder({}, codec, iconv.backend)
+    const fatal = new Decoder({ fatal: true }, codec, iconv.backend)
     expect(loose.write(utils.bytes([0xAA]))).toBe("\uFFFD")
     expect(() => fatal.write(utils.bytes([0xAA]))).toThrowError(TypeError)
   })
