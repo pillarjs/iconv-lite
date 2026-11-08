@@ -2,7 +2,7 @@
 
 import { getFile, parseText } from "../utils.js"
 
-var baseUrl = "http://www.unicode.org/Public/6.3.0/ucd/"
+const baseUrl = "http://www.unicode.org/Public/6.3.0/ucd/"
 
 async function generate () {
   const [data, exclusions] = await Promise.all([
@@ -10,12 +10,12 @@ async function generate () {
     getFile(baseUrl + "CompositionExclusions.txt")
   ])
 
-  var features = {}
+  const features = {}
   parseText(data, ";").forEach(function (a) {
-    var ch = parseInt(a[0], 16)
-    var combiningClass = parseInt(a[3], 10) || 0
-    var decompStr = a[5].trim()
-    var canonical, decomp
+    const ch = parseInt(a[0], 16)
+    const combiningClass = parseInt(a[3], 10) || 0
+    const decompStr = a[5].trim()
+    let canonical, decomp
 
     if (decompStr.length > 0) {
       decomp = decompStr.split(" ").map(function (s) { return parseInt(s, 16) })
@@ -29,42 +29,42 @@ async function generate () {
 
     if (decomp || combiningClass) {
       features[ch] = {
-        decomp: decomp,
-        canonical: canonical,
-        combiningClass: combiningClass
+        decomp,
+        canonical,
+        combiningClass
       }
     }
   })
 
   // Process CompositionExclusions.txt
   parseText(exclusions).forEach(function (a) {
-    var ch = parseInt(a[0], 16)
+    const ch = parseInt(a[0], 16)
     features[ch].noCompose = true
   })
 
   // Exclude Non-Starter Decompositions and Singleton Decompositions (CompositionExclusions.txt parts 3, 4)
-  for (var ch in features) {
-    var feat = features[ch]
-    if (feat.canonical && (feat.decomp.length == 1 || feat.combiningClass || (features[feat.decomp[0]] || {}).combiningClass)) {
+  for (const ch in features) {
+    const feat = features[ch]
+    if (feat.canonical && (feat.decomp.length === 1 || feat.combiningClass || (features[feat.decomp[0]] || {}).combiningClass)) {
       // console.log("Excluded:", (+ch).toString(16));
       feat.noCompose = true
     }
   }
 
   // Add Jamo decompositions (see part 3.12 of http://www.unicode.org/versions/Unicode6.3.0/ch03.pdf)
-  var LBase = 0x1100; var VBase = 0x1161; var TBase = 0x11A7; var SBase = 0xAC00
-  var LCount = 19; var VCount = 21; var TCount = 28
+  const LBase = 0x1100; const VBase = 0x1161; const TBase = 0x11A7; const SBase = 0xAC00
+  const LCount = 19; const VCount = 21; const TCount = 28
 
-  for (var l = 0; l < LCount; l++) {
-    for (var v = 0; v < VCount; v++) {
-      var lv = l * VCount * TCount + v * TCount + SBase
+  for (let l = 0; l < LCount; l++) {
+    for (let v = 0; v < VCount; v++) {
+      const lv = l * VCount * TCount + v * TCount + SBase
       features[lv] = {
         decomp: [l + LBase, v + VBase],
         canonical: true,
         combiningClass: 0
       }
 
-      for (var t = 1; t < TCount; t++) {
+      for (let t = 1; t < TCount; t++) {
         features[lv + t] = {
           decomp: [lv, t + TBase],
           canonical: true,
@@ -132,13 +132,13 @@ async function generate () {
 
   // }
 
-  for (var charCode in features) {
-    var feat = f(charCode)
+  for (const charCode in features) {
+    const feat = f(charCode)
     if (feat.decomp && feat.canonical) {
-      if (feat.decomp.length == 1) {
-        if (f(feat.decomp[0]).combiningClass != feat.combiningClass) { console.log("!!1", hex(charCode), "->", feat.decomp.map(hex)) }
-      } else if (feat.decomp.length == 2) {
-        if (f(feat.decomp[0]).combiningClass != feat.combiningClass) {
+      if (feat.decomp.length === 1) {
+        if (f(feat.decomp[0]).combiningClass !== feat.combiningClass) { console.log("!!1", hex(charCode), "->", feat.decomp.map(hex)) }
+      } else if (feat.decomp.length === 2) {
+        if (f(feat.decomp[0]).combiningClass !== feat.combiningClass) {
           console.log("!!2", hex(charCode), "->", feat.decomp.map(hex))
         }
       } else {

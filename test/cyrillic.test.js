@@ -1,8 +1,8 @@
 import { expect } from "vitest"
 import utils from "./helpers/utils.js"
-var iconv = utils.requireIconv()
+const iconv = utils.requireIconv()
 
-var baseStrings = {
+const baseStrings = {
   empty: "",
   hi: "Привет!",
   ascii:
@@ -15,7 +15,7 @@ var baseStrings = {
   untranslatable: "£Åçþÿ¿"
 }
 
-var encodings = [
+const encodings = [
   {
     name: "Win-1251",
     variations: ["win1251", "Windows-1251", "windows1251", "CP1251", 1251],
@@ -65,8 +65,8 @@ var encodings = [
 
 describe("Test Cyrillic encodings", function () {
   encodings.forEach(function (encoding) {
-    var enc = encoding.variations[0]
-    var key = "hi"
+    const enc = encoding.variations[0]
+    const key = "hi"
     describe(encoding.name + ":", function () {
       it("Convert from buffer", function () {
         for (const key in encoding.encodedStrings) {

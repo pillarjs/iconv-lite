@@ -14,12 +14,12 @@ function forAllChars (converter, fn, origbuf, len) {
     len = 1
   }
   if (!converter.chars) converter.chars = 1
-  var buf = origbuf.slice(0, len)
-  for (var i = 0; i < 0x100; i++) {
+  const buf = origbuf.slice(0, len)
+  for (let i = 0; i < 0x100; i++) {
     if (converter.chars++ > 0x20000) return
     buf[len - 1] = i
     try {
-      var res = converter(buf)
+      const res = converter(buf)
 
       // buf contains correct input combination. Run fn with input and converter output.
       fn(true, buf, res)
@@ -46,13 +46,13 @@ function convertWithDefault (converter, buf) {
   return Buffer.from(iconv.defaultCharSingleByte)
 }
 
-var aliases = {
+const aliases = {
   shiftjis: "cp932",
   big5hkscs: "big5-hkscs"
 }
 
 // prettier-ignore
-var iconvChanges = { // Characters that iconv changing (iconv char -> our char)
+const iconvChanges = { // Characters that iconv changing (iconv char -> our char)
   // shiftjis/cp932 is changed in iconv (see comments in cp932.h)
   shiftjis: { "〜": "～", "‖": "∥", "−": "－", "¢": "￠", "£": "￡", "¬": "￢" },
   eucjp: { "〜": "～", "‖": "∥", "−": "－", "¢": "￠", "£": "￡", "¬": "￢" },
@@ -86,7 +86,7 @@ var iconvChanges = { // Characters that iconv changing (iconv char -> our char)
 }
 
 // prettier-ignore
-var iconvCannotDecode = { // Characters that we can decode, but iconv cannot. Encoding -> correct char. Also use them for encoding check.
+const iconvCannotDecode = { // Characters that we can decode, but iconv cannot. Encoding -> correct char. Also use them for encoding check.
   shiftjis: { 80: "\x80", "5c": "¥", "7e": "‾", "81ca": "￢" },
   eucjp: {
     adf0: "≒",
@@ -536,7 +536,7 @@ var iconvCannotDecode = { // Characters that we can decode, but iconv cannot. En
 }
 
 function swapBytes (buf) {
-  for (var i = 0; i < buf.length; i += 2) buf.writeUInt16LE(buf.readUInt16BE(i), i)
+  for (let i = 0; i < buf.length; i += 2) buf.writeUInt16LE(buf.readUInt16BE(i), i)
   return buf
 }
 function spacify2 (str) {
@@ -553,12 +553,12 @@ function strToHex (str) {
 iconv.encode("", "utf8") // Load all encodings.
 
 describe("Full DBCS encoding tests", { timeout: 10000 }, function () {
-  var Iconv
+  let Iconv
   try {
     Iconv = require("iconv").Iconv
   } catch (_e) {}
 
-  for (var enc in iconv.encodings) {
+  for (const enc in iconv.encodings) {
     if (iconv.encodings[enc].type === "_dbcs") {
       (function (enc) {
       // Create tests for this encoding.
@@ -567,17 +567,16 @@ describe("Full DBCS encoding tests", { timeout: 10000 }, function () {
             skip() // Skip if Iconv is unavailable
           }
 
-          var iconvChgs = iconvChanges[enc] || {}
-          var iconvCannotDecodeChars = iconvCannotDecode[enc] || {}
-          var converter = new Iconv(aliases[enc] || enc, "utf-8")
-          var errors = []
+          const iconvChgs = iconvChanges[enc] || {}
+          const iconvCannotDecodeChars = iconvCannotDecode[enc] || {}
+          const converter = new Iconv(aliases[enc] || enc, "utf-8")
+          const errors = []
           forAllChars(converter.convert.bind(converter), function (valid, inp, outp) {
             const strActual = iconv.decode(inp, enc)
             const charCode = strActual.charCodeAt(0)
 
-            if (charCode >= 0xe000 && charCode < 0xf900)
             // Skip Private use area.
-            { return }
+            if (charCode >= 0xe000 && charCode < 0xf900) { return }
 
             let strExpected
             if (valid) {
@@ -585,26 +584,23 @@ describe("Full DBCS encoding tests", { timeout: 10000 }, function () {
               if (strActual === strExpected) return
 
               const charCode = strExpected.charCodeAt(0)
-              if (charCode >= 0xe000 && charCode < 0xf900)
               // Skip Private use area.
-              { return }
+              if (charCode >= 0xe000 && charCode < 0xf900) { return }
 
-              if (iconvChgs[strExpected] === strActual)
               // Skip iconv changes.
-              { return }
+              if (iconvChgs[strExpected] === strActual) { return }
             } else {
               strExpected = "�"
               if (strActual[0] === "�") return
 
-              if (iconvCannotDecodeChars[inp.toString("hex")] === strActual)
               // Skip what iconv cannot encode.
-              { return }
+              if (iconvCannotDecodeChars[inp.toString("hex")] === strActual) { return }
             }
 
             errors.push({
               input: inp.toString("hex"),
-              strExpected: strExpected,
-              strActual: strActual
+              strExpected,
+              strActual
             })
           })
 
@@ -635,46 +631,44 @@ describe("Full DBCS encoding tests", { timeout: 10000 }, function () {
             skip() // Skip if Iconv is unavailable
           }
 
-          var iconvChgs = iconvChanges[enc] || {}
-          var iconvCannotDecodeChars = iconvCannotDecode[enc] || {}
-          var converter = new Iconv("utf-8", aliases[enc] || enc)
-          var converterBack = new Iconv(aliases[enc] || enc, "utf-8")
-          var errors = []
-          for (var i = 0; i < 0x10000; i++) {
+          const iconvChgs = iconvChanges[enc] || {}
+          const iconvCannotDecodeChars = iconvCannotDecode[enc] || {}
+          const converter = new Iconv("utf-8", aliases[enc] || enc)
+          const converterBack = new Iconv(aliases[enc] || enc, "utf-8")
+          const errors = []
+          for (let i = 0; i < 0x10000; i++) {
             if (i === 0xd800) i = 0xf900 // Skip surrogates & private use.
 
-            var str = String.fromCharCode(i)
+            const str = String.fromCharCode(i)
 
-            var bufExpected = convertWithDefault(converter, str)
-            var strExpected = bufExpected.toString("hex")
+            const bufExpected = convertWithDefault(converter, str)
+            const strExpected = bufExpected.toString("hex")
 
-            var bufActual = iconv.encode(str, enc)
-            var strActual = Buffer.from(bufActual).toString("hex")
+            const bufActual = iconv.encode(str, enc)
+            const strActual = Buffer.from(bufActual).toString("hex")
 
             if (strExpected === strActual) continue
 
-            if (strExpected === "3f" && iconvCannotDecodeChars[strActual] === str)
-            { continue } // Check the iconv cannot encode this char, but we encoded correctly.
+            if (strExpected === "3f" && iconvCannotDecodeChars[strActual] === str) { continue } // Check the iconv cannot encode this char, but we encoded correctly.
 
-            var str1 = iconv.decode(bufExpected, enc)
-            var str12 = iconv.decode(bufActual, enc)
-            var str2 = convertWithDefault(converterBack, Buffer.from(bufActual)).toString()
-            var str22 = convertWithDefault(converterBack, bufExpected).toString()
+            const str1 = iconv.decode(bufExpected, enc)
+            const str12 = iconv.decode(bufActual, enc)
+            const str2 = convertWithDefault(converterBack, Buffer.from(bufActual)).toString()
+            const str22 = convertWithDefault(converterBack, bufExpected).toString()
             if (
               str1 === str &&
                             str12 === str &&
                             str22 === str &&
                             (str2 === str || iconvCannotDecodeChars[strActual] === str)
-            )
-            { continue } // There are multiple ways to encode str, so it doesn't matter which we choose.
+            ) { continue } // There are multiple ways to encode str, so it doesn't matter which we choose.
 
             if (iconvChgs[str] === str1) continue // Skip iconv changes.
 
             errors.push({
               input: strToHex(str),
               inputChar: str,
-              strExpected: strExpected,
-              strActual: strActual
+              strExpected,
+              strActual
             })
           }
 
@@ -698,6 +692,7 @@ describe("Full DBCS encoding tests", { timeout: 10000 }, function () {
             )
           }
         })
-      })(enc) }
+      })(enc)
+    }
   }
 })

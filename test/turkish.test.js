@@ -1,18 +1,18 @@
 import { expect } from "vitest"
 import utils from "./helpers/utils.js"
-var iconv = utils.requireIconv()
+const iconv = utils.requireIconv()
 
-var ascii =
+const ascii =
     "\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f" +
     " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\x7f"
 
-var encodings = [
+const encodings = [
   {
     name: "windows1254",
     variations: ["windows-1254", "win-1254", "win1254", "cp1254", "cp-1254", 1254],
     strings: {
       empty: "",
-      ascii: ascii,
+      ascii,
       turkish:
                 "€‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ¡¢£¤¥¦§¨©ª«¬®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ",
       c1Controls: "\x81\x8d\x8e\x8f\x90\x9d\x9e",
@@ -35,7 +35,7 @@ var encodings = [
     variations: ["iso-8859-9", "turkish", "turkish8", "cp28599", "cp-28599", 28599],
     strings: {
       empty: "",
-      ascii: ascii,
+      ascii,
       turkish:
                 "\xa0¡¢£¤¥¦§¨©ª«¬\xad®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ",
       untranslatable: ""
@@ -54,17 +54,15 @@ var encodings = [
 
 describe("Test Turkish encodings", function () {
   encodings.forEach(function (encoding) {
-    var enc = encoding.variations[0]
-    var key = "turkish"
+    const enc = encoding.variations[0]
+    const key = "turkish"
     describe(encoding.name + ":", function () {
       it("Convert from buffer", function () {
-        for (var key in encoding.encodedStrings)
-        { expect(iconv.decode(encoding.encodedStrings[key], enc)).toBe(encoding.strings[key]) }
+        for (const key in encoding.encodedStrings) { expect(iconv.decode(encoding.encodedStrings[key], enc)).toBe(encoding.strings[key]) }
       })
 
       it("Convert to buffer", function () {
-        for (var key in encoding.encodedStrings)
-        { expect(utils.hex(iconv.encode(encoding.strings[key], enc))).toBe(utils.hex(encoding.encodedStrings[key])) }
+        for (const key in encoding.encodedStrings) { expect(utils.hex(iconv.encode(encoding.strings[key], enc))).toBe(utils.hex(encoding.encodedStrings[key])) }
       })
 
       it("Try different variations of encoding", function () {

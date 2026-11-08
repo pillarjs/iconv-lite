@@ -13,16 +13,16 @@ function feeder (chunks) {
   if (!Array.isArray(chunks)) {
     chunks = [chunks]
   }
-  var opts = {}
-  if (chunks.every(function (chunk) { return typeof chunk == "string" })) {
+  const opts = {}
+  if (chunks.every(function (chunk) { return typeof chunk === "string" })) {
     opts.encoding = "utf8"
   }
 
-  var stream = new Readable(opts)
+  const stream = new Readable(opts)
   function writeChunk () {
     try {
       if (chunks.length > 0) {
-        var chunk = chunks.shift()
+        let chunk = chunks.shift()
         if (Array.isArray(chunk)) { chunk = Buffer.from(chunk) }
         stream.push(chunk, opts.encoding)
       } else {
@@ -44,16 +44,16 @@ function feeder (chunks) {
 function checkStreamOutput (options) {
   return function () {
     return new Promise((resolve, reject) => {
+      let stream
       try {
-        var stream = options.createStream()
-      }
-      catch (e) {
+        stream = options.createStream()
+      } catch (e) {
         check(e)
         return
       }
-      var res = []
+      let res = []
       stream.on("readable", function () {
-        var chunk
+        let chunk
         try {
           while ((chunk = stream.read()) != null) {
             if (options.outputType) {
@@ -65,8 +65,7 @@ function checkStreamOutput (options) {
             }
             res.push(chunk)
           }
-        }
-        catch (e) {
+        } catch (e) {
           stream.emit("error", e)
         }
       })
@@ -77,29 +76,24 @@ function checkStreamOutput (options) {
         try {
           if (options.checkError) {
             assert(err, "Expected error, but got success")
-            if (Object.prototype.toString.call(options.checkError) == "[object RegExp]") {
+            if (Object.prototype.toString.call(options.checkError) === "[object RegExp]") {
               assert(options.checkError.test(err.message), "Wrong error message: " + err.message)
-            }
-            else if (typeof options.checkError == "function") {
+            } else if (typeof options.checkError === "function") {
               options.checkError(err)
-            }
-            else {
+            } else {
               assert.fail(null, null, "Invalid type of options.checkError: " + typeof options.checkError)
             }
-          }
-          else {
+          } else {
             assert.ifError(err)
 
             if (options.checkOutput) {
-              if (options.outputType) { var r }
-              // Why is this variable assigned in a conditional, what side effects does it have?
-              // eslint-disable-next-line no-cond-assign
-              if (r = /^buffer-?(.*)/.exec(options.outputType)) {
+              const bufferType = /^buffer-?(.*)/.exec(options.outputType)
+              if (bufferType) {
                 res = Buffer.concat(res)
-                if (r[1]) {
-                  res = res.toString(r[1]) // Convert to string to make comparing buffers easier.
+                if (bufferType[1]) {
+                  res = res.toString(bufferType[1]) // Convert to string to make comparing buffers easier.
                 }
-              } else if (options.outputType == "string") {
+              } else if (options.outputType === "string") {
                 res = res.join("")
               }
 
@@ -121,7 +115,7 @@ function checkEncodeStream (opts) {
       .pipe(iconv.encodeStream(opts.encoding, opts.encodingOptions))
   }
   if (opts.outputType == null) opts.outputType = "buffer-hex"
-  if (Buffer.isBuffer(opts.output) && opts.outputType == "buffer-hex") {
+  if (Buffer.isBuffer(opts.output) && opts.outputType === "buffer-hex") {
     opts.output = opts.output.toString("hex")
   }
 
@@ -433,7 +427,7 @@ describe("Encoding using internal modules with surrogates in separate chunks:", 
   function checkUtf8EncodeStream (input) {
     return checkEncodeStream({
       encoding: "utf8",
-      input: input,
+      input,
       output: Buffer.from(input.join(""), "utf8").toString("hex")
     })
   }

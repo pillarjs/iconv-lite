@@ -253,9 +253,20 @@ describe("UTF-32 general codec", function () {
     expect(iconv.decode(utils.bytes(new Array(32).fill(0)), "utf-32")).toBe("\0\0\0\0\0\0\0\0")
   })
 
-  it("detects endianness from a long heuristic sample (> 100 code units)", function () {
-    const longStr = "a".repeat(150)
-    expect(iconv.decode(iconv.encode(longStr, "utf-32le"), "utf-32")).toBe(longStr)
+  it("uses only the first 100 code units to detect endianness", function () {
+    for (const [encoding, opposite] of [["utf-32le", "utf-32be"], ["utf-32be", "utf-32le"]]) {
+      const input = utils.concatBufs([
+        iconv.encode("a".repeat(100), encoding),
+        iconv.encode("b".repeat(150), opposite)
+      ])
+      const expected = iconv.decode(input, encoding)
+      expect(iconv.decode(input, "utf-32")).toBe(expected)
+      for (const split of [1, 2, 3, 31]) {
+        const decoder = iconv.getDecoder("utf-32")
+        const result = decoder.write(input.subarray(0, split)) + decoder.write(input.subarray(split)) + (decoder.end() || "")
+        expect(result).toBe(expected)
+      }
+    }
   })
 })
 

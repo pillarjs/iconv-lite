@@ -11,10 +11,10 @@ describe("invalidCharHandler (SBCS)", function () {
     iconv = new Iconv(defaultIconv.backend)
   })
   it("calls handler for unencodable chars", function () {
-    var calls = []
-    var res = iconv.encode("A世B", "latin1", {
+    const calls = []
+    const res = iconv.encode("A世B", "latin1", {
       invalidCharHandler: function (char, index) {
-        calls.push({ char: char, index: index })
+        calls.push({ char, index })
       }
     })
 
@@ -25,8 +25,8 @@ describe("invalidCharHandler (SBCS)", function () {
   })
 
   it("does not call handler for encodable chars including '?'", function () {
-    var called = false
-    var res = iconv.encode("?A", "latin1", {
+    let called = false
+    const res = iconv.encode("?A", "latin1", {
       invalidCharHandler: function () {
         called = true
       }
@@ -96,7 +96,7 @@ describe("invalidCharHandler (SBCS)", function () {
   })
 
   it("supports error message with full character details", function () {
-    var encoding = "latin1"
+    const encoding = "latin1"
 
     expect(function () {
       iconv.encode("Hello 世", encoding, {
@@ -108,7 +108,7 @@ describe("invalidCharHandler (SBCS)", function () {
   })
 
   it("supports error message with full character details (even for surrogate pairs)", function () {
-    var encoding = "latin1"
+    const encoding = "latin1"
 
     expect(function () {
       iconv.encode("Hello 🙂", encoding, {
@@ -120,10 +120,10 @@ describe("invalidCharHandler (SBCS)", function () {
   })
 
   it("reports index as Unicode code-point position", function () {
-    var calls = []
-    var res = iconv.encode("A🙂世B", "latin1", {
+    const calls = []
+    const res = iconv.encode("A🙂世B", "latin1", {
       invalidCharHandler: function (char, index) {
-        calls.push({ char: char, index: index })
+        calls.push({ char, index })
       }
     })
 
@@ -241,10 +241,10 @@ describe("invalidCharHandler (SBCS)", function () {
   })
 
   it("supports stopping SBCS encoding via handler return value", function () {
-    var calls = []
-    var res = iconv.encode("A世界B", "latin1", {
+    const calls = []
+    const res = iconv.encode("A世界B", "latin1", {
       invalidCharHandler: function (char, index) {
-        calls.push({ char: char, index: index })
+        calls.push({ char, index })
         return true
       }
     })
@@ -257,15 +257,15 @@ describe("invalidCharHandler (SBCS)", function () {
   })
 
   it("allows a handler to append a fallback before continuing", function () {
-    var calls = []
-    var output = []
-    var replacements = {
+    const calls = []
+    const output = []
+    const replacements = {
       "🙂": ":)"
     }
-    var encoder = iconv.getEncoder("latin1", {
+    const encoder = iconv.getEncoder("latin1", {
       invalidCharHandler: function (char, index) {
-        calls.push({ char: char, index: index })
-        var replacement = replacements[char]
+        calls.push({ char, index })
+        const replacement = replacements[char]
         expect(replacement).not.toBe(undefined)
         output.push(iconv.encode(replacement, "latin1"))
         return true
@@ -284,7 +284,7 @@ describe("invalidCharHandler (SBCS)", function () {
   })
 
   it("encodes the replacement returned by the handler", function () {
-    var res = iconv.encode("世", "latin1", {
+    const res = iconv.encode("世", "latin1", {
       invalidCharHandler: function () {
         return "!"
       }
@@ -326,7 +326,7 @@ describe("invalidCharHandler (SBCS)", function () {
   })
 
   it("keeps default replacement when handler returns nothing", function () {
-    var res = iconv.encode("世", "latin1", {
+    const res = iconv.encode("世", "latin1", {
       invalidCharHandler: function () {
       }
     })

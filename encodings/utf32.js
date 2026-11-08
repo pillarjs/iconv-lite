@@ -373,10 +373,9 @@ function detectEncoding (bufs, defaultEncoding) {
   let invalidLE = 0; let invalidBE = 0 // Code units out of the 0..0x10FFFF range when read LE / BE.
   let bmpCharsLE = 0; let bmpCharsBE = 0 // Code units that look like BMP characters when read LE / BE.
 
-  outerLoop:
-  for (let i = 0; i < bufs.length; i++) {
+  for (let i = 0; i < bufs.length && charsProcessed < 100; i++) {
     const buf = bufs[i]
-    for (let j = 0; j < buf.length; j++) {
+    for (let j = 0; j < buf.length && charsProcessed < 100; j++) {
       b.push(buf[j])
       if (b.length === 4) {
         if (charsProcessed === 0) {
@@ -392,7 +391,6 @@ function detectEncoding (bufs, defaultEncoding) {
 
         b.length = 0
         charsProcessed++
-        if (charsProcessed >= 100) { break outerLoop }
       }
     }
   }

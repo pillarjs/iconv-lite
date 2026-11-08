@@ -351,8 +351,19 @@ describe("UTF-16 decoder", function () {
   })
 
   it("uses only the first 100 code units for the space heuristic", function () {
-    const longStr = "a".repeat(120) // >100 code units, no BOM -> heuristic loop hits its cap.
-    expect(iconv.decode(iconv.encode(longStr, encLE), enc)).toBe(longStr)
+    for (const [encoding, opposite] of [[encLE, encBE], [encBE, encLE]]) {
+      const input = utils.concatBufs([
+        iconv.encode("a".repeat(100), encoding),
+        iconv.encode("b".repeat(150), opposite)
+      ])
+      const expected = iconv.decode(input, encoding)
+      expect(iconv.decode(input, enc)).toBe(expected)
+      for (const split of [1, 15]) {
+        const decoder = iconv.getDecoder(enc)
+        const result = decoder.write(input.subarray(0, split)) + decoder.write(input.subarray(split)) + (decoder.end() || "")
+        expect(result).toBe(expected)
+      }
+    }
   })
 })
 

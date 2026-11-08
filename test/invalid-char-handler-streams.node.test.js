@@ -9,10 +9,10 @@ describe("invalidCharHandler (Node streams)", function () {
   beforeEach(function () { iconv = new Iconv(defaultIconv.backend) })
 
   it("continues encoding after handler stops a stream chunk", async function () {
-    var calls = []
-    var stream = iconv.encodeStream("latin1", {
+    const calls = []
+    const stream = iconv.encodeStream("latin1", {
       invalidCharHandler: function (char, index) {
-        calls.push({ char: char, index: index })
+        calls.push({ char, index })
         return true
       }
     })

@@ -5,12 +5,12 @@ import { canonicalizeEncoding } from "../lib/utils.js"
 
 const iconv = utils.requireIconv()
 
-var testString = "Hello123!"
-var testStringLatin1 = "Hello123!£Å÷×çþÿ¿®"
-var testStringBase64 = "SGVsbG8xMjMh"
-var testStringHex = "48656c6c6f31323321"
-var testBytes = new TextEncoder().encode(testString)
-var testLatin1Bytes = Uint8Array.from([0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x31, 0x32, 0x33, 0x21, 0xa3, 0xc5, 0xf7, 0xd7, 0xe7, 0xfe, 0xff, 0xbf, 0xae])
+const testString = "Hello123!"
+const testStringLatin1 = "Hello123!£Å÷×çþÿ¿®"
+const testStringBase64 = "SGVsbG8xMjMh"
+const testStringHex = "48656c6c6f31323321"
+const testBytes = new TextEncoder().encode(testString)
+const testLatin1Bytes = Uint8Array.from([0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x31, 0x32, 0x33, 0x21, 0xa3, 0xc5, 0xf7, 0xd7, 0xe7, 0xfe, 0xff, 0xbf, 0xae])
 
 describe("Encoding Existence - Prototype Properties", function () {
   it("should not detect prototype properties as encodings", function () {
@@ -38,7 +38,7 @@ describe("Generic UTF8-UCS2 tests", function () {
   it("Return values are of correct types", function () {
     expect(iconv.encode(testString, "utf8").constructor).toBe(utils.BytesType)
 
-    var s = iconv.decode(testBytes, "utf8")
+    const s = iconv.decode(testBytes, "utf8")
     expect(Object.prototype.toString.call(s)).toBe("[object String]")
   })
 
@@ -90,7 +90,7 @@ describe("Generic UTF8-UCS2 tests", function () {
   })
 
   it("Opt-in fatal mode throws on invalid utf8, replaces by default", function () {
-    var invalid = Uint8Array.of(0xff, 0xfe, 0xfd)
+    const invalid = Uint8Array.of(0xff, 0xfe, 0xfd)
     expect(function () { iconv.decode(invalid, "utf8", { fatal: true }) }).toThrowError()
     expect(iconv.decode(Uint8Array.of(0x61, 0x62, 0x63), "utf8", { fatal: true })).toBe("abc")
     expect(iconv.decode(invalid, "utf8")).toBe("���") // default: replacement, no throw.
@@ -115,13 +115,15 @@ describe("Generic UTF8-UCS2 tests", function () {
   })
 
   it("handles Object & Array prototypes monkey patching", function () {
-    // eslint-disable-next-line  no-extend-native
-    Object.prototype.permits = function () {}
-    // eslint-disable-next-line  no-extend-native
-    Array.prototype.sample2 = function () {}
-
+    const prototypes = [[Object.prototype, "permits"], [Array.prototype, "sample2"]]
+    const descriptors = prototypes.map(([prototype, key]) => Object.getOwnPropertyDescriptor(prototype, key))
     const previousCache = iconv._codecDataCache
     try {
+      for (const [prototype, key] of prototypes) {
+        Reflect.defineProperty(prototype, key, {
+          value () {}, enumerable: true, configurable: true, writable: true
+        })
+      }
       iconv._codecDataCache = { __proto__: null } // Clean up cache so that all encodings are loaded.
 
       for (const encoding of ["gbk", "win1251", "utf7", "utf8"]) {
@@ -129,8 +131,10 @@ describe("Generic UTF8-UCS2 tests", function () {
         expect(iconv.encode("abc", encoding)).toStrictEqual(utils.bytes("61 62 63"))
       }
     } finally {
-      delete Object.prototype.permits
-      delete Array.prototype.sample2
+      for (const [i, [prototype, key]] of prototypes.entries()) {
+        if (descriptors[i]) Reflect.defineProperty(prototype, key, descriptors[i])
+        else Reflect.deleteProperty(prototype, key)
+      }
       iconv._codecDataCache = previousCache
     }
   })
@@ -161,7 +165,7 @@ describe("Encoding label normalization", function () {
   it("rejects labels wrapped in non-ASCII-whitespace / control chars (per WHATWG)", function () {
     // NUL, vertical tab, NBSP, line separator, paragraph separator are NOT ASCII whitespace.
     [0x00, 0x0b, 0xa0, 0x2028, 0x2029].forEach(function (code) {
-      var ch = String.fromCharCode(code)
+      const ch = String.fromCharCode(code)
       expect(iconv.encodingExists(ch + "utf-8")).toBe(false)
       expect(iconv.encodingExists("utf-8" + ch)).toBe(false)
       expect(iconv.encodingExists(ch + "utf-8" + ch)).toBe(false)
@@ -211,9 +215,9 @@ describe("WHATWG label aliases", function () {
   })
 
   it("decodes each alias identically to its target encoding", function () {
-    var bytes = Uint8Array.of(0x80, 0xa0, 0xc0, 0xe0, 0x41, 0x7f)
+    const bytes = Uint8Array.of(0x80, 0xa0, 0xc0, 0xe0, 0x41, 0x7f)
     Object.keys(whatwgAliases).forEach(function (alias) {
-      var target = whatwgAliases[alias]
+      const target = whatwgAliases[alias]
       expect(iconv.decode(bytes, alias), alias + " should decode like " + target).toBe(iconv.decode(bytes, target))
     })
   })

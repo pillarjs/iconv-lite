@@ -2,10 +2,10 @@ import { expect } from "vitest"
 import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
 
-var testString = "中文abc" // unicode contains Big5-code and ascii
-var testStringBig5Buffer = utils.bytes([0xa4, 0xa4, 0xa4, 0xe5, 0x61, 0x62, 0x63])
-var testString2 = "測試"
-var testStringBig5Buffer2 = utils.bytes([0xb4, 0xfa, 0xb8, 0xd5])
+const testString = "中文abc" // unicode contains Big5-code and ascii
+const testStringBig5Buffer = utils.bytes([0xa4, 0xa4, 0xa4, 0xe5, 0x61, 0x62, 0x63])
+const testString2 = "測試"
+const testStringBig5Buffer2 = utils.bytes([0xb4, 0xfa, 0xb8, 0xd5])
 
 describe("Big5 tests", function () {
   it("Big5 correctly encoded/decoded", function () {
@@ -23,8 +23,8 @@ describe("Big5 tests", function () {
   it("Big5 correctly decodes and encodes characters · and ×", function () {
     // https://github.com/ashtuchkin/iconv-lite/issues/13
     // Reference: http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP950.TXT
-    var chars = "·×"
-    var big5Chars = utils.bytes([0xA1, 0x50, 0xA1, 0xD1])
+    const chars = "·×"
+    const big5Chars = utils.bytes([0xA1, 0x50, 0xA1, 0xD1])
     expect(iconv.encode(chars, "big5")).toStrictEqual(big5Chars)
     expect(iconv.decode(big5Chars, "big5")).toBe(chars)
   })

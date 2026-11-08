@@ -62,7 +62,7 @@ export default {
     const totalLen = bufs.reduce((a, b) => a + b.length, 0)
     const res = new Uint8Array(new ArrayBuffer(totalLen))
     let curPos = 0
-    for (var i = 0; i < bufs.length; i++) {
+    for (let i = 0; i < bufs.length; i++) {
       res.set(bufs[i], curPos)
       curPos += bufs[i].length
     }

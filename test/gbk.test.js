@@ -3,8 +3,8 @@ import Iconv from "../lib/iconv.js"
 import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
 
-var testString = "中国abc" // unicode contains GBK-code and ascii
-var testStringGBKBuffer = utils.bytes("d6 d0 b9 fa 61 62 63")
+const testString = "中国abc" // unicode contains GBK-code and ascii
+const testStringGBKBuffer = utils.bytes("d6 d0 b9 fa 61 62 63")
 
 describe("GBK tests", function () {
   it("GBK correctly encoded/decoded", function () {
@@ -20,8 +20,8 @@ describe("GBK tests", function () {
   it("GBK correctly decodes and encodes characters · and ×", function () {
     // https://github.com/ashtuchkin/iconv-lite/issues/13
     // Reference: http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP936.TXT
-    var chars = "·×"
-    var gbkChars = utils.bytes("a1 a4 a1 c1")
+    const chars = "·×"
+    const gbkChars = utils.bytes("a1 a4 a1 c1")
     expect(utils.hex(iconv.encode(chars, "GBK"))).toBe(utils.hex(gbkChars))
     expect(iconv.decode(gbkChars, "GBK")).toBe(chars)
   })
@@ -30,9 +30,9 @@ describe("GBK tests", function () {
     // Euro character (U+20AC) has two encodings in GBK family: 0x80 and 0xA2 0xE3
     // According to W3C's technical recommendation (https://www.w3.org/TR/encoding/#gbk-encoder),
     // Both GBK and GB18030 decoders should accept both encodings.
-    var gbkEuroEncoding1 = utils.bytes("80")
-    var gbkEuroEncoding2 = utils.bytes("a2 e3")
-    var strEuro = "€"
+    const gbkEuroEncoding1 = utils.bytes("80")
+    const gbkEuroEncoding2 = utils.bytes("a2 e3")
+    const strEuro = "€"
 
     expect(iconv.decode(gbkEuroEncoding1, "GBK")).toBe(strEuro)
     expect(iconv.decode(gbkEuroEncoding2, "GBK")).toBe(strEuro)
@@ -46,32 +46,31 @@ describe("GBK tests", function () {
 
   it("GB18030 findIdx works correctly", function () {
     function findIdxAlternative (table, val) {
-      for (var i = 0; i < table.length; i++) {
+      for (let i = 0; i < table.length; i++) {
         if (table[i] > val) { return i - 1 }
       }
       return table.length - 1
     }
 
-    var codec = iconv.getEncoder("gb18030")
+    const codec = iconv.getEncoder("gb18030")
 
-    for (var i = 0; i < 0x100; i++) { expect(codec.findIdx(codec.gb18030.uChars, i), i).toBe(findIdxAlternative(codec.gb18030.uChars, i)) }
+    for (let i = 0; i < 0x100; i++) { expect(codec.findIdx(codec.gb18030.uChars, i), i).toBe(findIdxAlternative(codec.gb18030.uChars, i)) }
 
-    var tests = [0xFFFF, 0x10000, 0x10001, 0x30000]
-    for (var i = 0; i < tests.length; i++) { expect(codec.findIdx(codec.gb18030.uChars, tests[i]), tests[i]).toBe(findIdxAlternative(codec.gb18030.uChars, tests[i])) }
+    const tests = [0xFFFF, 0x10000, 0x10001, 0x30000]
+    for (let i = 0; i < tests.length; i++) { expect(codec.findIdx(codec.gb18030.uChars, tests[i]), tests[i]).toBe(findIdxAlternative(codec.gb18030.uChars, tests[i])) }
   })
 
   it("GB18030 encodes/decodes 4 byte sequences", function () {
-    var chars = {
+    const chars = {
       "\u0080": utils.bytes("81 30 81 30"),
       "\u0081": utils.bytes("81 30 81 31"),
       "\u008b": utils.bytes("81 30 82 31"),
       "\u0615": utils.bytes("81 31 82 31"),
-      // eslint-disable-next-line
-      "\u399f": utils.bytes("82 31 82 31"),
+      㦟: utils.bytes("82 31 82 31"),
       "\udbd9\ude77": utils.bytes("e0 31 82 31")
     }
-    for (var uChar in chars) {
-      var gbkBuf = chars[uChar]
+    for (const uChar in chars) {
+      const gbkBuf = chars[uChar]
       expect(utils.hex(iconv.encode(uChar, "GB18030"))).toBe(utils.hex(gbkBuf))
       expect(utils.strToHex(iconv.decode(gbkBuf, "GB18030"))).toBe(utils.strToHex(uChar))
     }
@@ -81,21 +80,19 @@ describe("GBK tests", function () {
     for (const bytes of [[0x82], [0x82, 0x31], [0x82, 0x31, 0x82]]) {
       expect(iconv.decode(utils.bytes(bytes), "GB18030")).toBe("�")
     }
-    var chars = {
-      // eslint-disable-next-line
-      "\u399f": utils.bytes("82 31 82 31"),
+    const chars = {
+      㦟: utils.bytes("82 31 82 31"),
       "� ": utils.bytes("82 20"),
       "�1 ": utils.bytes("82 31 20"),
       "�1� ": utils.bytes("82 31 82 20"),
       "\u399f ": utils.bytes("82 31 82 31 20"),
       "�1\u4fdb": utils.bytes("82 31 82 61"),
       "�1\u5010\u0061": utils.bytes("82 31 82 82 61"),
-      // eslint-disable-next-line
-      '\u399f\u4fdb': utils.bytes("82 31 82 31 82 61"),
+      㦟俛: utils.bytes("82 31 82 31 82 61"),
       "�1\u50101�": utils.bytes("82 31 82 82 31 82 31")
     }
-    for (var uChar in chars) {
-      var gbkBuf = chars[uChar]
+    for (const uChar in chars) {
+      const gbkBuf = chars[uChar]
       expect(utils.strToHex(iconv.decode(gbkBuf, "GB18030"))).toBe(utils.strToHex(uChar))
     }
   })
@@ -152,8 +149,8 @@ describe("GBK tests", function () {
 
   it("GB18030:2005 changes are applied", function () {
     // See https://github.com/whatwg/encoding/issues/22
-    var chars = "\u1E3F\u0000\uE7C7"  // Use \u0000 as separator
-    var gbkChars = utils.bytes("a8 bc 00 81 35 f4 37")
+    const chars = "\u1E3F\u0000\uE7C7"  // Use \u0000 as separator
+    const gbkChars = utils.bytes("a8 bc 00 81 35 f4 37")
     expect(iconv.decode(gbkChars, "GB18030")).toBe(chars)
     expect(utils.hex(iconv.encode(chars, "GB18030"))).toBe(utils.hex(gbkChars))
   })
