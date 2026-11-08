@@ -4,17 +4,37 @@ import utils from "./helpers/utils.js"
 import indexes from "./wpt/data/whatwg-koi8-mac-indexes.json" with { type: "json" }
 const iconv = utils.requireIconv()
 
-const encodings: { name: keyof typeof indexes, labels: string[] }[] = [
-  { name: "koi8-u", labels: ["koi8-u", "koi8-ru"] },
-  { name: "macintosh", labels: ["macintosh", "csmacintosh", "mac", "x-mac-roman"] },
-  { name: "x-mac-cyrillic", labels: ["x-mac-cyrillic", "x-mac-ukrainian"] }
+const encodings: {
+  name: keyof typeof indexes
+  labels: string[]
+  removed: string
+  changedBytes: number[]
+}[] = [
+  {
+    name: "koi8-u",
+    labels: ["koi8-u", "koi8-ru"],
+    removed: "\u255D\u256C",
+    changedBytes: [0xAE, 0xBE]
+  },
+  {
+    name: "macintosh",
+    labels: ["macintosh", "csmacintosh", "mac", "x-mac-roman"],
+    removed: "\u2126\u00A4",
+    changedBytes: [0xBD, 0xDB, 0xF0]
+  },
+  {
+    name: "x-mac-cyrillic",
+    labels: ["x-mac-cyrillic", "x-mac-ukrainian"],
+    removed: "\u00A2\u2202\u00A4",
+    changedBytes: [0xA2, 0xB6, 0xFF]
+  }
 ]
 
 // Independent WHATWG indexes, including byte 0xFF which the upstream WPT omits.
 describe("KOI8 and Macintosh WHATWG mappings", function () {
   const allBytes = Array.from({ length: 256 }, (_, byte) => byte)
 
-  for (const { name, labels } of encodings) {
+  for (const { name, labels, removed, changedBytes } of encodings) {
     const codePoints = allBytes.map(byte => byte < 128 ? byte : indexes[name][byte - 128])
     const expected = String.fromCodePoint(...codePoints)
 
@@ -77,6 +97,51 @@ describe("KOI8 and Macintosh WHATWG mappings", function () {
         })
         expect(calls).toStrictEqual(["\uFFFD"])
         expect(bytes, label).toStrictEqual(utils.bytes([...allBytes, ...allBytes]))
+      }
+    })
+
+    it(name + " uses custom replacements for removed characters after caching", function () {
+      const instance = new Iconv(iconv.backend)
+      const codec = instance.getCodec(name)
+      const input = expected + removed
+
+      for (const replacement of new Set([0, 0x3F, ...changedBytes, 0xFF])) {
+        instance.defaultCharSingleByte = String.fromCharCode(replacement)
+        const output = utils.bytes([...allBytes, ...Array.from(removed, () => replacement)])
+        for (const label of labels) {
+          expect(instance.encode(input, label), label).toStrictEqual(output)
+          const calls: [string, number][] = []
+          expect(instance.encode(input, label, {
+            invalidCharHandler (char, index) { calls.push([char, index]) }
+          }), label).toStrictEqual(output)
+          expect(calls, label).toStrictEqual(Array.from(removed, (char, index) => [char, expected.length + index]))
+          expect(instance.getCodec(label)).toBe(codec)
+        }
+      }
+    })
+
+    it(name + " accepts new mappings and rejects removed characters in handler replacements", function () {
+      const instance = new Iconv(iconv.backend)
+      instance.getCodec(name)
+      const replacement = changedBytes.map(byte => expected[byte]).join("")
+
+      for (const fallback of changedBytes) {
+        instance.defaultCharSingleByte = String.fromCharCode(fallback)
+        for (const label of labels) {
+          const calls: [string, number][] = []
+          expect(instance.encode("A" + removed, label, {
+            invalidCharHandler (char, index) {
+              calls.push([char, index])
+              return replacement
+            }
+          }), label).toStrictEqual(utils.bytes([0x41, ...Array.from(removed).flatMap(() => changedBytes)]))
+          expect(calls, label).toStrictEqual(Array.from(removed, (char, index) => [char, index + 1]))
+          for (const char of removed) {
+            expect(() => instance.encode("\uFFFD", label, {
+              invalidCharHandler () { return char }
+            }), label).toThrowError(TypeError)
+          }
+        }
       }
     })
   }
