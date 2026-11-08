@@ -44,7 +44,7 @@
         "test:performance": "vitest bench --run --config vitest.bench.config.js",
         "test:performance:check": "vitest run --config vitest.bench.config.js",
         "test:browser": "vitest run --config vitest.browser.config.js",
-        "test:wpt": "node test/wpt/run.js",
+        "test:wpt": "node test/wpt/run.ts",
         "typegen": "npm run build && node generation/gen-typings.ts"
     },
     "browser": {

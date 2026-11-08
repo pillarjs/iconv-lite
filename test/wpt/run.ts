@@ -1,16 +1,16 @@
 // Runs the vendored Web Platform Tests (test/wpt/encoding/*.any.js) against
 // iconv-lite using wpt-runner (jsdom) with the TextDecoder/TextEncoder shim from
-// ./shim.js. The WPT files are unmodified upstream copies (see ./README.md).
+// ./shim.ts. The WPT files are unmodified upstream copies (see ./README.md).
 //
 //   npm run test:wpt                  # run all vendored encoding/*.any.js
-//   node test/wpt/run.js textdecoder-fatal   # filter by filename substring
-//   node test/wpt/run.js "" --strict         # exit non-zero on any failure
+//   node test/wpt/run.ts textdecoder-fatal   # filter by filename substring
+//   node test/wpt/run.ts "" --strict         # exit non-zero on any failure
 
 import path from "path"
 import wptRunner from "wpt-runner"
-import setup from "./shim.js"
-import { WINDOW_TESTS, isWindowTest, runWindowTest } from "./run-window.js"
-import { runDecodeCompare } from "./decode-compare.js"
+import setup from "./shim.ts"
+import { WINDOW_TESTS, isWindowTest, runWindowTest } from "./run-window.ts"
+import { runDecodeCompare } from "./decode-compare.ts"
 
 const args = process.argv.slice(2)
 const strict = args.includes("--strict")

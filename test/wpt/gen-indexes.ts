@@ -1,4 +1,4 @@
-// Vendors the WHATWG indexes needed by decode-compare.js and Windows SBCS tests, from
+// Vendors the WHATWG indexes needed by decode-compare.ts and Windows SBCS tests, from
 // the canonical source the spec (and WPT) derive from:
 //   https://encoding.spec.whatwg.org/indexes.json
 //
@@ -7,7 +7,7 @@
 // ship no TextDecoder `.any.js` test upstream (only iframe/XHR ones), and full
 // Windows single-byte encode/decode checks in Node.js and Vitest Browser Mode.
 //
-//   node test/wpt/gen-indexes.js
+//   node test/wpt/gen-indexes.ts
 
 import fs from "fs"
 import path from "path"
@@ -22,10 +22,10 @@ const TABLES = {
 async function main () {
   const res = await fetch(URL)
   if (!res.ok) throw new Error(`GET ${URL} -> ${res.status}`)
-  const indexes = await res.json()
+  const indexes = await res.json() as Record<string, (number | null)[]>
 
   for (const [file, keys] of Object.entries(TABLES)) {
-    const out = {}
+    const out: Record<string, (number | null)[]> = {}
     for (const k of keys) {
       if (!Array.isArray(indexes[k])) throw new Error(`missing index: ${k}`)
       out[k] = indexes[k]

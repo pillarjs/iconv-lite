@@ -1,3 +1,4 @@
+import type { DecoderStream } from "iconv-lite"
 // Installs iconv-lite-backed TextDecoder / TextEncoder globals so that the
 // upstream Web Platform Tests (encoding/*.any.js) run unmodified against
 // iconv-lite instead of the engine's native implementation.
@@ -15,8 +16,8 @@ function loadWhatwgLabels () {
   const ctx = { location: { search: "" } }
   vm.createContext(ctx)
   vm.runInContext(src, ctx)
-  const table = vm.runInContext("encodings_table", ctx)
-  const map = new Map()
+  const table = vm.runInContext("encodings_table", ctx) as { encodings: { name: string, labels: string[] }[] }[]
+  const map = new Map<string, string>()
   for (const section of table) {
     for (const encoding of section.encodings) {
       for (const label of encoding.labels) map.set(label.toLowerCase(), encoding.name.toLowerCase())
@@ -29,7 +30,7 @@ const whatwgLabels = loadWhatwgLabels()
 
 // https://encoding.spec.whatwg.org/#concept-encoding-get — strip leading/trailing
 // ASCII whitespace, then lowercase ASCII letters only.
-function normalizeLabel (label) {
+function normalizeLabel (label: unknown) {
   return String(label).replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, "").replace(/[A-Z]/g, c => c.toLowerCase())
 }
 
@@ -39,14 +40,19 @@ function normalizeLabel (label) {
 let RealmRangeError = RangeError
 let RealmTypeError = TypeError
 
-function toUint8Array (input) {
+function toUint8Array (input?: AllowSharedBufferSource | null) {
   if (input == null) return new Uint8Array()
   if (ArrayBuffer.isView(input)) return new Uint8Array(input.buffer, input.byteOffset, input.byteLength)
   return new Uint8Array(input) // ArrayBuffer
 }
 
 class IconvTextDecoder {
-  constructor (label = "utf-8", options = {}) {
+  declare _name: string
+  declare encoding: string
+  declare fatal: boolean
+  declare ignoreBOM: boolean
+  declare _decoder: DecoderStream | null
+  constructor (label: unknown = "utf-8", options: TextDecoderOptions = {}) {
     const normalized = normalizeLabel(label)
     // Reflect iconv-lite's real support: an unrecognized label is a RangeError,
     // exactly as WHATWG requires (and as the labels test expects to pass only for
@@ -62,7 +68,7 @@ class IconvTextDecoder {
     this._decoder = null
   }
 
-  decode (input, options = {}) {
+  decode (input?: AllowSharedBufferSource | null, options: TextDecodeOptions = {}) {
     const buf = Buffer.from(toUint8Array(input))
     const stream = Boolean(options.stream)
     try {
@@ -84,12 +90,20 @@ class IconvTextDecoder {
 }
 
 class IconvTextEncoder {
+  declare encoding: string
   constructor () { this.encoding = "utf-8" }
 
-  encode (str = "") { return new Uint8Array(iconv.encode(String(str), "utf-8")) }
+  encode (str: unknown = "") { return new Uint8Array(iconv.encode(String(str), "utf-8")) }
 }
 
-export default function setup (window) {
+interface ShimWindow {
+  RangeError?: RangeErrorConstructor
+  TypeError?: TypeErrorConstructor
+  TextDecoder?: unknown
+  TextEncoder?: unknown
+}
+
+export default function setup (window: ShimWindow): asserts window is ShimWindow & { TextDecoder: typeof IconvTextDecoder, TextEncoder: typeof IconvTextEncoder } {
   RealmRangeError = window.RangeError || RangeError
   RealmTypeError = window.TypeError || TypeError
   window.TextDecoder = IconvTextDecoder

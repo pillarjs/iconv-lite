@@ -9,7 +9,7 @@ import { pathToFileURL } from "node:url"
 import vm from "vm"
 import fs from "fs"
 import path from "path"
-import setup from "./shim.js"
+import setup from "./shim.ts"
 
 const upstream = path.join(import.meta.dirname, "upstream")
 
@@ -19,31 +19,33 @@ const WINDOW_TESTS = [
 ]
 
 // Exclude these tests from jsdom, which does not select the TextDecoder variant.
-function isWindowTest (testPath) {
+function isWindowTest (testPath: string) {
   return WINDOW_TESTS.some((t) => t.file.replace(/\.js$/, ".html") === testPath)
 }
 
-function metaScripts (src, dir) {
+function metaScripts (src: string, dir: string) {
   return Array.from(src.matchAll(/^\/\/ META:\s*script=(.+)$/gm)).map((m) => {
     const ref = m[1].trim()
     return ref.startsWith("/") ? path.join(upstream, ref.slice(1)) : path.join(dir, ref)
   })
 }
 
-function runWindowTest ({ file, variant }) {
+function runWindowTest ({ file, variant }: { file: string, variant?: string }) {
   const full = path.join(upstream, file)
   const src = fs.readFileSync(full, "utf8")
   const scripts = metaScripts(src, path.dirname(full)).map((p) => fs.readFileSync(p, "utf8"))
 
-  const result = { file, pass: 0, fail: 0, failures: [] }
+  const result = { file, pass: 0, fail: 0, failures: [] as string[] }
   const sandbox = {
     console,
     self: {},
+    TextDecoder: undefined as unknown,
+    TextEncoder: undefined as unknown,
     location: { search: variant || "" },
-    test (fn, name) {
+    test (fn: () => void, name: string) {
       try { fn(); result.pass++ } catch (e) {
         result.fail++
-        if (result.failures.length < 15) result.failures.push(`${name}: ${e.message}`.replace(/\s+/g, " ").trim())
+        if (result.failures.length < 15) result.failures.push(`${name}: ${(e as Error).message}`.replace(/\s+/g, " ").trim())
       }
     },
     // Branches for other variants are skipped, but keep stubs so the file parses.
@@ -52,12 +54,12 @@ function runWindowTest ({ file, variant }) {
     setup () {},
     done () {},
     add_completion_callback () {},
-    format_value: (v) => String(v),
-    assert_equals (actual, expected, msg) {
+    format_value: (v: unknown) => String(v),
+    assert_equals (actual: unknown, expected: unknown, msg?: string) {
       if (!Object.is(actual, expected)) throw new Error(`${msg || ""} — expected ${expected}, got ${actual}`)
     },
-    assert_true (v, msg) { if (v !== true) throw new Error(`${msg || ""} — expected true`) },
-    assert_throws_js (ctor, fn, msg) {
+    assert_true (v: unknown, msg?: string) { if (v !== true) throw new Error(`${msg || ""} — expected true`) },
+    assert_throws_js (ctor: Function, fn: () => void, msg?: string) {
       try { fn() } catch { return }
       throw new Error(`${msg || ""} — expected to throw`)
     }

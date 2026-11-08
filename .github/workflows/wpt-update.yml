@@ -22,10 +22,10 @@ jobs:
           node-version: 'lts/*'
 
       - name: Refresh vendored WPT encoding/ tests
-        run: node test/wpt/update.js
+        run: node test/wpt/update.ts
 
       - name: Refresh WHATWG index tables
-        run: node test/wpt/gen-indexes.js
+        run: node test/wpt/gen-indexes.ts
 
       - name: Check for changes in the vendored tests/data
         id: check

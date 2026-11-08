@@ -19,7 +19,7 @@ const legacyLabels: Record<string, string[]> = {
   "windows-874": ["iso-8859-11", "iso8859-11", "iso885911", "tis-620"]
 }
 
-// Independent WHATWG indexes, refreshed by test/wpt/gen-indexes.js.
+// Independent WHATWG indexes, refreshed by test/wpt/gen-indexes.ts.
 // Include 0xFF, which the upstream single-byte-decoder test omits.
 describe("Windows single-byte WHATWG mappings", function () {
   const allBytes = Array.from({ length: 256 }, (_, i) => i)

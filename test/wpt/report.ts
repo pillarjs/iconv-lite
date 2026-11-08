@@ -3,13 +3,13 @@ import { execFileSync } from "node:child_process"
 // conformance report (per-file pass/fail + sample failing tests). Consumed by
 // .github/workflows/wpt-conformance.yml to open/update a tracking issue.
 //
-//   node test/wpt/report.js
+//   node test/wpt/report.ts
 
 import path from "path"
 import wptRunner from "wpt-runner"
-import setup from "./shim.js"
-import { WINDOW_TESTS, isWindowTest, runWindowTest } from "./run-window.js"
-import { runDecodeCompare } from "./decode-compare.js"
+import setup from "./shim.ts"
+import { WINDOW_TESTS, isWindowTest, runWindowTest } from "./run-window.ts"
+import { runDecodeCompare } from "./decode-compare.ts"
 import pkg from "../../package.json" with { type: "json" }
 const { version } = pkg
 
@@ -29,7 +29,7 @@ const MAX_LISTED = 15 // cap failing-test names listed per file
 // Test names can contain control chars / line separators (e.g. api-invalid-label
 // wraps labels with U+0000, U+2028, U+2029) — escape them so the Markdown summary
 // renders cleanly and no NUL byte truncates the output.
-function clean (s) {
+function clean (s: unknown) {
   let result = ""
   // Collapse whitespace before escaping any remaining control characters.
   for (const char of String(s).replace(/\s+/g, " ")) {
@@ -41,15 +41,22 @@ function clean (s) {
   return result.trim()
 }
 
-const files = []
-let current = null
+interface FileResult {
+  file: string
+  pass: number
+  fail: number
+  failures: string[]
+}
+
+const files: FileResult[] = []
+let current: FileResult | null = null
 const reporter = {
-  startSuite (testPath) {
+  startSuite (testPath: string) {
     current = { file: testPath, pass: 0, fail: 0, failures: [] }
     files.push(current)
   },
   pass () { if (current) current.pass++ },
-  fail (name) {
+  fail (name: string) {
     if (!current) return
     current.fail++
     if (current.failures.length < MAX_LISTED) current.failures.push(clean(name))

@@ -8,22 +8,22 @@ import { pathToFileURL } from "node:url"
 // against the iconv-lite-backed shim. gbk/gb18030 are already covered by the
 // vendored `*-decoder.any.js` tests.
 
-import installShim from "./shim.js"
+import installShim from "./shim.ts"
 import indexes from "./data/whatwg-multibyte-indexes.json" with { type: "json" }
 
 // Pointers whose big5 decode yields two code points (special-cased; skipped here).
 const BIG5_DUAL = new Set([1133, 1135, 1164, 1166])
 
 // Returns canonical [{ bytes, cp }] pairs, including decode-only mappings.
-function pairs (enc) {
-  const out = []
-  const push = (bytes, cp) => out.push({ bytes, cp })
+function pairs (enc: string) {
+  const out: { bytes: number[], cp: number }[] = []
+  const push = (bytes: number[], cp: number) => out.push({ bytes, cp })
 
   if (enc === "euc-kr") {
     const a = indexes["euc-kr"]
     for (let p = 0; p < a.length; p++) {
       if (a[p] == null) continue
-      push([(p / 190 | 0) + 0x81, p % 190 + 0x41], a[p])
+      push([(p / 190 | 0) + 0x81, p % 190 + 0x41], a[p]!)
     }
   } else if (enc === "big5") {
     const a = indexes.big5
@@ -31,7 +31,7 @@ function pairs (enc) {
       if (a[p] == null || BIG5_DUAL.has(p)) continue
       let trail = p % 157
       trail += trail < 0x3F ? 0x40 : 0x62
-      push([(p / 157 | 0) + 0x81, trail], a[p])
+      push([(p / 157 | 0) + 0x81, trail], a[p]!)
     }
   } else if (enc === "shift_jis") {
     const a = indexes.jis0208
@@ -49,12 +49,12 @@ function pairs (enc) {
     const a = indexes.jis0208
     for (let p = 0; p < a.length && p < 94 * 94; p++) { // euc-jp 2-byte grid only
       if (a[p] == null) continue
-      push([(p / 94 | 0) + 0xA1, p % 94 + 0xA1], a[p])
+      push([(p / 94 | 0) + 0xA1, p % 94 + 0xA1], a[p]!)
     }
     const c = indexes.jis0212
     for (let p = 0; p < c.length; p++) {
       if (c[p] == null) continue
-      push([0x8F, (p / 94 | 0) + 0xA1, p % 94 + 0xA1], c[p])
+      push([0x8F, (p / 94 | 0) + 0xA1, p % 94 + 0xA1], c[p]!)
     }
     for (let b = 0xA1; b <= 0xDF; b++) push([0x8E, b], 0xFF61 + (b - 0xA1)) // half-width katakana
   }
@@ -70,7 +70,7 @@ function runDecodeCompare () {
 
   return ENCODINGS.map((enc) => {
     const decoder = new TextDecoder(enc)
-    const result = { enc, pass: 0, fail: 0, failures: [] }
+    const result = { enc, pass: 0, fail: 0, failures: [] as string[] }
     for (const { bytes, cp } of pairs(enc)) {
       const expected = String.fromCodePoint(cp)
       const got = decoder.decode(new Uint8Array(bytes))

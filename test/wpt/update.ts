@@ -2,7 +2,7 @@
 // upstream. Run by .github/workflows/wpt-update.yml on a schedule, which opens a
 // PR when the files drift. To add/remove coverage, edit FILES below.
 //
-//   node test/wpt/update.js
+//   node test/wpt/update.ts
 
 import { execFileSync } from "child_process"
 import fs from "fs"
@@ -29,7 +29,7 @@ const FILES = [
   "encoding/textencoder-constructor-non-utf.any.js",
   "encoding/textencoder-utf16-surrogates.any.js",
   // Single-byte decoder mapping test — run (TextDecoder variant only) by the
-  // vm-based runner in run-window.js, following the approach Node.js uses.
+  // vm-based runner in run-window.ts, following the approach Node.js uses.
   "encoding/single-byte-decoder.any.js",
   "encoding/resources/single-byte-decoder.js",
   // Multi-byte legacy decoders that use TextDecoder (shimmable). Only gbk and
