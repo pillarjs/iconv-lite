@@ -147,6 +147,30 @@ describe("GBK tests", function () {
     expect(calls).toStrictEqual([["\uE7C7", 1]])
   })
 
+  it("WHATWG GBK labels use the GBK codec", function () {
+    // https://encoding.spec.whatwg.org/#names-and-labels
+    const labels = ["gbk", "x-gbk", "iso-ir-58", "gb2312", "GB_2312", "gb_2312-80", "csgb2312", "csiso58gb231280", "chinese"]
+    // GBK-only two-byte codes, a GB18030 four-byte code and the euro byte.
+    const bytes = utils.bytes("fe 50 a1 40 81 30 81 30 80")
+    for (const first of labels) {
+      const instance = new Iconv(iconv.backend)
+      const codec = instance.getCodec(first)
+      for (const label of labels) {
+        expect(instance.getCodec(label), label).toBe(codec)
+        expect(instance.decode(bytes, label), label).toBe("\u2E81\uE4C6\u0080\u20AC")
+        expect(utils.hex(instance.encode("\u2E81\u20AC\u{1F600}", label)), label).toBe("fe 50 80 3f")
+      }
+    }
+  })
+
+  it("explicit CP936 labels keep the CP936 table", function () {
+    for (const label of ["cp936", "windows-936", "ms936", 936, "euc-cn", "gb2312-1980"]) {
+      expect(iconv.decode(utils.bytes("fe 50 80"), label), String(label)).toBe("\uFFFDP\u20AC")
+      expect(utils.hex(iconv.encode("\u2E81\u20AC", label)), String(label)).toBe("3f 80")
+    }
+    expect(iconv.getCodec("gb2312")).not.toBe(iconv.getCodec("cp936"))
+  })
+
   it("GB18030:2005 changes are applied", function () {
     // See https://github.com/whatwg/encoding/issues/22
     const chars = "\u1E3F\u0000\uE7C7"  // Use \u0000 as separator

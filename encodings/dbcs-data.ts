@@ -105,12 +105,10 @@ export default {
   // http://en.wikipedia.org/wiki/GBK
   // We mostly implement W3C recommendation: https://www.w3.org/TR/encoding/#gbk-encoder
 
-  // Oldest GB2312 (1981, ~7600 chars) is a subset of CP936
-  gb2312: "cp936",
-  gb231280: "cp936",
+  // Oldest GB2312 (1981, ~7600 chars) is a subset of CP936.
+  // The WHATWG labels gb2312, gb_2312, gb_2312-80, csgb2312 and csiso58gb231280
+  // resolve to GBK instead; see whatwg-aliases.ts.
   gb23121980: "cp936",
-  csgb2312: "cp936",
-  csiso58gb231280: "cp936",
   euccn: "cp936",
 
   // Microsoft's CP936 is a subset and approximation of GBK.
@@ -147,8 +145,6 @@ export default {
     encodeSkipVals: [0x80],
     encodeAdd: { "€": 0xA2E3 }
   },
-
-  chinese: "gb18030",
 
   // == Korean ===============================================================
   // EUC-KR, KS_C_5601 and KS X 1001 are exactly the same.

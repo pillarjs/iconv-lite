@@ -49,6 +49,15 @@ export default {
   xmacukrainian: "xmaccyrillic",
   xmacroman: "macintosh",
 
+  // GBK. Browsers decode GB2312-labelled content as GBK, and `chinese` is a
+  // GBK label rather than GB18030. Explicit Windows code page labels
+  // (cp936, windows-936, ms936, 936) keep the CP936 table.
+  chinese: "gbk",
+  csgb2312: "gbk",
+  csiso58gb231280: "gbk",
+  gb2312: "gbk",
+  gb231280: "gbk",
+
   // EUC-JP
   xeucjp: "eucjp",
   cseucpkdfmtjapanese: "eucjp",
