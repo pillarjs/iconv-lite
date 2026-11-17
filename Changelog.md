@@ -1,5 +1,11 @@
 ## Unreleased
 
+### ⚠️ Breaking changes
+
+- Resolve the WHATWG GBK labels `gb2312`, `gb_2312`, `gb_2312-80`, `csgb2312`, `csiso58gb231280` and `chinese` to GBK.
+
+    The GB2312 labels used the smaller CP936 table, so GBK-only codes such as `FE 50` (`⺁`), `A1 40` and GB18030 four-byte sequences decoded to `U+FFFD`, and those characters encoded as `?`. `chinese` used the GB18030 encoder, so `€` encoded as `A2 E3` and unencodable characters as four-byte codes instead of `80` and `?`. Explicit `cp936`, `windows-936`, `ms936`, `936`, `euc-cn` and `gb2312-1980` keep the CP936 table.
+
 ### 🚀 Improvements
 
 - Speed up short decoded output in Node.js by allocating character arrays directly and converting buffers of up to 32 UTF-16 code units with `String.fromCharCode`. Larger buffers retain native UCS-2 conversion.

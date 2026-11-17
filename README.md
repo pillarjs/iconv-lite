@@ -278,6 +278,7 @@ for both encoding and decoding:
 | `ascii`, `us-ascii`, `latin1`, `iso-8859-1` | Windows-1252 |
 | `latin5`, `iso-8859-9` | Windows-1254 |
 | `tis-620`, `iso-8859-11` | Windows-874 |
+| `gb2312`, `gb_2312-80`, `csgb2312`, `chinese` | GBK |
 
 For example, `iconv.decode(Uint8Array.of(0x80), 'ascii')` now returns `€`, and
 `iconv.encode('€', 'latin1')` produces byte `0x80`. These labels differ from
@@ -297,7 +298,8 @@ Both the number as a string and its `cp`-prefixed form are supported:
 | `28601` | Existing iconv-lite alias for ISO-8859-11 |
 
 Thus `cp28591` still decodes `0x80` to U+0080, while the web label `iso-8859-1`
-decodes it to `€`. Code pages `1200`/`1201` and `12000`/`12001` use fixed byte
+decodes it to `€`. Likewise `cp936`, `windows-936` and `ms936` keep the CP936 table,
+while `gb2312` decodes the full GBK range. Code pages `1200`/`1201` and `12000`/`12001` use fixed byte
 order, without the autodetection of `utf16` or `utf32`.
 
 Encoding labels reject non-ASCII characters, including Unicode whitespace and
