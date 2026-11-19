@@ -1,7 +1,9 @@
 // NOTE: This backend uses Buffer APIs that are only available in Node v4.5+ and v5.10+.
 import type { Backend } from "../lib/iconv.js"
+import { isAscii } from "node:buffer"
 
 export default {
+  isAscii,
   // Keep the internal encodings on Node's native conversion paths.
   encodeString (str, encoding) {
     return Buffer.from(str, encoding)

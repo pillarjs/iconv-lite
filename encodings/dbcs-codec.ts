@@ -43,6 +43,7 @@ for (let i = 0; i < 0x100; i++) { UNASSIGNED_NODE[i] = UNASSIGNED }
 
 // Class DBCSCodec reads and initializes mapping tables.
 class DBCSCodec {
+  declare asciiCompatible: boolean
   declare encodingName: string
   declare decodeTables: number[][]
   declare decodeTableSeq: number[][]
@@ -175,6 +176,14 @@ class DBCSCodec {
     if (codecOptions.encodeAdd) {
       for (const uChar in codecOptions.encodeAdd) {
         if (Object.prototype.hasOwnProperty.call(codecOptions.encodeAdd, uChar)) { this._setEncodeChar(uChar.charCodeAt(0), codecOptions.encodeAdd[uChar]) }
+      }
+    }
+    // Custom tables may remap ASCII or use it as a sequence prefix.
+    this.asciiCompatible = true
+    for (let code = 0; code < 0x80; code++) {
+      if (this.encodeTable[0]?.[code] !== code || this.decodeTables[0][code] !== code) {
+        this.asciiCompatible = false
+        break
       }
     }
   }
@@ -352,6 +361,7 @@ class DBCSCodec {
 // == Encoder ==================================================================
 
 class DBCSEncoder<Bytes extends Uint8Array> {
+  declare asciiCompatible: boolean
   declare backend: Backend<Bytes>
   declare leadSurrogate: number
   declare seqObj: EncodeSequence | undefined
@@ -363,6 +373,7 @@ class DBCSEncoder<Bytes extends Uint8Array> {
   #defaultCharByte: number
 
   constructor (codec: DBCSCodec, backend: Backend<Bytes>, defaultCharByte: number) {
+    this.asciiCompatible = codec.asciiCompatible
     this.backend = backend
     // Encoder state
     this.leadSurrogate = -1
@@ -376,7 +387,15 @@ class DBCSEncoder<Bytes extends Uint8Array> {
     this.gb18030EncoderTable = codec.gb18030EncoderTable
   }
 
-  write (str: string) {
+  write (str: string): Bytes {
+    if (str.length >= 64 && this.asciiCompatible && this.leadSurrogate === -1 && this.seqObj === undefined) {
+      const nonAscii = str.search(/[\u0080-\uFFFF]/)
+      if (nonAscii === -1) return this.backend.encodeString(str, "utf8")
+      if (nonAscii >= 64) {
+        const prefix = this.backend.encodeString(str.slice(0, nonAscii), "utf8")
+        return this.backend.concatByteResults([prefix, this.write(str.slice(nonAscii))])
+      }
+    }
     // A pending surrogate or sequence may emit output before the new input.
     const pendingChars = (this.leadSurrogate === -1 ? 0 : 1) + (this.seqObj === undefined ? 0 : 1)
     const newBuf = this.backend.allocBytes((str.length + pendingChars) * (this.gb18030 ? 4 : 3))
@@ -678,6 +697,7 @@ class DBCSHandlerEncoder<Bytes extends Uint8Array> {
 // == Decoder ==================================================================
 
 class DBCSDecoder {
+  declare asciiCompatible: boolean
   declare backend: Backend
   declare nodeIdx: number
   declare prevBytes: number[]
@@ -691,6 +711,7 @@ class DBCSDecoder {
   #pending: number[] | undefined
 
   constructor (codec: DBCSCodec, backend: Backend, options: DecodeOptions | undefined) {
+    this.asciiCompatible = codec.asciiCompatible
     this.backend = backend
     // Decoder state
     this.nodeIdx = 0
@@ -720,7 +741,7 @@ class DBCSDecoder {
     throw new TypeError("Invalid multibyte sequence")
   }
 
-  write (buf: Uint8Array | number[]) {
+  write (buf: Uint8Array | number[]): string {
     if (this.#pending) {
       const input = new Uint8Array(this.#pending.length + buf.length)
       input.set(this.#pending)
@@ -729,6 +750,17 @@ class DBCSDecoder {
       buf = input
     }
     if (buf.length === 0) return ""
+    if (buf.length >= 64 && this.asciiCompatible && this.nodeIdx === 0 && this.prevBytes.length === 0 && !Array.isArray(buf)) {
+      // Avoid a native scan when either endpoint already rules out an ASCII block.
+      if ((buf[0] | buf[buf.length - 1]) < 0x80 && this.backend.isAscii?.(buf)) {
+        return this.backend.decodeBytes(buf, "binary")
+      }
+      const asciiLength = asciiPrefixLength(buf)
+      if (asciiLength === buf.length) return this.backend.decodeBytes(buf, "binary")
+      if (asciiLength >= 64) {
+        return this.backend.decodeBytes(buf.subarray(0, asciiLength), "binary") + this.write(buf.subarray(asciiLength))
+      }
+    }
     // Buffered bytes can complete a surrogate pair/sequence or need reprocessing.
     const newBuf = this.backend.allocRawChars(buf.length + this.prevBytes.length)
     const errors: number[] | undefined = this.#defaultCharUnicode === "\uFFFD" ? undefined : []
@@ -860,6 +892,17 @@ class DBCSDecoder {
     this.nodeIdx = 0
     return ret
   }
+}
+
+// Reject mixed blocks early; the byte view may have a nonzero offset.
+function asciiPrefixLength (bytes: Uint8Array) {
+  let i = 0
+  for (; i + 7 < bytes.length; i += 8) {
+    if ((bytes[i] | bytes[i + 1] | bytes[i + 2] | bytes[i + 3] |
+      bytes[i + 4] | bytes[i + 5] | bytes[i + 6] | bytes[i + 7]) & 0x80) break
+  }
+  for (; i < bytes.length; i++) if (bytes[i] & 0x80) return i
+  return bytes.length
 }
 
 // Binary search for GB18030. Returns largest i such that table[i] <= val.
