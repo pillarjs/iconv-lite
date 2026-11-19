@@ -8,6 +8,8 @@
 
 ### 🚀 Improvements
 
+- Add `strict-ascii` as a readable alias for 7-bit ASCII (`cp20127`). Addresses [#468](https://github.com/pillarjs/iconv-lite/issues/468).
+
 - Speed up short decoded output in Node.js by allocating character arrays directly and converting buffers of up to 32 UTF-16 code units with `String.fromCharCode`. Larger buffers retain native UCS-2 conversion.
 
 ### 🐞 Bug fixes

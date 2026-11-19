@@ -285,6 +285,11 @@ For example, `iconv.decode(Uint8Array.of(0x80), 'ascii')` now returns `€`, and
 Node.js `Buffer`'s `ascii` and `latin1` encodings. Use `binary` for byte-preserving
 Latin-1 conversion between bytes and U+0000–U+00FF.
 
+Use `strict-ascii` for 7-bit ASCII, equivalent to `cp20127`. Here "strict" refers
+to the character repertoire: decoding bytes above `0x7F` produces `�` by default,
+or throws with `{ fatal: true }`. Encoding non-ASCII characters uses `?` by default;
+`defaultCharByte` and `invalidCharHandler` control encoding replacements.
+
 Numeric code page labels retain their explicit encodings, including in streams.
 Both the number as a string and its `cp`-prefixed form are supported:
 
@@ -293,7 +298,7 @@ Both the number as a string and its `cp`-prefixed form are supported:
 | `1200`, `1201` | UTF-16LE, UTF-16BE |
 | `12000`, `12001` | UTF-32LE, UTF-32BE |
 | `65000`, `65001` | UTF-7, UTF-8 |
-| `20127` | 7-bit ASCII (also `cp367` and `ibm367`) |
+| `20127` | 7-bit ASCII (also `strict-ascii`, `cp367` and `ibm367`) |
 | `28591`, `28599` | ISO-8859-1, ISO-8859-9 |
 | `28601` | Existing iconv-lite alias for ISO-8859-11 |
 
