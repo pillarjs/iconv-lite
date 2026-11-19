@@ -7,8 +7,8 @@ import type { Backend, WebIconv, EncodeOptions, DecodeOptions, DecoderStream } f
 // backends behave identically, so the decoder no longer depends on the backend.
 //
 // Note: the Encoding Standard defines no UTF-16 *encoder* (only UTF-8), so the encoders below are an
-// iconv-lite extension; they pass lone surrogates through and use the backend only for the final
-// "bytes -> result" step, so that encoding keeps returning a Buffer in Node.
+// iconv-lite extension; they pass lone surrogates through. Node uses native UTF-16 encoding;
+// other backends use the code-unit loops below and convert the final bytes to their result type.
 
 // == UTF16-LE codec. ==========================================================
 
@@ -48,6 +48,7 @@ class Utf16LEEncoder<Bytes extends Uint8Array> {
   }
 
   write (str: string) {
+    if (this.backend.encodeUtf16) return this.backend.encodeUtf16(str, false)
     // On little-endian platforms (assumed throughout this lib) a Uint16Array view writes the
     // code units in the correct byte order directly.
     const bytes = new Uint8Array(str.length * 2)
@@ -69,6 +70,7 @@ class Utf16BEEncoder<Bytes extends Uint8Array> {
   }
 
   write (str: string) {
+    if (this.backend.encodeUtf16) return this.backend.encodeUtf16(str, true)
     const bytes = new Uint8Array(str.length * 2)
     let pos = 0
     for (let i = 0; i < str.length; i++) {

@@ -4,6 +4,10 @@ import { isAscii } from "node:buffer"
 
 export default {
   isAscii,
+  encodeUtf16 (str, bigEndian) {
+    const bytes = Buffer.from(str, "utf16le")
+    return bigEndian ? bytes.swap16() : bytes
+  },
   // Keep the internal encodings on Node's native conversion paths.
   encodeString (str, encoding) {
     return Buffer.from(str, encoding)
@@ -54,6 +58,4 @@ export default {
       .toString("ucs2")
   }
 
-  // Optimizations
-  // maybe buf.swap16()?
 } satisfies Backend<Buffer>

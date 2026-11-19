@@ -12,6 +12,22 @@ const utf16beBOM = utils.bytes("fe ff")
 const sampleStr = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<数据>נְתוּנִים</数据>"
 const weirdBuf = utils.bytes("15 16 17 18") // Can't automatically detect whether it's LE or BE.
 
+describe("UTF-16 encoder chunk boundaries", function () {
+  for (const encoding of ["utf16le", "utf16be"]) {
+    it(`${encoding} preserves code units across every split, including empty writes`, function () {
+      const text = "\uFEFF\0日本\uD83D\uDCA9\uD800x\uDC00"
+      const expected = iconv.encode(text, encoding, { addBOM: true })
+      for (let split = 0; split <= text.length; split++) {
+        const encoder = iconv.getEncoder(encoding, { addBOM: true })
+        const chunks = [encoder.write(text.slice(0, split)), encoder.write(""), encoder.write(text.slice(split))]
+        const end = encoder.end()
+        if (end) chunks.push(end)
+        expect(utils.bytes(chunks.flatMap(chunk => Array.from(chunk!)))).toStrictEqual(expected)
+      }
+    })
+  }
+})
+
 describe("ucs2 alias", function () {
   it("decodes identically to utf-16le", function () {
     expect(iconv.decode(utf16leBuf, "ucs2")).toBe(iconv.decode(utf16leBuf, "utf-16le"))
