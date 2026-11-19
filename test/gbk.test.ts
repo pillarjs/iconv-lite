@@ -188,6 +188,90 @@ describe("GBK tests", function () {
     expect(calls).toStrictEqual([["\uE7C7", 1]])
   })
 
+  const gbkLabels = ["gbk", "x-gbk", "iso-ir-58", "gb2312", "GB_2312", "gb_2312-80", "csgb2312", "csiso58gb231280", "chinese"]
+
+  it("WHATWG GBK labels use the GBK codec", function () {
+    // https://encoding.spec.whatwg.org/#names-and-labels
+    // GBK-only two-byte codes, a GB18030 four-byte code and the euro byte.
+    const bytes = utils.bytes("fe 50 a1 40 81 30 81 30 80")
+    for (const first of gbkLabels) {
+      const instance = new Iconv(iconv.backend)
+      const codec = instance.getCodec(first)
+      for (const label of gbkLabels) {
+        expect(instance.getCodec(label), label).toBe(codec)
+        expect(instance.decode(bytes, label), label).toBe("\u2E81\uE4C6\u0080\u20AC")
+        expect(utils.hex(instance.encode("\u2E81\u20AC\u{1F600}", label)), label).toBe("fe 50 80 3f")
+      }
+    }
+  })
+
+  for (const label of gbkLabels) {
+    it(`${label} applies GBK handler replacements and reports only unrepresentable characters`, function () {
+      const calls: unknown[] = []
+      const encoded = iconv.encode("\u2E81€\uE78D😀\uE7C7", label, {
+        defaultCharByte: 0x21,
+        invalidCharHandler (char, index) {
+          calls.push([char, index])
+          if (char === "😀") return "\u2E81"
+        }
+      })
+      expect(utils.hex(encoded)).toBe("fe 50 80 a6 d9 fe 50 21")
+      expect(calls).toStrictEqual([["😀", 3], ["\uE7C7", 4]])
+    })
+
+    for (const useHandler of [false, true]) {
+      it(`${label} preserves GBK encoding across every split ${useHandler ? "with" : "without"} a handler`, function () {
+        const text = "A\u2E81€\uE78D😀\uE7C7B\uD800"
+        const expected = "41 fe 50 80 a6 d9 21 21 42 21"
+
+        function encodeChunks (chunks: string[]) {
+          const calls: string[] = []
+          const encoder = iconv.getEncoder(label, {
+            defaultCharByte: 0x21,
+            ...(useHandler ? { invalidCharHandler (char: string) { calls.push(char) } } : {})
+          })
+          const output = chunks.map(chunk => encoder.write(chunk))
+          const tail = encoder.end()
+          if (tail) output.push(tail)
+          expect(encoder.end()).toBeUndefined()
+          if (useHandler) expect(calls).toStrictEqual(["😀", "\uE7C7", "\uD800"])
+          return utils.hex(utils.concatBufs(output))
+        }
+
+        for (let split = 0; split <= text.length; split++) {
+          expect(encodeChunks([text.slice(0, split), "", text.slice(split)]), `split ${split}`).toBe(expected)
+        }
+        expect(encodeChunks(text.split(""))).toBe(expected)
+      })
+    }
+
+    it(`${label} preserves GBK decoding across every byte split, including fatal mode`, function () {
+      const bytes = utils.bytes("41 fe 50 a1 40 81 30 81 30 80 a6 d9 42")
+      const expected = "A\u2E81\uE4C6\u0080€\uFE10B"
+      for (const fatal of [false, true]) {
+        function decodeChunks (chunks: Uint8Array[]) {
+          const decoder = iconv.getDecoder(label, { fatal })
+          return chunks.map(chunk => decoder.write(chunk)).join("") + (decoder.end() || "")
+        }
+
+        for (let split = 0; split <= bytes.length; split++) {
+          expect(decodeChunks([bytes.subarray(0, split), utils.bytes([]), bytes.subarray(split)]), `split ${split}, fatal ${fatal}`).toBe(expected)
+        }
+        expect(decodeChunks(Array.from(bytes, byte => utils.bytes([byte])))).toBe(expected)
+      }
+      expect(() => iconv.decode(utils.bytes("81 20"), label, { fatal: true })).toThrow(TypeError)
+      expect(iconv.decode(utils.bytes("81 20"), label)).toBe("\uFFFD ")
+    })
+  }
+
+  it("explicit CP936 labels keep the CP936 table", function () {
+    for (const label of ["cp936", "windows-936", "ms936", 936, "euc-cn", "gb2312-1980"]) {
+      expect(iconv.decode(utils.bytes("fe 50 80"), label), String(label)).toBe("\uFFFDP\u20AC")
+      expect(utils.hex(iconv.encode("\u2E81\u20AC", label)), String(label)).toBe("3f 80")
+    }
+    expect(iconv.getCodec("gb2312")).not.toBe(iconv.getCodec("cp936"))
+  })
+
   it("GB18030:2005 changes are applied", function () {
     // See https://github.com/whatwg/encoding/issues/22
     const chars = "\u1E3F\u0000\uE7C7"  // Use \u0000 as separator
