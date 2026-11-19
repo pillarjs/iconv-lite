@@ -8,6 +8,8 @@
 
 ### 🚀 Improvements
 
+- Speed up UTF-16 encoding in Node.js with native UTF-16LE conversion and an in-place byte swap for UTF-16BE, preserving lone surrogates and the Web fallback.
+
 - Speed up short conversions by pooling and fully initializing small Node.js byte buffers, and reusing cached canonical encoding labels without repeating normalization.
 
 - Reduce temporary allocations when loading VLQ mapping tables by reading compressed columns directly. EUC-JP encoders store only populated Unicode blocks instead of allocating a table for the entire BMP.

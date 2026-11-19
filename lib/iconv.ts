@@ -91,6 +91,8 @@ export interface Backend<Bytes extends Uint8Array = Uint8Array> {
   /** Optional native check for bytes entirely within the ASCII range. */
   isAscii?(bytes: Uint8Array): boolean;
   copyBytes(bytes: Uint8Array): Uint8Array;
+  /** Optional native UTF-16 encoding, preserving every code unit, including lone surrogates. */
+  encodeUtf16?(str: string, bigEndian: boolean): Bytes;
 }
 
 /** The public API, derived from the shared implementation without its private members. */
