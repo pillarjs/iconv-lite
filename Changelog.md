@@ -7,6 +7,7 @@
 ### 🐞 Bug fixes
 
 - Encode the 18 private-use characters in the WHATWG gb18030 encoder table, such as U+E78D, with their two-byte codes in GBK instead of `?`. The GBK encoder is the gb18030 encoder with the GBK flag set, so it uses the same table.
+- Encode U+2212 MINUS SIGN in Shift_JIS as U+FF0D FULLWIDTH HYPHEN-MINUS (`81 7C`) instead of `?`, as the WHATWG Shift_JIS encoder and the ISO-2022-JP encoder here already do.
 
 ## 1.0.0-beta.1
 
