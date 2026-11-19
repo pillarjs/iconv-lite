@@ -15,9 +15,9 @@ function getEncodeTable () {
     if (table[page] === empty) table[page] = new Uint32Array(256)
     table[page][code & 0xFF] = value
   }
-  // Keep the historical trie order: JIS X 0212 wins over duplicate JIS X 0208
-  // mappings. Changing this preference would change existing encoded output.
-  for (const [index, prefix] of [[getJis0212(), 0x8F0000], [getJis0208(), 0]] as const) {
+  // Prefer JIS X 0208 for duplicate mappings, as in the WHATWG encoder.
+  // Retain JIS X 0212 as an extension for characters absent from JIS X 0208.
+  for (const [index, prefix] of [[getJis0208(), 0], [getJis0212(), 0x8F0000]] as const) {
     for (let pointer = 0; pointer < index.length; pointer++) {
       const code = index[pointer]
       if (code && !table[code >>> 8][code & 0xFF]) {
@@ -28,6 +28,8 @@ function getEncodeTable () {
   for (let code = 0xFF61; code <= 0xFF9F; code++) set(code, 0x8EA1 + code - 0xFF61)
   set(0xA5, 0x5C)
   set(0x203E, 0x7E)
+  // WHATWG EUC-JP encoder maps MINUS SIGN to FULLWIDTH HYPHEN-MINUS.
+  set(0x2212, 0xA1DD)
   encodeTable = table
   return table
 }

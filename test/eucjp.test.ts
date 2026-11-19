@@ -23,11 +23,53 @@ describe("EUC-JP derived indexes", function () {
     })
   }
 
-  it("preserves the historical encoding preference for every BMP character", function () {
+  it("uses two-byte mappings for duplicates while retaining JIS X 0212-only characters", function () {
+    const text = "\uFF5E\u2116\u02D8"
+    const expected = utils.bytes("a1 c1 ad e2 8f a2 af")
+    expect(iconv.encode(text, "eucjp")).toStrictEqual(expected)
+    expect(iconv.decode(expected, "eucjp")).toBe(text)
+    // Old three-byte spellings remain valid when decoding.
+    expect(iconv.decode(utils.bytes("8f a2 b7 8f a2 f1"), "eucjp")).toBe("\uFF5E\u2116")
+    const encoder = iconv.getEncoder("eucjp")
+    expect(encoder.write(text.slice(0, 1))).toStrictEqual(utils.bytes("a1 c1"))
+    expect(encoder.write(text.slice(1))).toStrictEqual(utils.bytes("ad e2 8f a2 af"))
+    expect(encoder.end()).toBeUndefined()
+  })
+
+  it("applies WHATWG encoder substitutions without invoking the invalid-character handler", function () {
+    const text = "\u00A5\u203E\u2212\uFF0D"
+    const expected = utils.bytes("5c 7e a1 dd a1 dd")
+    const options = { invalidCharHandler () { throw new Error("Representable character rejected") } }
+    expect(iconv.encode(text, "eucjp", options)).toStrictEqual(expected)
+    expect(iconv.decode(expected, "eucjp")).toBe("\\~\uFF0D\uFF0D")
+    for (let split = 0; split <= text.length; split++) {
+      const encoder = iconv.getEncoder("eucjp", options)
+      const chunks = [encoder.write(text.slice(0, split)), encoder.write(""), encoder.write(text.slice(split))]
+      expect(utils.bytes(chunks.flatMap(chunk => Array.from(chunk!)))).toStrictEqual(expected)
+      expect(encoder.end()).toBeUndefined()
+    }
+    // WAVE DASH has no WHATWG substitution to FULLWIDTH TILDE.
+    expect(iconv.encode("\u301C", "eucjp")).toStrictEqual(utils.bytes("3f"))
+  })
+
+  it("prefers the first JIS X 0208 pointer for every overlapping character in the WPT indexes", function () {
+    const jis0212 = new Set(indexes.jis0212)
+    const checked = new Set<number>()
+    for (let pointer = 0; pointer < 94 * 94; pointer++) {
+      const code = indexes.jis0208[pointer]
+      if (code == null || !jis0212.has(code) || checked.has(code)) continue
+      checked.add(code)
+      const expected = utils.bytes([0xA1 + Math.floor(pointer / 94), 0xA1 + pointer % 94])
+      expect(iconv.encode(String.fromCodePoint(code), "eucjp"), `U+${code.toString(16)}`).toStrictEqual(expected)
+    }
+    expect(checked.size).toBe(281)
+  })
+
+  it("prefers JIS X 0208 with JIS X 0212 fallback for every BMP character", function () {
     const expected = new Map<number, number[]>()
     for (let code = 0; code < 128; code++) expected.set(code, [code])
     for (let code = 0xFF61; code <= 0xFF9F; code++) expected.set(code, [0x8E, 0xA1 + code - 0xFF61])
-    for (const [index, prefix] of [[indexes.jis0212, [0x8F]], [indexes.jis0208, []]] as const) {
+    for (const [index, prefix] of [[indexes.jis0208, []], [indexes.jis0212, [0x8F]]] as const) {
       for (let pointer = 0; pointer < 94 * 94; pointer++) {
         const code = index[pointer]
         if (code != null && !expected.has(code)) expected.set(code, [...prefix, 0xA1 + Math.floor(pointer / 94), 0xA1 + pointer % 94])
@@ -35,6 +77,7 @@ describe("EUC-JP derived indexes", function () {
     }
     expected.set(0xA5, [0x5C])
     expected.set(0x203E, [0x7E])
+    expected.set(0x2212, [0xA1, 0xDD])
     let text = ""
     const bytes = []
     for (let code = 0; code <= 0xFFFF; code++) {

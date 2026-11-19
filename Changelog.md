@@ -2,6 +2,8 @@
 
 ### ⚠️ Breaking changes
 
+- Prefer JIS X 0208 when encoding EUC-JP characters also present in JIS X 0212: for example, U+FF5E now encodes as `A1 C1` instead of `8F A2 B7`, and U+2116 as `AD E2` instead of `8F A2 F1`. JIS X 0212-only characters remain supported, and decoding is unchanged. Addresses [#145](https://github.com/pillarjs/iconv-lite/issues/145).
+
 - Resolve the WHATWG GBK labels `gb2312`, `gb_2312`, `gb_2312-80`, `csgb2312`, `csiso58gb231280` and `chinese` to GBK.
 
     The GB2312 labels used the smaller CP936 table, so GBK-only codes such as `FE 50` (`⺁`), `A1 40` and GB18030 four-byte sequences decoded to `U+FFFD`, and those characters encoded as `?`. `chinese` used the GB18030 encoder, so `€` encoded as `A2 E3` and unencodable characters as four-byte codes instead of `80` and `?`. Explicit `cp936`, `windows-936`, `ms936`, `936`, `euc-cn` and `gb2312-1980` keep the CP936 table.
@@ -23,6 +25,8 @@
 - Speed up short decoded output in Node.js by allocating character arrays directly and converting buffers of up to 32 UTF-16 code units with `String.fromCharCode`. Larger buffers retain native UCS-2 conversion.
 
 ### 🐞 Bug fixes
+
+- Encode U+2212 MINUS SIGN as `A1 DD` in EUC-JP, following the WHATWG substitution to U+FF0D instead of replacing it with `?`.
 
 - Encode the 18 private-use characters in the WHATWG gb18030 encoder table, such as U+E78D, with their two-byte codes in GBK instead of `?`. The GBK encoder is the gb18030 encoder with the GBK flag set, so it uses the same table.
 - Encode U+2212 MINUS SIGN in Shift_JIS as U+FF0D FULLWIDTH HYPHEN-MINUS (`81 7C`) instead of `?`, as the WHATWG Shift_JIS encoder and the ISO-2022-JP encoder here already do.

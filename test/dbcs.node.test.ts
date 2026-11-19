@@ -561,7 +561,8 @@ describe("Full DBCS encoding tests", { timeout: 10000 }, function () {
 
   for (const enc in iconv.encodings) {
     const definition = iconv.encodings[enc]
-    if (enc === "eucjp" || (typeof definition === "object" && definition.type === "_dbcs")) {
+    // EUC-JP is checked against the vendored WHATWG indexes in eucjp.test.ts.
+    if (typeof definition === "object" && definition.type === "_dbcs") {
       (function (enc) {
       // Create tests for this encoding.
         it("Decode DBCS encoding '" + enc + "'", function ({ skip }) {
