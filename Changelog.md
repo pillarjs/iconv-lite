@@ -4,6 +4,10 @@
 
 - Speed up short decoded output in Node.js by allocating character arrays directly and converting buffers of up to 32 UTF-16 code units with `String.fromCharCode`. Larger buffers retain native UCS-2 conversion.
 
+### 🐞 Bug fixes
+
+- Encode the 18 private-use characters in the WHATWG gb18030 encoder table, such as U+E78D, with their two-byte codes in GBK instead of `?`. The GBK encoder is the gb18030 encoder with the GBK flag set, so it uses the same table.
+
 ## 1.0.0-beta.1
 
 ### ⚠️ Breaking changes

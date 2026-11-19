@@ -34,6 +34,13 @@ const gb18030EncoderTable = {
   0xE864: 0xFEA0
 }
 
+// The GBK encoder is the gb18030 encoder with the GBK flag set, so it applies
+// the same side table. U+E5E5 is already unencodable in GBK.
+const gbkEncoderTable: Record<string, number> = {}
+for (const [code, bytes] of Object.entries(gb18030EncoderTable)) {
+  if (bytes !== null) gbkEncoderTable[String.fromCharCode(Number(code))] = bytes
+}
+
 // Description of supported double byte encodings and aliases.
 // Table factories allocate and cache their data only when a codec needs it.
 
@@ -129,7 +136,8 @@ export default {
     gb18030Decode: gb18030Ranges,
     // U+E7C7 only has the GB18030 four-byte code 8135F437, which GBK does not
     // encode (https://encoding.spec.whatwg.org/#gb18030-encoder). It still decodes.
-    encodeSkipVals: [0x8135F437]
+    encodeSkipVals: [0x8135F437],
+    encodeAdd: gbkEncoderTable
   },
   xgbk: "gbk",
   isoir58: "gbk",
