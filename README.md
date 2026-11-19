@@ -362,6 +362,16 @@ This library supports UTF-7 (RFC 2152) and UTF-7-IMAP / Modified UTF-7 (RFC 3501
 UTF-7 is designed for short, 7-bit-safe strings (mail headers, IMAP mailbox names) and is best used that way.
 It is not recommended for large or bulk text, where the native `utf8`/`utf16` encodings are faster.
 
+## EUC-JP
+
+EUC-JP supports ASCII, halfwidth katakana, JIS X 0208 and JIS X 0212. It reuses Shift_JIS's
+compressed mapping data for JIS X 0208 and ships only the supplementary JIS X 0212 plane separately
+in VLQ format. The expanded indexes are cached lazily; ISO-2022-JP shares JIS X 0208.
+The encoder allocates lookup blocks only for Unicode pages containing representable characters.
+Dedicated conversion loops preserve incremental state, fatal decoding, custom replacements and
+encoding handlers. Existing encoding preferences, including three-byte JIS X 0212 forms for
+duplicate mappings, are preserved.
+
 ## ISO-2022-JP
 
 ISO-2022-JP is the stateful 7-bit Japanese encoding common in email. Encoding and decoding follow the

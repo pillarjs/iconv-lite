@@ -7,6 +7,7 @@ Each encoding, size and operation has one comparison table with
 `iconv-lite (node)`, `iconv-lite (web)`, `iconv-lite (npm)` and each supported competitor.
 Cases include small and large inputs, six DBCS families, ASCII through GBK, and
 Big5/GB18030 decoding one byte per chunk.
+EUC-JP cases cover ASCII, halfwidth katakana, JIS X 0208, JIS X 0212 and decoding one byte per chunk.
 `x-user-defined` cases mix ASCII controls and private-use characters.
 GB18030 cases also cover four-byte BMP and supplementary characters, unassigned
 pointers and pointers beyond the Unicode limit.

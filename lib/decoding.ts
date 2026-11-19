@@ -20,3 +20,14 @@ export function replaceDecodeErrors (text: string, errors: number[] | undefined,
   parts.push(text.slice(start))
   return parts.join("")
 }
+
+// Reject mixed blocks early; the byte view may have a nonzero offset.
+export function asciiPrefixLength (bytes: Uint8Array) {
+  let i = 0
+  for (; i + 7 < bytes.length; i += 8) {
+    if ((bytes[i] | bytes[i + 1] | bytes[i + 2] | bytes[i + 3] |
+      bytes[i + 4] | bytes[i + 5] | bytes[i + 6] | bytes[i + 7]) & 0x80) break
+  }
+  for (; i < bytes.length; i++) if (bytes[i] & 0x80) return i
+  return bytes.length
+}

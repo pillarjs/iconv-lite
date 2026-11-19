@@ -50,4 +50,15 @@ describe("DBCS table formats", function () {
       expect(text).toBe("\uE7C7")
     }
   })
+
+  it("reads long runs and signed Unicode gaps across four-byte addresses", function () {
+    const runs: number[][] = []
+    forEachVlqRun("A.A.u0zDx0zDw16HA.gICwCC.u753mhEwEw9//fA", (...run) => runs.push(run))
+    expect(runs).toStrictEqual([
+      [0, 0, 128],
+      [0x8135F437, 0xE7C7, 1],
+      [0x8135F480, 0x80, 40],
+      [0x8235F480, 0x1F600, 1]
+    ])
+  })
 })

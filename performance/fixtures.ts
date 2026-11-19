@@ -24,6 +24,10 @@ const encodingStrings: Record<string, string> = {
   big5hkscs: "中文測試Ê\u0304𠕇abc12",
   shift_jis: "日本語の文字列テストabc12",
   eucjp: "日本語の文字列テスト˘abc12",
+  "eucjp-ascii": "This is a test string 32 chars..",
+  "eucjp-katakana": "ｱｲｳｴｵｶｷｸｹｺ",
+  "eucjp-jis0208": "日本語の文字列テスト",
+  "eucjp-jis0212": "˘丂丄丅",
   "iso-2022-jp": "日本語の文字列テストabc12",
   "iso-2022-jp-ascii": "This is a test string 32 chars..",
   "iso-2022-jp-transitions": "a管b理¥x\r\n‾\\~\n日本",
@@ -85,7 +89,7 @@ export async function createCases () {
       ? "gbk"
       : label.startsWith("gb18030-")
         ? "gb18030"
-        : label.startsWith("iso-2022-jp-") ? "iso-2022-jp" : label
+        : label.startsWith("iso-2022-jp-") ? "iso-2022-jp" : label.startsWith("eucjp-") ? "eucjp" : label
     const alternatives = competitors(encoding)
     const nativeEncoding = canonicalEncoding(encoding)
     for (const [size, repeat] of Object.entries(sizes)) {
@@ -144,7 +148,7 @@ export async function createCases () {
     }
   }
 
-  for (const encoding of ["big5hkscs", "gb18030", "iso-2022-jp"]) {
+  for (const encoding of ["big5hkscs", "gb18030", "iso-2022-jp", "eucjp"]) {
     const string = encodingStrings[encoding === "iso-2022-jp" ? "iso-2022-jp-transitions" : encoding]
     const buffer = Uint8Array.from(implementations[0].codec.encode(string, encoding))
     for (const { name, codec, bytes } of implementations) {

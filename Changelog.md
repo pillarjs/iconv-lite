@@ -8,6 +8,10 @@
 
 ### 🚀 Improvements
 
+- Reduce temporary allocations when loading VLQ mapping tables by reading compressed columns directly. EUC-JP encoders store only populated Unicode blocks instead of allocating a table for the entire BMP.
+
+- Reduce package size by sharing Shift_JIS's compressed JIS X 0208 mappings with EUC-JP and ISO-2022-JP, and storing only JIS X 0212 separately in VLQ format. Dedicated EUC-JP conversion loops preserve existing mappings, streaming, fatal mode and replacement options, and decode complete JIS X 0208 pairs directly without buffering a lead byte.
+
 - Speed up long ASCII blocks and prefixes in ASCII-compatible multibyte codecs, including GBK, GB18030, Shift_JIS and Big5. Node.js uses native ASCII detection when decoding complete ASCII blocks; Web retains a JavaScript fallback. Incremental conversion and custom table mappings are preserved.
 
 - Add `strict-ascii` as a readable alias for 7-bit ASCII (`cp20127`). Addresses [#468](https://github.com/pillarjs/iconv-lite/issues/468).

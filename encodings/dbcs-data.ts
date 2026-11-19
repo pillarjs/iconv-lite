@@ -2,7 +2,6 @@ import big5Added from "./tables/big5-added.js"
 import cp936 from "./tables/cp936.js"
 import cp949 from "./tables/cp949.js"
 import cp950 from "./tables/cp950.js"
-import eucjp from "./tables/eucjp.js"
 import gb18030Ranges from "./tables/gb18030-ranges.js"
 import gbkAdded from "./tables/gbk-added.js"
 import shiftjis from "./tables/shiftjis.js"
@@ -96,14 +95,6 @@ export default {
   ms932: "shiftjis",
   932: "shiftjis",
   cp932: "shiftjis",
-
-  eucjp: {
-    type: "_dbcs",
-    table: eucjp,
-    eucjp: true,
-    leadBytes: [[0x8E, 0x8F], [0xA1, 0xFE]],
-    encodeAdd: { "\u00a5": 0x5C, "\u203E": 0x7E }
-  },
 
   // TODO: KDDI extension to Shift_JIS
   // TODO: IBM CCSID 942 = CP932, but F0-F9 custom chars and other char changes.
