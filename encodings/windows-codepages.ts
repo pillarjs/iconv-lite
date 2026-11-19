@@ -20,6 +20,7 @@ export default {
   // Windows-1252/1254/874. 28601 is an existing iconv-lite ISO-8859-11 alias.
   20127: "cp20127",
   cp20127: sbcsData.ascii,
+  strictascii: "cp20127",
   cp367: "cp20127",
   ibm367: "cp20127",
   28591: "cp28591",

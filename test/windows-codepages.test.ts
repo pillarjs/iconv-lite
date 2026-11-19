@@ -5,6 +5,21 @@ import utils from "./helpers/utils.js"
 const iconv = utils.requireIconv()
 
 describe("Windows code pages and WHATWG label overrides", function () {
+  it("strict-ascii roundtrips all 128 ASCII characters, including controls", function () {
+    const bytes = utils.bytes(Array.from({ length: 128 }, (_, byte) => byte))
+    const text = String.fromCharCode(...bytes)
+    expect(iconv.encodingExists("strict-ascii")).toBe(true)
+    expect(iconv.decode(bytes, "strict-ascii", { fatal: true })).toBe(text)
+    expect(iconv.encode(text, "strict-ascii")).toStrictEqual(bytes)
+  })
+
+  it("strict-ascii replaces high bytes and non-ASCII code points by default", function () {
+    const bytes = utils.bytes(Array.from({ length: 128 }, (_, byte) => byte + 128))
+    expect(iconv.decode(bytes, "strict-ascii")).toBe("\uFFFD".repeat(128))
+    expect(iconv.decode(bytes, "strict-ascii", { defaultCharUnicode: "!" })).toBe("!".repeat(128))
+    expect(iconv.encode("Aé€😀", "strict-ascii")).toStrictEqual(utils.bytes("41 3f 3f 3f"))
+  })
+
   for (const [codePage, webLabel, strictText] of [
     [20127, "ascii", "\uFFFD"],
     [28591, "iso-8859-1", "\u0080"],
@@ -12,7 +27,7 @@ describe("Windows code pages and WHATWG label overrides", function () {
     [28601, "iso-8859-11", "\u0080"]
   ] as const) {
     const aliases = [codePage, String(codePage), "cp" + codePage, " \tCP-" + codePage + "\r\n"]
-    if (codePage === 20127) aliases.push("cp367", "ibm367")
+    if (codePage === 20127) aliases.push("cp367", "ibm367", "strict-ascii", " \tSTRICT-ASCII\r\n")
 
     it(codePage + " keeps its original table regardless of alias spelling or lookup order", function () {
       for (const alias of aliases) {
