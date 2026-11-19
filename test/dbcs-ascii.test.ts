@@ -30,6 +30,15 @@ describe("DBCS ASCII blocks", function () {
     expect(iconv.decode(bytes, "gbk")).toBe(text + "中")
   })
 
+  it("preserves non-ASCII bytes between ASCII endpoints", function () {
+    for (const prefixLength of [1, 63, 64, 128]) {
+      const bytes = utils.bytes("41 ".repeat(prefixLength) + "d6 d0 " + "42 ".repeat(128))
+      for (const fatal of [false, true]) {
+        expect(iconv.decode(bytes, "gbk", { fatal })).toBe("A".repeat(prefixLength) + "中" + "B".repeat(128))
+      }
+    }
+  })
+
   it("flushes pending surrogates and Big5 sequences before an ASCII block", function () {
     const text = "A".repeat(128)
     const gbk = iconv.getEncoder("gbk", { defaultCharByte: 0x21 })

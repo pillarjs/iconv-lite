@@ -88,6 +88,8 @@ export interface Backend<Bytes extends Uint8Array = Uint8Array> {
   rawCharsToResult(rawChars: Uint16Array, finalLen: number): string;
   encodeString(str: string, encoding: "utf8" | "binary" | "hex" | "base64"): Bytes;
   decodeBytes(bytes: Uint8Array, encoding: "binary" | "hex" | "base64"): string;
+  /** Optional native check for bytes entirely within the ASCII range. */
+  isAscii?(bytes: Uint8Array): boolean;
   copyBytes(bytes: Uint8Array): Uint8Array;
 }
 

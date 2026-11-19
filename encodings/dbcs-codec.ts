@@ -751,6 +751,10 @@ class DBCSDecoder {
     }
     if (buf.length === 0) return ""
     if (buf.length >= 64 && this.asciiCompatible && this.nodeIdx === 0 && this.prevBytes.length === 0 && !Array.isArray(buf)) {
+      // Avoid a native scan when either endpoint already rules out an ASCII block.
+      if ((buf[0] | buf[buf.length - 1]) < 0x80 && this.backend.isAscii?.(buf)) {
+        return this.backend.decodeBytes(buf, "binary")
+      }
       const asciiLength = asciiPrefixLength(buf)
       if (asciiLength === buf.length) return this.backend.decodeBytes(buf, "binary")
       if (asciiLength >= 64) {
