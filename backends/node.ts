@@ -20,6 +20,9 @@ export default {
   // Encoder bytes output: allocBytes() -> use Uint8Array -> bytesToResult().
   allocBytes (numBytes, fill) {
     // Buffer is also a Uint8Array, so callers can write into it directly.
+    // Pool small allocations and initialize every byte before returning them.
+    // This also avoids materializing a separate backing store in bytesToResult.
+    if (numBytes <= 1024) return Buffer.allocUnsafe(numBytes).fill(fill ?? 0)
     return Buffer.alloc(numBytes, fill)
   },
   bytesToResult (bytes, finalLen) {

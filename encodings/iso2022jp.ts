@@ -1,6 +1,5 @@
 import type { Backend, WebIconv, EncodeOptions, DecodeOptions } from "../lib/iconv.js"
-import type { CodecOptions } from "../lib/encoding-registry.js"
-import type { _dbcs as DBCSCodec } from "./dbcs-codec.js"
+import { getJis0208 } from "./jis.js"
 import { getDefaultCharByte, TextEncoderWithHandler } from "../lib/encoding-handler.js"
 import { getDefaultCharUnicode, replaceDecodeErrors } from "../lib/decoding.js"
 
@@ -14,7 +13,7 @@ import { getDefaultCharUnicode, replaceDecodeErrors } from "../lib/decoding.js"
  *  - ESC $ @  JIS X 0208-1978 and ESC $ B  JIS X 0208-1983 (both decoded with the same table)
  *
  * JIS X 0208 is the 94x94 plane EUC-JP stores at (0xA1-0xFE)x2, so its tables are derived from the
- * EUC-JP codec instead of shipping new data.
+ * compressed Shift_JIS data instead of shipping new data.
  *
  * @see https://encoding.spec.whatwg.org/#iso-2022-jp
  */
@@ -31,11 +30,6 @@ const TRAIL = 4
 const ESCAPE_START = 5
 const ESCAPE = 6
 
-const JIS0208_SIZE = 94 * 94
-
-// The DBCS codec's trie stores a reference to node `i` as NODE_START - i (see dbcs-codec.js).
-const DBCS_NODE_START = -1000
-
 // WHATWG index ISO-2022-JP katakana, including the spacing voiced sound marks.
 const KATAKANA_INDEX = "。「」、・ヲァィゥェォャュョッーアイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン゛゜"
 
@@ -49,25 +43,15 @@ class Iso2022JpCodec {
   declare decodeTable: Uint16Array
   declare encodeTable: Uint16Array
 
-  constructor (codecOptions: CodecOptions, iconv: WebIconv) {
-    // pointer -> code point (0 = unassigned). Pointer is (row * 94 + cell), both 0-based.
-    this.decodeTable = new Uint16Array(JIS0208_SIZE)
+  constructor () {
     // code point -> pointer + 1 (0 = not in JIS X 0208). The first pointer wins, as in WHATWG.
     this.encodeTable = new Uint16Array(0x10000)
 
-    const eucjp = iconv.getCodec("eucjp") as InstanceType<typeof DBCSCodec>
-    const root = eucjp.decodeTables[0]
-    for (let row = 0; row < 94; row++) {
-      const ref = root[0xa1 + row]
-      if (ref > DBCS_NODE_START) { continue } // Not a lead byte in EUC-JP.
-      const node = eucjp.decodeTables[DBCS_NODE_START - ref]
-      for (let cell = 0; cell < 94; cell++) {
-        const codePoint = node[0xa1 + cell]
-        if (codePoint <= 0 || codePoint > 0xffff) { continue }
-        const pointer = row * 94 + cell
-        this.decodeTable[pointer] = codePoint
-        if (this.encodeTable[codePoint] === 0) { this.encodeTable[codePoint] = pointer + 1 }
-      }
+    // pointer -> code point (0 = unassigned), shared with EUC-JP.
+    this.decodeTable = getJis0208()
+    for (let pointer = 0; pointer < this.decodeTable.length; pointer++) {
+      const codePoint = this.decodeTable[pointer]
+      if (codePoint && this.encodeTable[codePoint] === 0) this.encodeTable[codePoint] = pointer + 1
     }
   }
 

@@ -1,6 +1,6 @@
 import type { Backend, WebIconv, EncodeOptions, DecodeOptions } from "../lib/iconv.js"
 import { EncodingHandler, EncodingBuffer, getDefaultCharByte } from "../lib/encoding-handler.js"
-import { getDefaultCharUnicode, replaceDecodeErrors } from "../lib/decoding.js"
+import { getDefaultCharUnicode, replaceDecodeErrors, asciiPrefixLength } from "../lib/decoding.js"
 import { forEachVlqRun } from "./vlq-runs.js"
 
 // Multibyte codec. In this scheme, a character is represented by 1 or more bytes.
@@ -892,17 +892,6 @@ class DBCSDecoder {
     this.nodeIdx = 0
     return ret
   }
-}
-
-// Reject mixed blocks early; the byte view may have a nonzero offset.
-function asciiPrefixLength (bytes: Uint8Array) {
-  let i = 0
-  for (; i + 7 < bytes.length; i += 8) {
-    if ((bytes[i] | bytes[i + 1] | bytes[i + 2] | bytes[i + 3] |
-      bytes[i + 4] | bytes[i + 5] | bytes[i + 6] | bytes[i + 7]) & 0x80) break
-  }
-  for (; i < bytes.length; i++) if (bytes[i] & 0x80) return i
-  return bytes.length
 }
 
 // Binary search for GB18030. Returns largest i such that table[i] <= val.

@@ -121,18 +121,9 @@ async function generate () {
 
   writeVlqTable("shiftjis", shiftjis)
 
-  // Fill out EUC-JP table according to http://encoding.spec.whatwg.org/#euc-jp
-  const eucJp: Record<number, number> = {}
-  for (let i = 0; i < 0x80; i++) { eucJp[i] = i }
-  for (let i = 0xA1; i <= 0xDF; i++) { eucJp[(0x8E << 8) + i] = 0xFF61 + i - 0xA1 }
-  for (let i = 0xA1; i <= 0xFE; i++) {
-    for (let j = 0xA1; j <= 0xFE; j++) {
-      eucJp[(i << 8) + j] = data.$jis0208[(i - 0xA1) * 94 + (j - 0xA1)]
-      eucJp[(0x8F << 16) + (i << 8) + j] = data.$jis0212[(i - 0xA1) * 94 + (j - 0xA1)]
-    }
-  }
-
-  writeVlqTable("eucjp", eucJp)
+  // EUC-JP and ISO-2022-JP reuse Shift_JIS for JIS X 0208. Only the supplementary
+  // plane needs its own payload, addressed by index pointer rather than EUC bytes.
+  writeVlqTable("jis0212", data.$jis0212)
 
   // Fill out EUC-KR Table and check that it is the same as cp949.
   const eucKr: Record<number, number> = {}

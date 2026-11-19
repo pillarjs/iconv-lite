@@ -85,6 +85,13 @@ describe("External encodings", function () {
     expect(Array.from(iconv.encode("A", "override"))).toStrictEqual([65])
   })
 
+  it("does not expose a cached internal codec key as an encoding label", function () {
+    iconv.addEncoding({ _sbcs: DelegatingCodec, custom: "_sbcs" }, { replace: true })
+    expect(Array.from(iconv.encode("A", "custom"))).toStrictEqual([65])
+    expect(iconv.encodingExists("_sbcs")).toBe(false)
+    expect(() => iconv.getCodec("_sbcs")).toThrowError(/not recognized/)
+  })
+
   it("copies definition objects and ignores inherited registry entries", function () {
     const variant = { type: "custom", encoding: "utf16be" }
     const definitions = Object.assign(Object.create({ inherited: "utf8" }), { custom: DelegatingCodec, variant })

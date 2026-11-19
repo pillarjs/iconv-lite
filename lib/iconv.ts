@@ -193,6 +193,12 @@ export default class Iconv<Bytes extends Uint8Array = Uint8Array> {
       this.encodings = getEncodings()
     }
 
+    // Canonical labels already in the cache need no normalization on each call.
+    if (typeof encoding === "string") {
+      const exact = this._codecDataCache[encoding]
+      if (exact && /^[a-z0-9]+$/.test(encoding)) return exact
+    }
+
     // Canonicalize encoding name: strip all non-alphanumeric chars and appended year.
     let enc = canonicalizeEncoding(encoding)
     const cached = this._codecDataCache[enc]
