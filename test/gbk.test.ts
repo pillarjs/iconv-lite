@@ -2,6 +2,7 @@ import type { _dbcs as DBCSCodec } from "../encodings/dbcs-codec.js"
 import { expect } from "vitest"
 import Iconv from "../lib/iconv.js"
 import utils from "./helpers/utils.js"
+import encoderTable from "./helpers/gb18030-encoder-table.js"
 const iconv = utils.requireIconv()
 
 const testString = "中国abc" // unicode contains GBK-code and ascii
@@ -114,16 +115,42 @@ describe("GBK tests", function () {
     expect(iconv.decode(utils.bytes("81 35 f4 37"), "GBK")).toBe("\uE7C7")
   })
 
-  it("GBK applies the GB18030 encoder table to private-use characters", function () {
-    // https://encoding.spec.whatwg.org/#gb18030-encoder
-    const text = "\uE78D\uE796\uE81E\uE82C\uE864"
-    const expected = "a6 d9 a6 f3 fe 59 fe 67 fe a0"
-    for (const encoding of ["GBK", "x-gbk", "iso-ir-58"]) {
-      expect(utils.hex(iconv.encode(text, encoding)), encoding).toBe(expected)
-      expect(utils.hex(iconv.encode(text, encoding, {
-        invalidCharHandler () { throw new Error("representable character") }
-      })), encoding).toBe(expected)
-    }
+  for (const useHandler of [false, true]) {
+    it(`GBK applies all 18 private-use mappings ${useHandler ? "with" : "without"} a handler`, function () {
+      const options = useHandler
+        ? { invalidCharHandler () { throw new Error("representable character") } }
+        : undefined
+      for (const encoding of ["GBK", "x-gbk", "iso-ir-58"]) {
+        for (const [char, expected] of encoderTable) {
+          expect(utils.hex(iconv.encode(char, encoding, options)), `${encoding} ${utils.strToHex(char)}`).toBe(expected)
+        }
+      }
+    })
+
+    it(`GBK preserves private-use mappings and errors across every split ${useHandler ? "with" : "without"} a handler`, function () {
+      const text = "A😱" + encoderTable.map(([char]) => char).join("") + "\uE5E5\uD800B\uDC00\uD800"
+      const expected = "41 3f " + encoderTable.map(([, hex]) => hex).join(" ") + " 3f 3f 42 3f 3f"
+
+      function encodeChunks (chunks: string[]) {
+        const calls: string[] = []
+        const options = useHandler ? { invalidCharHandler (char: string) { calls.push(char) } } : undefined
+        const encoder = iconv.getEncoder("gbk", options)
+        const output = chunks.map(chunk => encoder.write(chunk))
+        const tail = encoder.end()
+        if (tail) output.push(tail)
+        expect(encoder.end()).toBe(undefined)
+        if (useHandler) expect(calls).toStrictEqual(["😱", "\uE5E5", "\uD800", "\uDC00", "\uD800"])
+        return utils.hex(utils.concatBufs(output))
+      }
+
+      for (let split = 0; split <= text.length; split++) {
+        expect(encodeChunks([text.slice(0, split), "", text.slice(split)]), `split ${split}`).toBe(expected)
+      }
+      expect(encodeChunks(text.split(""))).toBe(expected)
+    })
+  }
+
+  it("GBK keeps U+E5E5 unencodable and private-use mappings asymmetric", function () {
     expect(utils.hex(iconv.encode("\uE5E5", "GBK"))).toBe("3f")
     expect(iconv.decode(utils.bytes("a6 d9 fe 67"), "GBK")).toBe("\uFE10\u9FB7")
   })
