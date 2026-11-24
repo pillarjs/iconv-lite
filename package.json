@@ -97,6 +97,7 @@
             "types": "./dist/lib/index-web.d.ts",
             "default": "./dist/lib/index-web.js"
         },
-        "./encodings/*.js": "./dist/encodings/*.js"
+        "./encodings/*.js": "./dist/encodings/*.js",
+        "./package.json": "./package.json"
     }
 }
